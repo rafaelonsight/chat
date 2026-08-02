@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+
+    'evolution' => [
+        'url' => env('EVOLUTION_BASE_URL', 'http://127.0.0.1:8081'),
+        'key' => env('EVOLUTION_API_KEY'),
+    ],
+
 ];
