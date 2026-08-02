@@ -450,7 +450,8 @@ Schema::create('channels', function (Blueprint $table) {
     $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
     $table->string('tipo')->default('evolution');
     $table->string('nome');
-    $table->string('instance_name')->unique();
+    // nullable: so pode ser montado depois que o id existe (ver model)
+    $table->string('instance_name')->nullable()->unique();
     $table->string('webhook_secret', 64);
     $table->string('telefone_e164')->nullable();
     $table->string('status')->default('desconectado');
@@ -517,8 +518,6 @@ class Channel extends Model
     }
 }
 ```
-
-`instance_name` é `unique` e não-nulo na migration, mas só pode ser montado depois do `id`. Ajustar a migration para `->nullable()` no `instance_name` e manter o `unique`.
 
 - [ ] **Passo 8: migrar e commitar**
 
@@ -1198,12 +1197,72 @@ Broadcast::channel('tenant.{tenantId}.conversations', function (User $user, int 
 });
 ```
 
-- [ ] **Passo 9: rodar testes**
+- [ ] **Passo 9: teste da autorização dos canais**
+
+O spec trata isso como inegociável: sem ele, o tempo real vira o vazamento entre
+tenants que o escopo global evitou no banco.
+
+`tests/Feature/CanaisBroadcastTest.php`:
+
+```php
+<?php
+
+use App\Models\{Channel, Contact, Conversation, Tenant, User};
+use App\Support\TenantContext;
+
+function tenantCom(string $slug): array
+{
+    $t = Tenant::create(['nome' => strtoupper($slug), 'slug' => $slug]);
+    TenantContext::set($t->id);
+    $u = User::create(['tenant_id' => $t->id, 'name' => 'U', 'email' => "u@{$slug}.test", 'password' => 'segredo123']);
+    $c = Channel::create(['tenant_id' => $t->id, 'nome' => 'C']);
+    $c->refresh();
+    $ct = Contact::create(['tenant_id' => $t->id, 'telefone_e164' => '+5511999998888']);
+    $cv = Conversation::create(['tenant_id' => $t->id, 'channel_id' => $c->id, 'contact_id' => $ct->id]);
+
+    return [$t, $u, $cv];
+}
+
+it('autoriza o dono da conversa e nega o de outro tenant', function () {
+    [, $uA, $cvA] = tenantCom('aa');
+    [, $uB] = tenantCom('bb');
+
+    $autorizar = fn (User $u, int $id) => $this->actingAs($u)
+        ->postJson('/broadcasting/auth', [
+            'socket_id'    => '1234.5678',
+            'channel_name' => 'private-conversation.'.$id,
+        ]);
+
+    $autorizar($uA, $cvA->id)->assertOk();
+    $autorizar($uB, $cvA->id)->assertForbidden();
+});
+
+it('nega o canal de lista de outro tenant', function () {
+    [$tA, $uA] = tenantCom('cc');
+    [$tB] = tenantCom('dd');
+
+    $this->actingAs($uA)->postJson('/broadcasting/auth', [
+        'socket_id'    => '1234.5678',
+        'channel_name' => 'private-tenant.'.$tB->id.'.conversations',
+    ])->assertForbidden();
+
+    $this->actingAs($uA)->postJson('/broadcasting/auth', [
+        'socket_id'    => '1234.5678',
+        'channel_name' => 'private-tenant.'.$tA->id.'.conversations',
+    ])->assertOk();
+});
+```
+
+Para a rota `/broadcasting/auth` existir, garantir que `bootstrap/app.php` tenha
+`->withBroadcasting()` ou que `routes/channels.php` esteja registrado — o
+`install:broadcasting` do Laravel já faz isso; confirmar antes de rodar.
+
+- [ ] **Passo 10: rodar testes**
 
 Run: `su - onchat -c "cd /opt/onchat/app && php artisan test"`
 Esperado: tudo passando (o `QUEUE_CONNECTION=sync` do phpunit faz o job rodar no mesmo request).
 
-- [ ] **Passo 10: commit**
+- [ ] **Passo 11: commit**
 
 ```bash
 su - onchat -c "cd /opt/onchat/app && git add -A && git commit -m 'Adiciona recebimento de mensagens por webhook'"
