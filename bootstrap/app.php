@@ -13,6 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // A Evolution nao envia token CSRF; a autenticidade vem do segredo na URL.
+        $middleware->validateCsrfTokens(except: ['webhooks/*']);
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
