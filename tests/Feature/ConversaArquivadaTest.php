@@ -117,7 +117,7 @@ it('o botao Nova conversa cria outra quando a unica existente esta arquivada', f
 
     Livewire::actingAs($u)
         ->test(NewConversation::class)
-        ->set('numero', '+5584996143373')
+        ->set('termo', '+5584996143373')
         ->call('iniciar')
         ->assertHasNoErrors();
 
@@ -137,7 +137,7 @@ it('o botao Nova conversa reaproveita a conversa aberta', function () {
 
     Livewire::actingAs($u)
         ->test(NewConversation::class)
-        ->set('numero', '+5584996143373')
+        ->set('termo', '+5584996143373')
         ->call('iniciar')
         ->assertHasNoErrors();
 

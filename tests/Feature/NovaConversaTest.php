@@ -36,7 +36,7 @@ it('cria contato e conversa usando o jid que a Evolution devolve', function () {
 
     Livewire::actingAs($u)
         ->test(NewConversation::class)
-        ->set('numero', '(84) 9614-3373')
+        ->set('termo', '(84) 9614-3373')
         ->call('iniciar')
         ->assertHasNoErrors();
 
@@ -57,9 +57,9 @@ it('recusa numero que nao existe no WhatsApp', function () {
 
     Livewire::actingAs($u)
         ->test(NewConversation::class)
-        ->set('numero', '84 99999-9999')
+        ->set('termo', '84 99999-9999')
         ->call('iniciar')
-        ->assertHasErrors('numero');
+        ->assertHasErrors('termo');
 
     expect(Contact::count())->toBe(0)
         ->and(Conversation::count())->toBe(0);
@@ -72,9 +72,9 @@ it('recusa numero mal formatado sem nem chamar a Evolution', function () {
 
     Livewire::actingAs($u)
         ->test(NewConversation::class)
-        ->set('numero', '123')
+        ->set('termo', '123')
         ->call('iniciar')
-        ->assertHasErrors('numero');
+        ->assertHasErrors('termo');
 
     Http::assertNothingSent();
 });
@@ -92,7 +92,7 @@ it('reaproveita a conversa quando o contato ja existe', function () {
 
     Livewire::actingAs($u)
         ->test(NewConversation::class)
-        ->set('numero', '+5584996143373')
+        ->set('termo', '+5584996143373')
         ->call('iniciar')
         ->assertHasNoErrors();
 
@@ -112,7 +112,7 @@ it('envia a primeira mensagem quando informada', function () {
 
     Livewire::actingAs($u)
         ->test(NewConversation::class)
-        ->set('numero', '+5584996143373')
+        ->set('termo', '+5584996143373')
         ->set('primeiraMensagem', 'ola, tudo bem?')
         ->call('iniciar')
         ->assertHasNoErrors();
@@ -136,9 +136,9 @@ it('exige um canal conectado', function () {
 
     Livewire::actingAs($u)
         ->test(NewConversation::class)
-        ->set('numero', '+5584996143373')
+        ->set('termo', '+5584996143373')
         ->call('iniciar')
-        ->assertHasErrors('numero');
+        ->assertHasErrors('termo');
 
     Http::assertNothingSent();
 });
@@ -154,7 +154,7 @@ it('a lista passa a mostrar a conversa criada pelo botao', function () {
 
     Livewire::actingAs($u)
         ->test(NewConversation::class)
-        ->set('numero', '+5584996143373')
+        ->set('termo', '+5584996143373')
         ->call('iniciar')
         ->assertDispatched('abrir-conversa');
 
