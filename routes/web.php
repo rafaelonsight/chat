@@ -2,10 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return view('welcome');
-});
-
 use App\Http\Controllers\EvolutionWebhookController;
 
 Route::post('/webhooks/evolution/{channel}/{secret}', EvolutionWebhookController::class)
@@ -15,8 +11,13 @@ Route::post('/webhooks/evolution/{channel}/{secret}', EvolutionWebhookController
 // porque o middleware 'auth' redireciona para a rota chamada 'login'.
 Route::get('/login', fn () => redirect('/admin/login'))->name('login');
 
-Route::view('/inbox', 'inbox')->middleware('auth')->name('inbox');
-
 Route::get('/media/{message}', App\Http\Controllers\MediaController::class)
     ->middleware('auth')
     ->name('media.show');
+
+// A raiz e a porta de entrada: sem sessao o Filament mostra o login, com sessao
+// cai direto no Atendimento.
+Route::redirect('/', '/admin');
+
+// O inbox virou pagina do painel; a rota antiga continua valendo.
+Route::redirect('/inbox', '/admin');
