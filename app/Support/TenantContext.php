@@ -8,6 +8,12 @@ class TenantContext
 {
     private const KEY = 'onchat.tenant_id';
 
+    // Trava de reentrancia. Sem ela: o guard resolve o usuario consultando a
+    // tabela users, essa consulta dispara o escopo global de tenant, o escopo
+    // chama get(), get() chama auth()->user(), o guard ainda nao resolveu e
+    // consulta users de novo — recursao infinita ate estourar a memoria.
+    private static bool $resolvendoUsuario = false;
+
     public static function set(?int $id): void
     {
         app()->instance(self::KEY, $id);
@@ -19,12 +25,26 @@ class TenantContext
             return app(self::KEY);
         }
 
-        return auth()->user()?->tenant_id;
+        // Enquanto o proprio usuario autenticado esta sendo carregado, o escopo
+        // de tenant fica desligado. E seguro: a busca e por chave primaria vinda
+        // da sessao assinada, nao um filtro que poderia vazar outro tenant.
+        if (self::$resolvendoUsuario) {
+            return null;
+        }
+
+        self::$resolvendoUsuario = true;
+
+        try {
+            return auth()->user()?->tenant_id;
+        } finally {
+            self::$resolvendoUsuario = false;
+        }
     }
 
     public static function forget(): void
     {
         app()->forgetInstance(self::KEY);
+        self::$resolvendoUsuario = false;
     }
 
     // Executa o callback sob outro tenant e devolve o contexto anterior no fim,
