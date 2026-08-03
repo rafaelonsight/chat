@@ -41,6 +41,7 @@ class AdminPanelProvider extends PanelProvider
             ->navigationGroups([
                 'CRM',
                 'Relatórios',
+                'Aplicações',
                 'Configurações',
             ])
             // Item sem URL, so para agrupar: o Filament o mantem porque tem
