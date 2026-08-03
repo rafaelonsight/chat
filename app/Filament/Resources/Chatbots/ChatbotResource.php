@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Chatbots;
 
 use App\Filament\Resources\Chatbots\Pages\CreateChatbot;
 use App\Filament\Resources\Chatbots\Pages\EditChatbot;
+use App\Filament\Resources\Chatbots\Pages\EditarFluxo;
 use App\Filament\Resources\Chatbots\Pages\ListChatbots;
 use App\Filament\Resources\Chatbots\RelationManagers\NodesRelationManager;
 use App\Filament\Resources\Chatbots\Schemas\ChatbotForm;
@@ -62,6 +63,7 @@ class ChatbotResource extends Resource
             'index'  => ListChatbots::route('/'),
             'create' => CreateChatbot::route('/create'),
             'edit'   => EditChatbot::route('/{record}/edit'),
+            'fluxo'  => EditarFluxo::route('/{record}/fluxo'),
         ];
     }
 }
