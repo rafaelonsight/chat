@@ -15,4 +15,9 @@ class Contact extends Model
     {
         return $this->nome ?: $this->telefone_e164;
     }
+
+    public function conversations(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Conversation::class);
+    }
 }
