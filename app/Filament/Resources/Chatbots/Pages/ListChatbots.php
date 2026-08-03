@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Chatbots\Pages;
 
 use App\Filament\Resources\Chatbots\ChatbotResource;
 use App\Models\Chatbot;
+use App\Services\ChatbotFluxo;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
 use Filament\Notifications\Notification;
@@ -27,15 +28,25 @@ class ListChatbots extends ListRecords
                 ->requiresConfirmation()
                 ->modalDescription('Cria um fluxo de provedor já montado (Financeiro, Suporte com submenu, Horário), desativado, para você editar.')
                 ->action(function () {
-                    $bot = Chatbot::criarExemplo();
+                    // O exemplo tem que nascer no formato que o motor percorre.
+                    // Antes montava a arvore antiga, que virou codigo morto.
+                    $bot = Chatbot::create([
+                        'nome'                  => 'Recepção',
+                        'ativo'                 => false,
+                        'mensagem_nao_entendi'  => 'Não entendi. Escolha uma das opções:',
+                        'mensagem_transferindo' => 'Um momento, já vou te encaminhar.',
+                        'mensagem_boas_vindas'  => 'Olá!',
+                    ]);
+
+                    app(ChatbotFluxo::class)->criarExemplo($bot);
 
                     Notification::make()
                         ->success()
                         ->title('Fluxo de exemplo criado')
-                        ->body('Está desativado. Edite os textos e ative quando quiser usar.')
+                        ->body('Está em rascunho e desativado. Ajuste os textos, ligue as pontas e publique.')
                         ->send();
 
-                    return redirect(ChatbotResource::getUrl('edit', ['record' => $bot]));
+                    return redirect(ChatbotResource::getUrl('fluxo', ['record' => $bot]));
                 }),
         ];
     }

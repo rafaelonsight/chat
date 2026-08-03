@@ -6,7 +6,7 @@ use App\Events\MessageStored;
 use App\Models\{Channel, Contact, Conversation, Message, Tenant, WebhookEvent};
 use App\Services\EvolutionService;
 use App\Services\BusinessHours;
-use App\Services\ChatbotEngine;
+use App\Services\ChatbotMotor;
 use App\Services\MediaService;
 use App\Support\{Jid, Marcadores, PhoneNumber, TenantContext};
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -133,7 +133,7 @@ class ProcessEvolutionWebhook implements ShouldQueue
             // O bot tem a primeira palavra. Se ele atendeu, a resposta automatica
             // de fora do horario fica calada: duas mensagens de robo seguidas e a
             // pior experiencia possivel, e o bot tem aviso proprio de horario.
-            if (! app(ChatbotEngine::class)->talvezAtender($canal, $mensagem)) {
+            if (! app(ChatbotMotor::class)->talvezAtender($canal, $mensagem)) {
                 $this->talvezResponderAutomaticamente($canal, $mensagem);
             }
         }

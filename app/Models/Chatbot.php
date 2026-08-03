@@ -178,6 +178,19 @@ class Chatbot extends Model
 
     // Bot do canal tem prioridade sobre o bot geral da conta: provedor com um
     // numero de suporte e outro comercial precisa de arvores diferentes.
+    /**
+     * O que atende de verdade: ativo E publicado. Rascunho existe para poder mexer
+     * no fluxo sem afetar quem esta conversando agora — se rascunho atendesse, o
+     * cliente pegaria o fluxo pela metade durante a edicao.
+     */
+    public static function publicadoPara(Channel $canal): ?self
+    {
+        $doCanal = static::where('ativo', true)->where('status', self::PUBLICADO);
+
+        return (clone $doCanal)->where('channel_id', $canal->id)->first()
+            ?? $doCanal->whereNull('channel_id')->first();
+    }
+
     public static function ativoPara(Channel $canal): ?self
     {
         return static::where('ativo', true)->where('channel_id', $canal->id)->first()
