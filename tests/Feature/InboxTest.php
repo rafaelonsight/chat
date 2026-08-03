@@ -23,14 +23,19 @@ function cenario(string $slug): array
 
 afterEach(fn () => TenantContext::forget());
 
-it('exige autenticacao no inbox', function () {
-    $this->get('/inbox')->assertRedirect('/login');
+// O inbox virou a home do painel; /inbox continua valendo por redirecionamento.
+it('a rota antiga do inbox redireciona para o painel', function () {
+    $this->get('/inbox')->assertRedirect('/admin');
 });
 
-it('abre o inbox para quem esta logado', function () {
+it('o painel exige autenticacao', function () {
+    $this->get('/admin')->assertRedirect('/admin/login');
+});
+
+it('abre o atendimento para quem esta logado', function () {
     [, $u] = cenario('aa');
 
-    $this->actingAs($u)->get('/inbox')->assertOk();
+    $this->actingAs($u)->get('/admin')->assertOk();
 });
 
 it('lista apenas conversas do proprio tenant', function () {

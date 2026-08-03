@@ -4,7 +4,7 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Support\TenantContext;
 
-it('renderiza o inbox com o usuario carregado da sessao', function () {
+it('renderiza o atendimento com o usuario carregado da sessao', function () {
     $t = Tenant::create(['nome' => 'T', 'slug' => 'ibx']);
     TenantContext::set($t->id);
     $u = User::create(['tenant_id' => $t->id, 'name' => 'U', 'email' => 'ibx@t.test', 'password' => 'segredo123']);
@@ -14,7 +14,7 @@ it('renderiza o inbox com o usuario carregado da sessao', function () {
 
     $this->withoutExceptionHandling();
     $this->withSession([$chave => $u->id])
-        ->get('/inbox')
+        ->get('/admin')
         ->assertSuccessful()
         ->assertSee('Conversas');
 });

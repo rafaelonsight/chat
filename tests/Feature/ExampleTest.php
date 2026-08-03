@@ -2,18 +2,26 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
     /**
-     * A basic test example.
+     * A raiz do dominio e a porta de entrada do OnChat: leva ao painel, que
+     * mostra o login quando nao ha sessao.
      */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_a_raiz_leva_ao_painel(): void
     {
-        $response = $this->get('/');
+        $this->get('/')->assertRedirect('/admin');
+    }
 
-        $response->assertStatus(200);
+    public function test_o_painel_pede_login(): void
+    {
+        $this->get('/admin')->assertRedirect('/admin/login');
+    }
+
+    public function test_a_tela_de_login_abre(): void
+    {
+        $this->get('/admin/login')->assertOk();
     }
 }
