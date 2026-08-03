@@ -32,6 +32,13 @@ class Contact extends Model
     }
 
 
+    public function tags(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class)
+            ->withPivot(['origem', 'aplicado_por'])
+            ->orderBy('tags.nome');
+    }
+
     public function conversations(): HasMany
     {
         return $this->hasMany(Conversation::class);

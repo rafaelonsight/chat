@@ -92,13 +92,6 @@
             </div>
         @endif
 
-        {{-- aviso do modo ligar: sem isto o usuario clica numa saida e nao entende
-             por que o cursor mudou --}}
-        <div x-show="ligando" x-cloak
-             class="flex items-center gap-2 rounded-lg border border-primary-300 bg-primary-50 px-3 py-2 text-xs text-primary-900 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-200">
-            <span>Agora clique no grupo que deve receber essa saída.</span>
-            <button type="button" x-on:click="cancelarLigacao()" class="font-medium underline">cancelar (Esc)</button>
-        </div>
 
         <div class="flex gap-3">
             {{-- ------------------------------------------------------------ canvas --}}
@@ -157,14 +150,19 @@
                             data-step="{{ $passo['id'] }}"
                             data-x="{{ $passo['x'] }}"
                             data-y="{{ $passo['y'] }}"
-                            x-on:pointerup.stop="alvoClicado({{ $passo['id'] }})"
+                            {{-- sem .stop: stopPropagation aqui impedia o pointerup de
+                                 chegar no window e o arraste nunca terminava --}}
+                            x-on:pointerup="alvoClicado({{ $passo['id'] }})"
                             @class([
                                 'absolute w-72 select-none rounded-xl bg-white shadow-sm ring-1 transition-shadow dark:bg-gray-900',
                                 'ring-amber-300 dark:ring-amber-500/40' => $passo['inicio'],
                                 'ring-gray-200 dark:ring-white/10' => ! $passo['inicio'],
                             ])
                             style="left: {{ $passo['x'] }}px; top: {{ $passo['y'] }}px"
-                            x-bind:class="{ 'ring-2 ring-primary-500 shadow-lg': ligando && ligando.de !== {{ $passo['id'] }} }"
+                            x-bind:class="{
+                                'ring-2 ring-primary-400': ligando && ligando.de !== {{ $passo['id'] }} && sobreCartao !== {{ $passo['id'] }},
+                                'ring-2 ring-primary-600 shadow-lg': sobreCartao === {{ $passo['id'] }} && ligando && ligando.de !== {{ $passo['id'] }},
+                            }"
                         >
                             {{-- cabecalho: e por aqui que se arrasta --}}
                             <div
@@ -182,8 +180,29 @@
                                     <x-filament::icon icon="heroicon-m-rectangle-stack" class="h-4 w-4 shrink-0 text-gray-400" />
                                 @endif
 
-                                <span class="flex-1 truncate text-sm font-medium text-gray-800 dark:text-gray-100">
-                                    {{ $passo['nome'] }}
+                                {{-- Nome editavel: clicar abre, Enter ou sair salva.
+                                     pointerdown.stop porque o cabecalho e a alca de
+                                     arraste — sem isso, clicar no nome comecaria a
+                                     arrastar em vez de editar. O resto do cabecalho
+                                     continua arrastando. --}}
+                                <span class="min-w-0 flex-1"
+                                      x-data="{ editando: false, valor: @js($passo['nome']) }"
+                                      x-on:pointerdown.stop>
+                                    <button type="button"
+                                            x-show="! editando"
+                                            x-on:click="editando = true; $nextTick(() => $refs.campo.select())"
+                                            class="block w-full truncate text-left text-sm font-medium text-gray-800 hover:text-primary-600 dark:text-gray-100 dark:hover:text-primary-400"
+                                            :title="valor + ' — clique para renomear'">
+                                        <span x-text="valor"></span>
+                                    </button>
+
+                                    <input x-ref="campo" x-cloak x-show="editando" type="text"
+                                           x-model="valor"
+                                           maxlength="60"
+                                           x-on:keydown.enter.prevent="$refs.campo.blur()"
+                                           x-on:keydown.escape.prevent="valor = @js($passo['nome']); editando = false"
+                                           x-on:blur="editando = false; if (valor.trim() !== '' && valor !== @js($passo['nome'])) { $wire.renomearPasso({{ $passo['id'] }}, valor.trim()) } else { valor = valor.trim() || @js($passo['nome']) }"
+                                           class="w-full rounded border border-primary-300 bg-white px-1.5 py-0.5 text-sm font-medium text-gray-800 dark:border-primary-500/40 dark:bg-gray-800 dark:text-gray-100">
                                 </span>
 
                                 @unless ($passo['inicio'])
@@ -271,21 +290,29 @@
                                             @endif
 
                                             <button type="button"
-                                                    x-on:pointerdown.stop
-                                                    x-on:click="armarLigacao({{ $passo['id'] }}, '{{ $h['handle'] }}')"
+                                                    x-on:pointerdown.stop.prevent="puxarLigacao($event, {{ $passo['id'] }}, '{{ $h['handle'] }}')"
                                                     @class([
-                                                        'h-3 w-3 shrink-0 rounded-full ring-2 ring-white transition dark:ring-gray-900',
+                                                        'h-3.5 w-3.5 shrink-0 cursor-crosshair rounded-full ring-2 ring-white transition hover:scale-125 dark:ring-gray-900',
                                                         'bg-primary-500' => $ligado,
                                                         'bg-gray-300 hover:bg-primary-400 dark:bg-gray-600' => ! $ligado,
                                                     ])
                                                     x-bind:class="{ 'scale-125 bg-primary-600': ligando && ligando.de === {{ $passo['id'] }} && ligando.handle === '{{ $h['handle'] }}' }"
-                                                    :aria-label="'{{ $h['rotulo'] ?? 'seguir' }}: escolher destino'"></button>
+                                                    title="Arraste até o grupo de destino"
+                                                    aria-label="{{ $h['rotulo'] ?? 'seguir' }}: arraste até o destino"></button>
                                         </div>
                                     @endforeach
                                 </div>
                             @endif
                         </div>
                     @endforeach
+                </div>
+
+                {{-- Aviso SOBREPOSTO, nao empilhado: se ele empurrasse o layout, os
+                     cartoes desceriam no meio do gesto e o cursor erraria o alvo. --}}
+                <div x-show="ligando" x-cloak
+                     class="pointer-events-auto absolute left-1/2 top-3 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full border border-primary-300 bg-white/95 px-3 py-1.5 text-xs text-primary-900 shadow-lg backdrop-blur dark:border-primary-500/40 dark:bg-gray-900/95 dark:text-primary-200">
+                    <span x-text="puxando ? 'Solte sobre o grupo de destino' : 'Clique no grupo de destino'"></span>
+                    <button type="button" x-on:click="cancelarLigacao()" class="font-medium underline">cancelar</button>
                 </div>
 
                 {{-- vazio --}}
@@ -329,6 +356,8 @@
             pan: { x: 40, y: 20 },
             linhas: {},
             ligando: null,
+            puxando: false,
+            sobreCartao: null,
             fantasma: '',
             desenho,
 
@@ -408,8 +437,11 @@
                 const mover = (ev) => {
                     // Divide pela escala: com zoom em 50%, mover 10px na tela deve
                     // mover 20px no mundo, senao o cartao "escapa" do cursor.
-                    const nx = Math.round(origX + (ev.clientX - iniX) / this.escala);
-                    const ny = Math.round(origY + (ev.clientY - iniY) / this.escala);
+                    // Nunca abaixo de zero: coordenada negativa joga o cartao acima e
+                    // a esquerda da area visivel, onde nao da para clicar nele nem na
+                    // bolinha de ligar. Foi assim que os blocos "desapareceram".
+                    const nx = Math.max(0, Math.round(origX + (ev.clientX - iniX) / this.escala));
+                    const ny = Math.max(0, Math.round(origY + (ev.clientY - iniY) / this.escala));
 
                     if (Math.abs(nx - origX) > 2 || Math.abs(ny - origY) > 2) moveu = true;
 
@@ -421,16 +453,21 @@
                 };
 
                 const soltar = () => {
-                    window.removeEventListener('pointermove', mover);
-                    window.removeEventListener('pointerup', soltar);
+                    window.removeEventListener('pointermove', mover, true);
+                    window.removeEventListener('pointerup', soltar, true);
+                    window.removeEventListener('pointercancel', soltar, true);
 
                     if (moveu) {
                         $wire.moverPasso(id, parseInt(cartao.dataset.x), parseInt(cartao.dataset.y));
                     }
                 };
 
-                window.addEventListener('pointermove', mover);
-                window.addEventListener('pointerup', soltar);
+                // Fase de captura (true): window recebe ANTES do alvo, entao nenhum
+                // stopPropagation no caminho consegue engolir o fim do arraste.
+                // pointercancel cobre o gesto abortado pelo navegador.
+                window.addEventListener('pointermove', mover, true);
+                window.addEventListener('pointerup', soltar, true);
+                window.addEventListener('pointercancel', soltar, true);
             },
 
             // -------------------------------------------------------------------- pan
@@ -447,12 +484,14 @@
                     this.pan = { x: origem.x + (ev.clientX - iniX), y: origem.y + (ev.clientY - iniY) };
                 };
                 const soltar = () => {
-                    window.removeEventListener('pointermove', mover);
-                    window.removeEventListener('pointerup', soltar);
+                    window.removeEventListener('pointermove', mover, true);
+                    window.removeEventListener('pointerup', soltar, true);
+                    window.removeEventListener('pointercancel', soltar, true);
                 };
 
-                window.addEventListener('pointermove', mover);
-                window.addEventListener('pointerup', soltar);
+                window.addEventListener('pointermove', mover, true);
+                window.addEventListener('pointerup', soltar, true);
+                window.addEventListener('pointercancel', soltar, true);
             },
 
             rolar(e) {
@@ -489,9 +528,97 @@
 
             // ---------------------------------------------------------------- ligacao
 
-            armarLigacao(de, handle) {
+            /**
+             * Puxa a linha com o mouse — o gesto que todo construtor de fluxo usa.
+             *
+             * Se soltar sem mover (um clique), a ligacao FICA armada e da para clicar
+             * no destino. Arrastar e o caminho natural; clicar continua sendo o atalho
+             * para tela de toque, mao tremida ou zoom muito reduzido.
+             */
+            puxarLigacao(e, de, handle) {
                 this.ligando = { de, handle };
-                this.fantasma = '';
+                this.puxando = true;
+
+                // A origem sai do proprio botao apertado. Reconsultar por seletor
+                // durante o gesto era fragil e devolvia nada — a linha nascia em 0,0.
+                const bola = e.currentTarget;
+                const cartaoOrigem = bola.closest('[data-step]');
+                const origem = {
+                    x: this.coordX(cartaoOrigem) + cartaoOrigem.offsetWidth,
+                    y: this.coordY(cartaoOrigem) + bola.offsetTop + bola.offsetHeight / 2,
+                };
+
+                let moveu = false;
+
+                const mover = (ev) => {
+                    moveu = true;
+                    const q = this.paraMundo(ev.clientX, ev.clientY);
+                    this.fantasma = this.curva(origem.x, origem.y, q.x, q.y);
+                    this.sobreCartao = this.cartaoEm(ev.clientX, ev.clientY);
+                };
+
+                const soltar = (ev) => {
+                    window.removeEventListener('pointermove', mover, true);
+                    window.removeEventListener('pointerup', soltar, true);
+                    window.removeEventListener('pointercancel', soltar, true);
+
+                    this.puxando = false;
+                    this.fantasma = '';
+                    this.sobreCartao = null;
+
+                    const alvo = this.cartaoEm(ev.clientX, ev.clientY);
+
+                    if (alvo && alvo !== de) {
+                        $wire.ligar(de, handle, alvo);
+                        this.ligando = null;
+
+                        return;
+                    }
+
+                    // Soltou no vazio: se nem chegou a mover, mantem armado para o
+                    // modo clique. Se arrastou e errou, cancela — arrastar para fora
+                    // e a forma natural de desistir.
+                    if (moveu) {
+                        this.ligando = null;
+                    }
+                };
+
+                window.addEventListener('pointermove', mover, true);
+                window.addEventListener('pointerup', soltar, true);
+                window.addEventListener('pointercancel', soltar, true);
+            },
+
+            /** Centro da bolinha daquela saida, em coordenadas do canvas. */
+            pontoDaSaida(de, handle) {
+                const fila = this.$el.querySelector(`[data-handle-row][data-from="${de}"][data-handle="${handle}"]`);
+                const cartao = this.$el.querySelector(`[data-step="${de}"]`);
+
+                if (!fila || !cartao) return { x: 0, y: 0 };
+
+                const bola = fila.querySelector('button:last-child');
+
+                return {
+                    x: this.coordX(cartao) + cartao.offsetWidth,
+                    y: this.coordY(cartao) + (bola ? bola.offsetTop + bola.offsetHeight / 2 : 0),
+                };
+            },
+
+            /** Tela -> canvas, descontando pan e zoom. */
+            paraMundo(clientX, clientY) {
+                const r = this.$refs.viewport.getBoundingClientRect();
+
+                return {
+                    x: (clientX - r.left - this.pan.x) / this.escala,
+                    y: (clientY - r.top - this.pan.y) / this.escala,
+                };
+            },
+
+            /** Qual cartao esta sob o cursor, se houver. */
+            cartaoEm(clientX, clientY) {
+                const el = document.elementFromPoint(clientX, clientY);
+                const cartao = el ? el.closest('[data-step]') : null;
+
+                return cartao ? parseInt(cartao.dataset.step) : null;
             },
 
             cancelarLigacao() {
@@ -516,8 +643,18 @@
             novoPasso() {
                 // Nasce no centro do que esta a vista, nao numa coordenada fixa: com
                 // pan aplicado, coordenada fixa criaria o cartao fora da tela.
-                const x = Math.round((this.$refs.viewport.clientWidth / 2 - this.pan.x) / this.escala) - 144;
-                const y = Math.round((this.$refs.viewport.clientHeight / 2 - this.pan.y) / this.escala) - 60;
+                let x = Math.round((this.$refs.viewport.clientWidth / 2 - this.pan.x) / this.escala) - 144;
+                let y = Math.round((this.$refs.viewport.clientHeight / 2 - this.pan.y) / this.escala) - 60;
+
+                // Desvia enquanto houver cartao no mesmo lugar: dois blocos exatamente
+                // sobrepostos parecem UM, e o de baixo fica invisivel para sempre.
+                const ocupado = (px, py) => [...this.$el.querySelectorAll('[data-step]')]
+                    .some((c) => Math.abs(this.coordX(c) - px) < 40 && Math.abs(this.coordY(c) - py) < 40);
+
+                for (let i = 0; i < 12 && ocupado(x, y); i++) {
+                    x += 48;
+                    y += 48;
+                }
 
                 $wire.criarPasso(Math.max(0, x), Math.max(0, y));
             },

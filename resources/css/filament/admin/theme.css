@@ -4,3 +4,8 @@
 @source '../../../../resources/views/filament/**/*';
 @source '../../../../resources/views/livewire/**/*';
 @source '../../../../app/Livewire/**/*';
+
+/* Varre tudo: classe utilitaria escrita em Model, Service ou componente
+   Blade tambem precisa existir no css. Tailwind 4 decide isso no BUILD. */
+@source '../../../../app/**/*.php';
+@source '../../../../resources/views/**/*.blade.php';

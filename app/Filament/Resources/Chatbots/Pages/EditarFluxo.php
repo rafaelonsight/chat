@@ -48,6 +48,36 @@ class EditarFluxo extends Page
         // Fluxo sem inicio nao roda; criar sob demanda evita que o usuario precise
         // saber que existe um passo especial.
         app(ChatbotFluxo::class)->garantirInicio($this->record);
+
+        $this->trazerParaDentro();
+    }
+
+    /**
+     * Bloco em coordenada negativa fica fora da area visivel, sem jeito de clicar.
+     * Ja aconteceu em producao; aqui o desenho inteiro volta para dentro,
+     * preservando as posicoes relativas.
+     */
+    private function trazerParaDentro(): void
+    {
+        $passos = $this->record->steps()->get();
+
+        if ($passos->isEmpty()) {
+            return;
+        }
+
+        $menorX = (int) $passos->min('x');
+        $menorY = (int) $passos->min('y');
+
+        if ($menorX >= 0 && $menorY >= 0) {
+            return;
+        }
+
+        $dx = $menorX < 0 ? 40 - $menorX : 0;
+        $dy = $menorY < 0 ? 40 - $menorY : 0;
+
+        foreach ($passos as $passo) {
+            $passo->update(['x' => $passo->x + $dx, 'y' => $passo->y + $dy]);
+        }
     }
 
     public function getTitle(): string
@@ -179,7 +209,9 @@ class EditarFluxo extends Page
      */
     public function moverPasso(int $id, int $x, int $y): void
     {
-        $this->passoDo($id)?->update(['x' => $x, 'y' => $y]);
+        // max(0) tambem aqui: o navegador ja limita, mas coordenada negativa
+        // gravada deixa o bloco inalcancavel para sempre.
+        $this->passoDo($id)?->update(['x' => max(0, $x), 'y' => max(0, $y)]);
         $this->skipRender();
     }
 
