@@ -43,6 +43,27 @@
                        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip">
             </label>
 
+            {{-- modelos de mensagem --}}
+            @if ($modelos->isNotEmpty())
+                <div class="relative shrink-0" x-data="{ aberto: false }" x-on:click.outside="aberto = false">
+                    <button type="button" x-on:click="aberto = !aberto" title="Modelos de mensagem"
+                            class="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                        &#9998;
+                    </button>
+                    <div x-show="aberto" x-cloak
+                         class="absolute bottom-full left-0 z-20 mb-1 w-72 max-h-64 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-white/10 dark:bg-gray-800">
+                        @foreach ($modelos as $modelo)
+                            <button type="button" wire:key="mod-{{ $modelo->id }}"
+                                    wire:click="usarModelo({{ $modelo->id }})" x-on:click="aberto = false"
+                                    class="block w-full rounded-lg px-2 py-2 text-left hover:bg-gray-50 dark:hover:bg-white/5">
+                                <span class="block text-sm font-medium text-gray-800 dark:text-gray-100">{{ $modelo->titulo }}</span>
+                                <span class="block truncate text-xs text-gray-500 dark:text-gray-400">/{{ $modelo->atalho }} &middot; {{ \Illuminate\Support\Str::limit($modelo->corpo, 48) }}</span>
+                            </button>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             {{-- gravar nota de voz --}}
             <div x-data="gravadorDeVoz()" class="shrink-0">
                 <button type="button"

@@ -7,6 +7,8 @@ use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use App\Filament\Pages\Atendimento;
+use Filament\Navigation\NavigationItem;
+use Filament\Support\Icons\Heroicon;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
@@ -40,6 +42,14 @@ class AdminPanelProvider extends PanelProvider
                 'CRM',
                 'Relatórios',
                 'Configurações',
+            ])
+            // Item sem URL, so para agrupar: o Filament o mantem porque tem
+            // filhos, e as paginas se penduram nele por $navigationParentItem.
+            ->navigationItems([
+                NavigationItem::make('Conta')
+                    ->group('Configurações')
+                    ->icon(Heroicon::OutlinedBuildingOffice2)
+                    ->sort(3),
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->middleware([

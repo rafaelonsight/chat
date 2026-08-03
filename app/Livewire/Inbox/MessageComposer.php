@@ -6,6 +6,7 @@ use App\Jobs\SendMediaMessage;
 use App\Jobs\SendTextMessage;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\MessageTemplate;
 use App\Services\MediaService;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
@@ -136,6 +137,26 @@ class MessageComposer extends Component
 
     public function render()
     {
-        return view('livewire.inbox.message-composer');
+        return view('livewire.inbox.message-composer', [
+            'modelos' => $this->conversationId
+                ? MessageTemplate::ativos()->orderBy('titulo')->limit(30)->get()
+                : collect(),
+        ]);
+    }
+
+    // Modelo resolvido na hora de usar: o mesmo texto serve para qualquer
+    // conversa, com os marcadores trocados pelo contato da vez.
+    public function usarModelo(int $id): void
+    {
+        $modelo = MessageTemplate::ativos()->find($id);
+
+        if (! $modelo) {
+            return;
+        }
+
+        $this->corpo = $modelo->renderizar(
+            Conversation::find($this->conversationId),
+            auth()->user(),
+        );
     }
 }

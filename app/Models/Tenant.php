@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Tenant extends Model
 {
-    protected $fillable = ['nome', 'slug'];
+    protected $fillable = [
+        'nome', 'slug', 'razao_social', 'documento', 'email', 'telefone', 'fuso_horario',
+    ];
 
     public function users(): HasMany
     {
