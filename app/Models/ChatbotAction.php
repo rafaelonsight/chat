@@ -26,12 +26,15 @@ class ChatbotAction extends Model
 
     public const CONDICIONAL = 'condicional';
 
+    public const ETIQUETA = 'etiqueta';
+
     public const TIPOS = [
         self::MENSAGEM    => 'Enviar mensagem',
         self::MENU        => 'Enviar menu',
         self::PERGUNTA    => 'Enviar pergunta',
         self::ESPERAR     => 'Esperar alguns segundos',
         self::CONDICIONAL => 'Enviar condicional',
+        self::ETIQUETA    => 'Adicionar/remover etiquetas',
         self::TRANSFERIR  => 'Transferir atendimento',
         self::CONCLUIR    => 'Concluir atendimento',
     ];
@@ -86,6 +89,11 @@ class ChatbotAction extends Model
                 ? (Team::find($this->cfg('team_id'))?->nome ?? 'qualquer atendente')
                 : '',
             self::CONCLUIR    => (string) $this->cfg('aviso', ''),
+            self::ETIQUETA    => trim(
+                (count($this->cfg('adicionar', [])) ? '+'.count($this->cfg('adicionar', [])).' etiqueta(s)' : '')
+                .' '
+                .(count($this->cfg('remover', [])) ? '-'.count($this->cfg('remover', [])) : '')
+            ) ?: 'nenhuma escolhida',
             default           => '',
         };
     }

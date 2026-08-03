@@ -4,6 +4,7 @@
     $grupos = [
         'Mensagem'   => [\App\Models\ChatbotAction::MENSAGEM, \App\Models\ChatbotAction::MENU, \App\Models\ChatbotAction::PERGUNTA],
         'Fluxo'      => [\App\Models\ChatbotAction::CONDICIONAL, \App\Models\ChatbotAction::ESPERAR],
+        'Contato'    => [\App\Models\ChatbotAction::ETIQUETA],
         'Atendimento'=> [\App\Models\ChatbotAction::TRANSFERIR, \App\Models\ChatbotAction::CONCLUIR],
     ];
 
@@ -15,6 +16,7 @@
         'esperar'     => 'Dá uma pausa antes de continuar.',
         'transferir'  => 'Entrega para uma equipe e sai de cena.',
         'concluir'    => 'Encerra o atendimento.',
+        'etiqueta'    => 'Marca ou desmarca etiquetas no contato.',
     ];
 @endphp
 

@@ -313,6 +313,19 @@ class ChatbotMotor
 
                         return;
 
+                    case ChatbotAction::ETIQUETA:
+                        // Passa pelo Etiquetador, o mesmo caminho da mao do atendente
+                        // e do futuro agente de IA, para o rastro de ORIGEM ser um so.
+                        // Nao interrompe nem encerra: etiquetar e um efeito colateral.
+                        $contato = $conversa->contact;
+
+                        if ($contato) {
+                            $etiquetador = app(Etiquetador::class);
+                            $etiquetador->aplicar($contato, (array) $acao->cfg('adicionar', []), Etiquetador::CHATBOT);
+                            $etiquetador->remover($contato, (array) $acao->cfg('remover', []));
+                        }
+                        break;
+
                     case ChatbotAction::CONDICIONAL:
                         $lado = $this->avaliar($conversa, $acao) ? ChatbotEdge::SIM : ChatbotEdge::NAO;
                         $proximo = $passo->destino($lado);

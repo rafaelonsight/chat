@@ -113,6 +113,48 @@
             </div>
         @endif
 
+        @if ($acao->tipo === $T::ETIQUETA)
+            @php $etiquetas = \App\Models\Tag::orderBy('nome')->get(); @endphp
+
+            @if ($etiquetas->isEmpty())
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    Nenhuma etiqueta cadastrada ainda. Crie em
+                    <strong>Configurações &rarr; Etiquetas</strong>.
+                </p>
+            @else
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-200">Adicionar</label>
+                    <div class="space-y-1">
+                        @foreach ($etiquetas as $et)
+                            <label class="flex items-center gap-2 text-xs" wire:key="add-{{ $et->id }}">
+                                <input type="checkbox" value="{{ $et->id }}" wire:model="form.adicionar"
+                                       class="h-3.5 w-3.5 rounded border-gray-300 text-primary-600">
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 {{ $et->classes() }}">{{ $et->nome }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-200">Remover</label>
+                    <div class="space-y-1">
+                        @foreach ($etiquetas as $et)
+                            <label class="flex items-center gap-2 text-xs" wire:key="rem-{{ $et->id }}">
+                                <input type="checkbox" value="{{ $et->id }}" wire:model="form.remover"
+                                       class="h-3.5 w-3.5 rounded border-gray-300 text-primary-600">
+                                <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 {{ $et->classes() }}">{{ $et->nome }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
+
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                    A etiqueta fica no contato, não na conversa — e o histórico guarda que
+                    foi o chatbot que colocou.
+                </p>
+            @endif
+        @endif
+
         @if ($acao->tipo === $T::CONCLUIR)
             <div>
                 <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-200">Mensagem de despedida</label>

@@ -294,6 +294,7 @@ class EditarFluxo extends Page
             ChatbotAction::CONDICIONAL => ['campo' => '', 'operador' => 'contem', 'valor' => ''],
             ChatbotAction::TRANSFERIR  => ['team_id' => null, 'aviso' => 'Vou te encaminhar para um atendente.'],
             ChatbotAction::CONCLUIR    => ['aviso' => 'Atendimento encerrado. Obrigado!'],
+            ChatbotAction::ETIQUETA    => ['adicionar' => [], 'remover' => []],
             default                    => [],
         };
     }
