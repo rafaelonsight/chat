@@ -1,7 +1,19 @@
 <div class="flex flex-1 flex-col overflow-hidden">
     @if ($conversa)
         <div class="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-white/10">
-            <div class="min-w-0">
+            <div class="flex min-w-0 items-center gap-2">
+                {{-- detalhes do contato: fica antes do nome, como identidade de quem se fala --}}
+                <button type="button" wire:click="verDetalhes"
+                        class="shrink-0 rounded-full border border-gray-300 p-1.5 text-gray-500 transition hover:bg-gray-50 hover:text-gray-800 dark:border-white/20 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-100"
+                        title="Detalhes do contato">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                         stroke-width="1.8" stroke="currentColor" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                    </svg>
+                </button>
+
+                <div class="min-w-0">
                 <div class="truncate font-semibold text-gray-800 dark:text-gray-100">
                     {{ $conversa->contact->nomeExibicao() }}
                 </div>
@@ -13,6 +25,7 @@
                     @if ($conversa->atendente)
                         <span>&middot; {{ $conversa->atendente->name }}</span>
                     @endif
+                </div>
                 </div>
             </div>
 

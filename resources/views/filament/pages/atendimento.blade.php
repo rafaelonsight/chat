@@ -9,5 +9,7 @@
             <livewire:inbox.conversation-window />
             <livewire:inbox.message-composer />
         </div>
+
+        <livewire:inbox.contact-details />
     </div>
 </x-filament-panels::page>

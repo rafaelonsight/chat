@@ -79,4 +79,9 @@ class ConversationWindow extends Component
 
         $this->dispatch('conversa-atualizada');
     }
+
+    public function verDetalhes(): void
+    {
+        $this->dispatch('abrir-detalhes');
+    }
 }
