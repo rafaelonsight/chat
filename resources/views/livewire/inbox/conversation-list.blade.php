@@ -1,41 +1,125 @@
 <div class="flex flex-1 flex-col overflow-hidden">
-    {{-- escopo: o que eu olho agora --}}
-    <div class="flex shrink-0 flex-wrap gap-1 border-b border-gray-200 px-2 py-2 dark:border-white/10">
-        @foreach ($rotulosEscopo as $chave => $rotulo)
-            <button type="button" wire:key="esc-{{ $chave }}"
-                    wire:click="selecionarEscopo('{{ $chave }}')"
-                    class="rounded-full px-2.5 py-1 text-xs font-medium transition
-                           {{ $escopo === $chave
-                                ? 'bg-gray-800 text-white dark:bg-white/20'
-                                : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5' }}">
-                {{ $rotulo }}
-                @if ($escopos[$chave] > 0)
-                    <span class="ml-0.5 opacity-70">{{ $escopos[$chave] }}</span>
-                @endif
-            </button>
-        @endforeach
-    </div>
 
-    {{-- abas --}}
-    <div class="flex shrink-0 border-b border-gray-200 dark:border-white/10">
-        @foreach ($rotulos as $estado => $rotulo)
-            <button type="button" wire:key="aba-{{ $estado }}"
-                    wire:click="selecionarAba('{{ $estado }}')"
-                    class="flex-1 border-b-2 px-2 py-2 text-xs font-medium transition
-                           {{ $aba === $estado
-                                ? 'border-emerald-600 text-emerald-700 dark:text-emerald-400'
-                                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400' }}">
-                {{ $rotulo }}
-                @if ($contadores[$estado] > 0)
-                    <span class="ml-1 rounded-full px-1.5 py-0.5 text-[10px]
-                                 {{ $estado === 'nova' ? 'bg-emerald-600 text-white' : 'bg-gray-200 text-gray-700 dark:bg-white/10 dark:text-gray-300' }}">
-                        {{ $contadores[$estado] }}
+    {{-- linha 1: o balde. Palavra para o dia a dia, icone para consulta. --}}
+    <div class="flex shrink-0 items-center gap-1 border-b border-gray-200 px-2 py-2 dark:border-white/10">
+        @foreach (['novos', 'meus', 'outros'] as $chave)
+            <button type="button" wire:key="bl-{{ $chave }}" wire:click="selecionarBalde('{{ $chave }}')"
+                    class="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition
+                           {{ $balde === $chave
+                                ? 'bg-gray-200 text-gray-900 dark:bg-white/15 dark:text-white'
+                                : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5' }}">
+                {{ $baldes[$chave] }}
+                @if ($badges[$chave] > 0)
+                    {{-- vermelho so em Novos: e a unica fila que cobra resposta --}}
+                    <span class="rounded-full px-1.5 text-[10px] font-semibold text-white
+                                 {{ $chave === 'novos' ? 'bg-red-600' : 'bg-gray-400 dark:bg-white/30' }}">
+                        {{ $badges[$chave] }}
                     </span>
                 @endif
             </button>
         @endforeach
+
+        <span class="ml-auto flex items-center gap-1">
+            <button type="button" wire:click="selecionarBalde('grupos')" title="Grupos"
+                    class="relative rounded p-1.5 transition {{ $balde === 'grupos' ? 'bg-gray-200 text-gray-900 dark:bg-white/15 dark:text-white' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5' }}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-5 w-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+                </svg>
+                @if ($badges['grupos'] > 0)
+                    <span class="absolute -right-0.5 -top-0.5 rounded-full bg-gray-400 px-1 text-[9px] font-semibold text-white dark:bg-white/40">{{ $badges['grupos'] }}</span>
+                @endif
+            </button>
+
+            <button type="button" wire:click="selecionarBalde('arquivadas')" title="Arquivadas"
+                    class="rounded p-1.5 transition {{ $balde === 'arquivadas' ? 'bg-gray-200 text-gray-900 dark:bg-white/15 dark:text-white' : 'text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5' }}">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-5 w-5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0-3-3m3 3 3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
+                </svg>
+            </button>
+        </span>
     </div>
 
+    {{-- linha 2: o recorte. Ortogonal, combina com qualquer balde. --}}
+    <div x-data="{ busca: @js(trim($busca) !== ''), ordem: false }"
+         class="shrink-0 border-b border-gray-200 dark:border-white/10">
+
+        <div class="flex items-center gap-1 px-2 py-1.5">
+            <button type="button" wire:click="$set('somenteNaoLidas', false)"
+                    class="rounded-full px-2.5 py-1 text-xs font-medium transition
+                           {{ ! $somenteNaoLidas ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5' }}">
+                Todas
+            </button>
+            <button type="button" wire:click="$set('somenteNaoLidas', true)"
+                    class="rounded-full px-2.5 py-1 text-xs font-medium transition
+                           {{ $somenteNaoLidas ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5' }}">
+                Apenas não lidas
+            </button>
+
+            <span class="ml-auto flex items-center gap-0.5">
+                <button type="button" title="Buscar"
+                        x-on:click="busca = !busca; if (!busca) { $wire.set('busca', '') }"
+                        x-bind:class="busca ? 'bg-gray-200 text-gray-900 dark:bg-white/15 dark:text-white' : 'text-gray-400'"
+                        class="rounded p-1.5 transition hover:bg-gray-100 dark:hover:bg-white/5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                    </svg>
+                </button>
+
+                {{-- ordenar --}}
+                <div class="relative" x-on:click.outside="ordem = false">
+                    <button type="button" x-on:click="ordem = !ordem" title="Ordenar conversas"
+                            x-bind:class="ordem ? 'bg-gray-200 text-gray-900 dark:bg-white/15 dark:text-white' : 'text-gray-400'"
+                            class="rounded p-1.5 transition hover:bg-gray-100 dark:hover:bg-white/5">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-4 w-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12" />
+                        </svg>
+                    </button>
+
+                    <div x-show="ordem" x-cloak x-transition.opacity
+                         class="absolute right-0 z-20 mt-1 w-72 rounded-xl border border-gray-200 bg-white p-2 shadow-lg dark:border-white/10 dark:bg-gray-800">
+                        <p class="px-2 py-1 text-xs font-semibold text-gray-500 dark:text-gray-400">Ordenar por:</p>
+
+                        @foreach ($ordens as $chave => $rotulo)
+                            <button type="button" wire:key="or-{{ $chave }}"
+                                    wire:click="selecionarOrdem('{{ $chave }}')" x-on:click="ordem = false"
+                                    class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition
+                                           {{ $ordemEfetiva === $chave
+                                                ? 'bg-indigo-50 text-indigo-900 dark:bg-indigo-500/15 dark:text-indigo-200'
+                                                : 'text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/5' }}">
+                                @if ($chave === 'recentes')
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-5 w-5 shrink-0 text-indigo-500">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12" />
+                                    </svg>
+                                @else
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-5 w-5 shrink-0 text-indigo-500">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                                    </svg>
+                                @endif
+
+                                <span class="flex-1">{{ $rotulo }}</span>
+
+                                <span class="grid h-4 w-4 shrink-0 place-items-center rounded-full border-2 {{ $ordemEfetiva === $chave ? 'border-indigo-600' : 'border-gray-300 dark:border-white/30' }}">
+                                    @if ($ordemEfetiva === $chave)
+                                        <span class="h-2 w-2 rounded-full bg-indigo-600"></span>
+                                    @endif
+                                </span>
+                            </button>
+                        @endforeach
+                    </div>
+                </div>
+            </span>
+        </div>
+
+        {{-- busca: dentro do mesmo escopo Alpine, senao o icone nao a alcanca --}}
+        <div x-show="busca" x-cloak class="px-2 pb-2">
+            <input type="text" wire:model.live.debounce.400ms="busca"
+                   placeholder="Buscar nome, telefone ou mensagem"
+                   x-on:keydown.escape="busca = false; $wire.set('busca', '')"
+                   class="w-full rounded border border-gray-300 px-2 py-1.5 text-xs dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
+        </div>
+    </div>
+
+    {{-- lista --}}
     <div class="flex-1 overflow-y-auto">
         @forelse ($conversas as $conversa)
             <button type="button" wire:key="conv-{{ $conversa->id }}"
@@ -46,9 +130,8 @@
                     <span class="flex min-w-0 items-center gap-1.5">
                         @if ($conversa->contact->eGrupo())
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8"
-                                 stroke="currentColor" class="h-3.5 w-3.5 shrink-0 text-gray-400" title="Grupo">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                      d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72M18 18.72m0 0a5.971 5.971 0 0 1-.941 3.197m0 0A5.995 5.995 0 0 1 12 21.75c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+                                 stroke="currentColor" class="h-3.5 w-3.5 shrink-0 text-gray-400">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72M18 18.72m0 0a5.971 5.971 0 0 1-.941 3.197m0 0A5.995 5.995 0 0 1 12 21.75c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
                             </svg>
                         @endif
                         <span class="truncate font-medium text-gray-800 dark:text-gray-100">
@@ -56,9 +139,7 @@
                         </span>
                     </span>
                     @if ($conversa->nao_lidas > 0)
-                        <span class="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-xs text-white">
-                            {{ $conversa->nao_lidas }}
-                        </span>
+                        <span class="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-xs text-white">{{ $conversa->nao_lidas }}</span>
                     @endif
                 </div>
 
@@ -82,13 +163,9 @@
                 @endif
 
                 <div class="flex items-center justify-between gap-2 text-xs text-gray-400">
-                    @if ($aba === \App\Models\Conversation::ARQUIVADA)
-                        {{-- em Arquivadas o mesmo contato pode ter varios
-                             atendimentos: sem o periodo as linhas ficam iguais --}}
+                    @if ($balde === 'arquivadas')
                         <span title="atendimento de {{ $conversa->created_at?->format('d/m/Y H:i') }} a {{ $conversa->ultima_msg_em?->format('d/m/Y H:i') }}">
-                            {{ $conversa->created_at?->format('d/m H:i') }}
-                            &rarr;
-                            {{ $conversa->ultima_msg_em?->format('d/m H:i') }}
+                            {{ $conversa->created_at?->format('d/m H:i') }} &rarr; {{ $conversa->ultima_msg_em?->format('d/m H:i') }}
                         </span>
                         <span class="shrink-0">{{ $conversa->messages_count }} msg</span>
                     @else
@@ -101,12 +178,18 @@
             </button>
         @empty
             <p class="p-4 text-sm text-gray-500 dark:text-gray-400">
-                @if ($aba === 'nova')
-                    Nenhuma conversa aguardando resposta.
-                @elseif ($aba === 'em_atendimento')
-                    Nenhuma conversa em atendimento.
+                @if (trim($busca) !== '')
+                    Nada encontrado para "{{ $busca }}".
+                @elseif ($somenteNaoLidas)
+                    Nada sem ler aqui.
                 @else
-                    Nenhuma conversa arquivada.
+                    @switch($balde)
+                        @case('novos') Nenhuma conversa aguardando resposta. @break
+                        @case('meus') Você não está atendendo ninguém agora. @break
+                        @case('outros') Ninguém mais atendendo agora. @break
+                        @case('grupos') Nenhum grupo com conversa. @break
+                        @default Nenhuma conversa arquivada.
+                    @endswitch
                 @endif
             </p>
         @endforelse

@@ -181,3 +181,32 @@ it('envio para pessoa continua usando o telefone', function () {
 
     Http::assertSent(fn ($r) => $r['number'] === '+5584996143373');
 });
+
+it('bolha de grupo mostra quem falou', function () {
+    [, $u, $c] = cenarioGrupo('gp8');
+
+    $ct = Contact::create(['jid' => '120363099999999999@g.us', 'tipo' => Contact::GRUPO, 'nome' => 'Bairro Centro']);
+    $cv = Conversation::create(['channel_id' => $c->id, 'contact_id' => $ct->id]);
+
+    Message::create([
+        'conversation_id' => $cv->id, 'channel_id' => $c->id,
+        'direcao' => 'in', 'tipo' => 'text', 'corpo' => 'alguem sem net?',
+        'remetente_nome' => 'Joao do Grupo', 'remetente_jid' => '5584911111111@s.whatsapp.net',
+        'status' => Message::STATUS_DELIVERED,
+    ]);
+    TenantContext::forget();
+
+    Livewire\Livewire::actingAs($u)
+        ->test(App\Livewire\Inbox\ConversationWindow::class, ['conversationId' => $cv->id])
+        ->assertSee('Joao do Grupo')
+        ->assertSee('alguem sem net?');
+});
+
+it('contato criado sem jid ganha jid a partir do telefone', function () {
+    cenarioGrupo('gp9');
+
+    $ct = Contact::create(['telefone_e164' => '+5584999998888', 'nome' => 'Manual']);
+
+    expect($ct->jid)->toBe('5584999998888@s.whatsapp.net')
+        ->and($ct->tipo)->toBe(Contact::PESSOA);
+});

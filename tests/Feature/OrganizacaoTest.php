@@ -44,9 +44,9 @@ it('o atendimento e a home do painel e mostra o chat', function () {
     $this->withSession(comSessao($u))
         ->get('/admin')
         ->assertSuccessful()
-        ->assertSee('Novas')
-        ->assertSee('Em atendimento')
-        ->assertSee('Arquivadas')
+        ->assertSee('Novos')
+        ->assertSee('Meus')
+        ->assertSee('Outros')
         ->assertSee('Nova conversa');
 });
 

@@ -200,7 +200,7 @@ it('a lista de arquivadas distingue cada atendimento', function () {
 
     Livewire::actingAs($u)
         ->test(App\Livewire\Inbox\ConversationList::class)
-        ->set('aba', Conversation::ARQUIVADA)
+        ->set('balde', 'arquivadas')
         ->assertViewHas('conversas', function ($cs) use ($primeiro, $segundo) {
             if ($cs->count() !== 2) {
                 return false;

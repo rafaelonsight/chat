@@ -8,20 +8,33 @@ use Illuminate\Database\Eloquent\Builder;
 use Livewire\Component;
 
 // Separado da janela de proposito: mensagem em conversa fechada so precisa
-// atualizar esta lista. Um componente unico re-renderizaria a tela toda a
-// cada mensagem que chega.
+// atualizar esta lista. Um componente unico re-renderizaria a tela toda a cada
+// mensagem que chega.
 class ConversationList extends Component
 {
-    public const ESCOPOS = [
-        'todos'  => 'Todos',
-        'meus'   => 'Meus',
-        'outros' => 'Outros',
-        'grupos' => 'Grupos',
+    // Os cinco baldes PARTICIONAM as conversas: sem lacuna e sem sobreposicao.
+    // Se algo escapasse de todos, alguem perderia atendimento sem nunca saber.
+    public const BALDES = [
+        'novos'      => 'Novos',
+        'meus'       => 'Meus',
+        'outros'     => 'Outros',
+        'grupos'     => 'Grupos',
+        'arquivadas' => 'Arquivadas',
     ];
 
-    public string $aba = Conversation::NOVA;
+    public const ORDENS = [
+        'recentes' => 'Últimas interações primeiro',
+        'antigos'  => 'Mais antigos primeiro',
+    ];
 
-    public string $escopo = 'todos';
+    public string $balde = 'novos';
+
+    public bool $somenteNaoLidas = false;
+
+    public string $busca = '';
+
+    // null = padrao do balde. A escolha no menu sobrepoe e continua valendo.
+    public ?string $ordem = null;
 
     public ?int $selecionada = null;
 
@@ -39,18 +52,25 @@ class ConversationList extends Component
         return $listeners;
     }
 
-    public function selecionarAba(string $aba): void
+    public function selecionarBalde(string $balde): void
     {
-        if (array_key_exists($aba, Conversation::ROTULOS)) {
-            $this->aba = $aba;
+        if (array_key_exists($balde, self::BALDES)) {
+            $this->balde = $balde;
         }
     }
 
-    public function selecionarEscopo(string $escopo): void
+    public function selecionarOrdem(string $ordem): void
     {
-        if (array_key_exists($escopo, self::ESCOPOS)) {
-            $this->escopo = $escopo;
+        if (array_key_exists($ordem, self::ORDENS)) {
+            $this->ordem = $ordem;
         }
+    }
+
+    // Fila se atende por ordem de chegada: em Novos, quem espera mais aparece
+    // primeiro. Nos outros baldes o que importa e a conversa que se moveu agora.
+    public function ordemEfetiva(): string
+    {
+        return $this->ordem ?? ($this->balde === 'novos' ? 'antigos' : 'recentes');
     }
 
     public function selecionar(int $id): void
@@ -69,59 +89,92 @@ class ConversationList extends Component
         $this->selecionada = $conversationId;
     }
 
-    // "Meus" e "Outros" falam de atribuicao; "Grupos" fala do tipo de contato.
-    // Sao dimensoes diferentes de proposito: a pergunta que o atendente faz e
-    // "o que eu olho agora", nao "como isto se classifica".
-    private function aplicarEscopo(Builder $query, string $escopo): Builder
+    private function doBalde(string $balde): Builder
     {
         $eu = auth()->id();
 
-        return match ($escopo) {
-            'meus'   => $query->where('atendente_id', $eu),
-            'outros' => $query->whereNotNull('atendente_id')->where('atendente_id', '!=', $eu),
-            'grupos' => $query->whereHas('contact', fn ($q) => $q->where('tipo', Contact::GRUPO)),
-            default  => $query,
+        // Grupo fica FORA da fila de atendimento: num provedor e bairro, tecnicos
+        // e revenda — volume alto e quase nada exige atendimento individual. Em
+        // Novos, 30 mensagens de grupo enterrariam quem pediu segunda via.
+        $semGrupo = fn (Builder $q) => $q->whereHas('contact', fn ($c) => $c->where('tipo', '!=', Contact::GRUPO));
+
+        return match ($balde) {
+            'novos' => $semGrupo(Conversation::where('status', Conversation::NOVA)),
+
+            'meus' => $semGrupo(
+                Conversation::where('status', Conversation::EM_ATENDIMENTO)->where('atendente_id', $eu)
+            ),
+
+            // "ou atendente nulo" fecha o furo: conversa conduzida por automacao
+            // tem status em atendimento sem humano e desapareceria da tela.
+            'outros' => $semGrupo(
+                Conversation::where('status', Conversation::EM_ATENDIMENTO)
+                    ->where(fn ($q) => $q->whereNull('atendente_id')->orWhere('atendente_id', '!=', $eu))
+            ),
+
+            'grupos' => Conversation::where('status', '!=', Conversation::ARQUIVADA)
+                ->whereHas('contact', fn ($c) => $c->where('tipo', Contact::GRUPO)),
+
+            default => Conversation::where('status', Conversation::ARQUIVADA),
         };
+    }
+
+    private function aplicarRecortes(Builder $query): Builder
+    {
+        if ($this->somenteNaoLidas) {
+            $query->where('nao_lidas', '>', 0);
+        }
+
+        $termo = trim($this->busca);
+
+        if ($termo === '') {
+            return $query;
+        }
+
+        $digitos = preg_replace('/\D+/', '', $termo) ?? '';
+
+        return $query->where(function (Builder $q) use ($termo, $digitos) {
+            $q->whereHas('contact', function ($c) use ($termo, $digitos) {
+                $c->where('nome', 'ilike', '%'.$termo.'%');
+
+                if ($digitos !== '') {
+                    $c->orWhere('telefone_e164', 'ilike', '%'.$digitos.'%');
+                }
+            })->orWhereHas('messages', function ($m) use ($termo) {
+                $m->where('corpo', 'ilike', '%'.$termo.'%')
+                    ->orWhere('legenda', 'ilike', '%'.$termo.'%');
+            });
+        });
     }
 
     public function render()
     {
-        // contadores das abas respeitam o escopo escolhido
-        $porStatus = $this->aplicarEscopo(Conversation::query(), $this->escopo)
-            ->selectRaw('status, count(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
+        // Badge de Novos conta tudo (toda conversa ali esta pendente). Nos outros
+        // conta so nao lidas — assim todo badge significa a mesma coisa:
+        // precisa dos seus olhos.
+        $badges = [
+            'novos'      => $this->doBalde('novos')->count(),
+            'meus'       => $this->doBalde('meus')->where('nao_lidas', '>', 0)->count(),
+            'outros'     => $this->doBalde('outros')->where('nao_lidas', '>', 0)->count(),
+            'grupos'     => $this->doBalde('grupos')->where('nao_lidas', '>', 0)->count(),
+            'arquivadas' => null,
+        ];
 
-        $contadores = [];
-        foreach (array_keys(Conversation::ROTULOS) as $estado) {
-            $contadores[$estado] = (int) $porStatus->get($estado, 0);
-        }
-
-        // contadores do escopo respeitam a aba escolhida
-        $escopos = [];
-        foreach (array_keys(self::ESCOPOS) as $chave) {
-            $escopos[$chave] = $this->aplicarEscopo(
-                Conversation::where('status', $this->aba),
-                $chave
-            )->count();
-        }
-
-        $conversas = $this->aplicarEscopo(
-            Conversation::with(['contact', 'ultimaMensagem', 'atendente'])
+        $conversas = $this->aplicarRecortes(
+            $this->doBalde($this->balde)
+                ->with(['contact', 'ultimaMensagem', 'atendente'])
                 ->withCount('messages')
-                ->where('status', $this->aba),
-            $this->escopo
         )
-            ->orderByDesc('ultima_msg_em')
+            ->orderBy('ultima_msg_em', $this->ordemEfetiva() === 'antigos' ? 'asc' : 'desc')
             ->limit(50)
             ->get();
 
         return view('livewire.inbox.conversation-list', [
-            'conversas'      => $conversas,
-            'contadores'     => $contadores,
-            'escopos'        => $escopos,
-            'rotulos'        => Conversation::ROTULOS,
-            'rotulosEscopo'  => self::ESCOPOS,
+            'conversas'     => $conversas,
+            'badges'        => $badges,
+            'baldes'        => self::BALDES,
+            'ordens'        => self::ORDENS,
+            'ordemEfetiva'  => $this->ordemEfetiva(),
         ]);
     }
 }
