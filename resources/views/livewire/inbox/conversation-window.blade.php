@@ -84,18 +84,6 @@
             <div class="bg-red-50 px-4 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ $message }}</div>
         @enderror
 
-        {{-- rastro interno: transferencia e afins. NAO vai para o cliente. --}}
-        @if ($eventos->isNotEmpty())
-            <div class="border-b border-gray-100 bg-gray-50 px-4 py-1.5 dark:border-white/5 dark:bg-white/5">
-                @foreach ($eventos->reverse() as $ev)
-                    <p class="text-[11px] text-gray-500 dark:text-gray-400">
-                        {{ $ev->created_at?->format('d/m H:i') }} &middot; {{ $ev->descricao }}
-                        @if ($ev->user) &middot; {{ $ev->user->name }} @endif
-                    </p>
-                @endforeach
-            </div>
-        @endif
-
         @error('reabrir')
             <div class="bg-red-50 px-4 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ $message }}</div>
         @enderror
@@ -107,8 +95,15 @@
                 </button>
             @endif
 
-            @foreach ($mensagens as $m)
-                @php $entrada = $m->entrada(); @endphp
+            @foreach ($linha as $item)
+                @if ($item instanceof \App\Models\ConversationEvent)
+                    <div wire:key="ev-{{ $item->id }}">
+                        @include('livewire.inbox.partials.evento', ['ev' => $item])
+                    </div>
+                    @continue
+                @endif
+
+                @php $m = $item; $entrada = $m->entrada(); @endphp
                 <div wire:key="msg-{{ $m->id }}" class="flex {{ $entrada ? 'justify-start' : 'justify-end' }}">
                     <div class="max-w-lg rounded-lg px-3 py-2 text-sm {{ $entrada ? 'border border-slate-200 bg-white text-slate-800' : 'bg-emerald-600 text-white' }}">
                         @if ($entrada && $m->remetente_nome)

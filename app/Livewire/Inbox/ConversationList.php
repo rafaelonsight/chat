@@ -90,6 +90,10 @@ class ConversationList extends Component
         $this->selecionada = $conversa->id;
         $conversa->update(['nao_lidas' => 0]);
 
+        // Em fila, nao aqui: a tela nao pode esperar uma chamada HTTP para a
+        // Evolution para abrir a conversa.
+        \App\Jobs\MarcarLidaNoWhatsapp::dispatch($conversa->id);
+
         $this->dispatch('abrir-conversa', conversationId: $conversa->id);
     }
 

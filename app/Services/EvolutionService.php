@@ -131,4 +131,23 @@ class EvolutionService
             ->get("/group/findGroupInfos/{$instance}", ['groupJid' => $groupJid])
             ->throw()->json();
     }
+
+    /**
+     * Avisa o WhatsApp que estas mensagens foram lidas, para o cliente ver os
+     * dois tiques azuis. Sem isso ele manda mensagem, o atendente le na tela, e
+     * do lado dele continua parecendo que ninguem viu.
+     *
+     * @param  array<int, array{remoteJid: string, fromMe: bool, id: string}>  $mensagens
+     */
+    public function marcarComoLida(string $instance, array $mensagens): array
+    {
+        if ($mensagens === []) {
+            return [];
+        }
+
+        return $this->client()
+            ->post("/chat/markMessageAsRead/{$instance}", ['readMessages' => $mensagens])
+            ->throw()
+            ->json() ?? [];
+    }
 }

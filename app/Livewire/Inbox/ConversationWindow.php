@@ -50,11 +50,35 @@ class ConversationWindow extends Component
 
         $equipes = \App\Models\Team::ativas()->orderBy('nome')->get();
 
+        // So os eventos que caem dentro do trecho de mensagens carregado. Sem
+        // esse corte, evento antigo apareceria acima do "carregar anteriores" e a
+        // linha do tempo ficaria mentindo sobre a ordem.
+        $desde = $mensagens->first()?->created_at;
+
         $eventos = $conversa
-            ? $conversa->events()->with('user')->orderByDesc('id')->limit(5)->get()
+            ? $conversa->events()
+                ->with('user')
+                ->when($desde, fn ($q) => $q->where('created_at', '>=', $desde))
+                ->get()
             : collect();
 
-        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'eventos'));
+        // Mensagem e evento no mesmo fio: nota e transferencia fora do lugar
+        // cronologico nao servem para entender o que aconteceu.
+        // Chave composta, e nao sortBy([...]): com array de closures o Laravel
+        // trata cada uma como COMPARADOR ($a, $b), nao como extrator de chave —
+        // a funcao recebe so $a, devolve sempre um positivo e a ordem embaralha.
+        // Zeros a esquerda para o texto ordenar igual a numero.
+        $linha = $mensagens
+            ->concat($eventos)
+            ->sortBy(fn ($item) => sprintf(
+                '%011d-%d-%011d',
+                $item->created_at?->getTimestamp() ?? 0,
+                $item instanceof \App\Models\Message ? 0 : 1,
+                $item->id,
+            ))
+            ->values();
+
+        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'eventos', 'linha'));
     }
 
     public function assumir(): void

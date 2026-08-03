@@ -5,6 +5,7 @@ namespace App\Livewire\Inbox;
 use App\Jobs\SendMediaMessage;
 use App\Jobs\SendTextMessage;
 use App\Models\Conversation;
+use App\Models\ConversationEvent;
 use App\Models\Message;
 use App\Models\MessageTemplate;
 use App\Services\MediaService;
@@ -22,6 +23,11 @@ class MessageComposer extends Component
 
     public $anexo = null;
 
+    // Quando ligado, o que for escrito fica interno. O risco aqui e humano:
+    // escrever achando que e nota e ir para o cliente. Por isso o modo tem
+    // cor propria na tela e se desliga sozinho ao trocar de conversa.
+    public bool $nota = false;
+
     public function mount(?int $conversationId = null): void
     {
         $this->conversationId = $conversationId;
@@ -35,7 +41,18 @@ class MessageComposer extends Component
     public function abrir(int $conversationId): void
     {
         $this->conversationId = $conversationId;
-        $this->reset(['corpo', 'anexo']);
+        $this->reset(['corpo', 'anexo', 'nota']);
+    }
+
+    public function alternarNota(): void
+    {
+        $this->nota = ! $this->nota;
+        $this->resetErrorBag();
+
+        // Anexo em nota interna nao existe: o arquivo iria para o WhatsApp.
+        if ($this->nota) {
+            $this->reset('anexo');
+        }
     }
 
     public function updatedAnexo(): void
@@ -53,13 +70,25 @@ class MessageComposer extends Component
     {
         $this->resetErrorBag();
 
-        if (! $this->anexo && trim($this->corpo) === '') {
+        if ($this->nota && trim($this->corpo) === '') {
+            $this->addError('corpo', 'Escreva a nota.');
+
+            return;
+        }
+
+        if (! $this->nota && ! $this->anexo && trim($this->corpo) === '') {
             $this->addError('corpo', 'Escreva algo ou anexe um arquivo.');
 
             return;
         }
 
         $conversa = Conversation::findOrFail($this->conversationId);
+
+        if ($this->nota) {
+            $this->salvarNota($conversa);
+
+            return;
+        }
 
         $mensagem = $this->anexo
             ? $this->comAnexo($conversa)
@@ -71,6 +100,24 @@ class MessageComposer extends Component
 
         $conversa->update(['ultima_msg_em' => now()]);
 
+        $this->reset(['corpo', 'anexo']);
+        $this->dispatch('abrir-conversa', conversationId: $conversa->id);
+    }
+
+    private function salvarNota(Conversation $conversa): void
+    {
+        $this->validate(['corpo' => 'required|string|max:4000']);
+
+        ConversationEvent::create([
+            'conversation_id' => $conversa->id,
+            'user_id'         => auth()->id(),
+            'tipo'            => ConversationEvent::NOTA,
+            'descricao'       => trim($this->corpo),
+        ]);
+
+        // De proposito NAO toca ultima_msg_em: essa coluna responde "quem esta
+        // esperando ha mais tempo". Nota nossa subindo a conversa na fila faria
+        // a ordenacao mentir sobre o cliente.
         $this->reset(['corpo', 'anexo']);
         $this->dispatch('abrir-conversa', conversationId: $conversa->id);
     }

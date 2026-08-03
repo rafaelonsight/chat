@@ -22,6 +22,7 @@ class Message extends Model
         'remetente_nome', 'remetente_jid', 'automatica',
         'transcricao', 'transcricao_status',
         'media_path', 'media_mime', 'media_nome', 'media_tamanho', 'media_duracao', 'legenda',
+        'lida_em',
     ];
 
     protected $casts = [
@@ -29,6 +30,7 @@ class Message extends Model
         'media_tamanho'  => 'integer',
         'media_duracao'  => 'integer',
         'automatica'     => 'boolean',
+        'lida_em'        => 'datetime',
     ];
 
     protected static function booted(): void

@@ -34,17 +34,26 @@
             enviando arquivo para o servidor&hellip;
         </div>
 
-        <form wire:submit="enviar" class="flex items-end gap-2">
-            {{-- anexar --}}
-            <label class="cursor-pointer rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
-                   title="Anexar imagem, video, audio ou documento">
-                &#128206;
-                <input type="file" wire:model="anexo" class="hidden"
-                       accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip">
-            </label>
+        @if ($nota)
+            <div class="mb-2 flex items-center gap-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+                <span>&#128274;</span>
+                <span>Nota interna: fica no histórico da conversa e <strong>não é enviada ao cliente</strong>.</span>
+            </div>
+        @endif
+
+        <form wire:submit="enviar" class="flex items-end gap-2 {{ $nota ? 'rounded-lg bg-amber-50/60 p-1.5 ring-1 ring-amber-200' : '' }}">
+            {{-- anexar: escondido em nota interna, o arquivo iria para o cliente --}}
+            @unless ($nota)
+                <label class="cursor-pointer rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                       title="Anexar imagem, video, audio ou documento">
+                    &#128206;
+                    <input type="file" wire:model="anexo" class="hidden"
+                           accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip">
+                </label>
+            @endunless
 
             {{-- modelos de mensagem --}}
-            @if ($modelos->isNotEmpty())
+            @if ($modelos->isNotEmpty() && ! $nota)
                 <div class="relative shrink-0" x-data="{ aberto: false }" x-on:click.outside="aberto = false">
                     <button type="button" x-on:click="aberto = !aberto" title="Modelos de mensagem"
                             class="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
@@ -64,8 +73,8 @@
                 </div>
             @endif
 
-            {{-- gravar nota de voz --}}
-            <div x-data="gravadorDeVoz()" class="shrink-0">
+            {{-- gravar nota de voz (audio vai para o cliente: nao cabe em nota) --}}
+            <div x-data="gravadorDeVoz()" class="shrink-0" @if ($nota) hidden @endif>
                 <button type="button"
                         x-show="!gravando"
                         x-on:click="iniciar()"
@@ -82,13 +91,20 @@
                 </button>
             </div>
 
+            {{-- alternar entre responder o cliente e escrever nota interna --}}
+            <button type="button" wire:click="alternarNota"
+                    title="{{ $nota ? 'Voltar a responder o cliente' : 'Escrever nota interna (nao vai para o cliente)' }}"
+                    class="shrink-0 rounded border px-3 py-2 text-sm {{ $nota ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-slate-300 text-slate-600 hover:bg-slate-50' }}">
+                &#128274;
+            </button>
+
             <input type="text" wire:model="corpo" autocomplete="off"
-                   placeholder="{{ $anexo ? 'Legenda (opcional)' : 'Escreva uma mensagem' }}"
-                   class="flex-1 rounded border border-slate-300 px-3 py-2 text-sm">
+                   placeholder="{{ $nota ? 'Nota interna, só a equipe vê' : ($anexo ? 'Legenda (opcional)' : 'Escreva uma mensagem') }}"
+                   class="flex-1 rounded border px-3 py-2 text-sm {{ $nota ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-300' }}">
 
             <button type="submit" wire:loading.attr="disabled" wire:target="enviar,anexo"
-                    class="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60">
-                Enviar
+                    class="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-60 {{ $nota ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700' }}">
+                {{ $nota ? 'Salvar nota' : 'Enviar' }}
             </button>
         </form>
 

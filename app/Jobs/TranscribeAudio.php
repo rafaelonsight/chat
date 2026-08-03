@@ -20,7 +20,15 @@ class TranscribeAudio implements ShouldQueue
 
     public array $backoff = [30, 120];
 
-    public function __construct(public int $messageId) {}
+    public const FILA = 'transcricao';
+
+    public function __construct(public int $messageId)
+    {
+        // Transcrever um audio de 30s ocupa o worker por dezenas de segundos.
+        // Na mesma fila da entrega, cinco audios seguidos atrasam mensagem
+        // nova de cliente — que e a coisa que nunca pode esperar.
+        $this->onQueue(self::FILA);
+    }
 
     // Uma transcricao por vez em toda a instalacao. O servidor whisper ja limita
     // as threads, mas sem isto varios workers ficariam bloqueados esperando HTTP

@@ -15,6 +15,16 @@ class ConversationEvent extends Model
 
     public const TRANSFERENCIA = 'transferencia';
 
+    // Nota interna: fica no historico da conversa e NUNCA e enviada ao
+    // cliente. E por isto que vive aqui e nao em messages — toda mensagem
+    // nossa, por definicao, vai para o WhatsApp.
+    public const NOTA = 'nota';
+
+    public function ehNota(): bool
+    {
+        return $this->tipo === self::NOTA;
+    }
+
     protected $fillable = ['tenant_id', 'conversation_id', 'user_id', 'tipo', 'descricao', 'dados'];
 
     protected $casts = ['dados' => 'array'];
