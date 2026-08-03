@@ -16,5 +16,5 @@ it('renderiza o atendimento com o usuario carregado da sessao', function () {
     $this->withSession([$chave => $u->id])
         ->get('/admin')
         ->assertSuccessful()
-        ->assertSee('Conversas');
+        ->assertSee('Novas');
 });
