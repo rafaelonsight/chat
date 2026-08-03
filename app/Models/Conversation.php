@@ -77,13 +77,55 @@ class Conversation extends Model
             return;
         }
 
-        // Cliente voltou depois de encerrado: e demanda nova, precisa de olhos.
-        if ($this->status === self::ARQUIVADA) {
-            $this->forceFill([
-                'status'       => self::NOVA,
-                'atendente_id' => null,
-            ])->save();
+        // Conversa arquivada nao reabre sozinha. Quem decide para onde vai a
+        // mensagem e o resolvedor abertaOuNova(), que cria uma conversa nova
+        // quando a unica existente esta encerrada — assim cada atendimento tem
+        // comeco e fim proprios em vez de um fio infinito.
+    }
+
+    // Resolve para onde a mensagem vai: a conversa aberta do contato neste
+    // canal, ou uma nova se a ultima ja foi encerrada.
+    public static function abertaOuNova(int $channelId, int $contactId, ?int $tenantId = null): self
+    {
+        $aberta = static::where('channel_id', $channelId)
+            ->where('contact_id', $contactId)
+            ->where('status', '!=', self::ARQUIVADA)
+            ->first();
+
+        if ($aberta) {
+            return $aberta;
         }
+
+        try {
+            return static::create(array_filter([
+                'tenant_id'  => $tenantId,
+                'channel_id' => $channelId,
+                'contact_id' => $contactId,
+            ]));
+        } catch (\Illuminate\Database\QueryException $e) {
+            // Corrida: outra mensagem do mesmo contato chegou no mesmo instante
+            // e criou a conversa primeiro. O indice unico parcial barrou esta —
+            // e o certo e usar a que venceu.
+            return static::where('channel_id', $channelId)
+                ->where('contact_id', $contactId)
+                ->where('status', '!=', self::ARQUIVADA)
+                ->firstOrFail();
+        }
+    }
+
+    // Reabrir e para desfazer arquivamento por engano. Se ja existe conversa
+    // aberta com o contato, reabrir violaria o indice unico parcial.
+    public function podeReabrir(): bool
+    {
+        if ($this->status !== self::ARQUIVADA) {
+            return false;
+        }
+
+        return ! static::where('channel_id', $this->channel_id)
+            ->where('contact_id', $this->contact_id)
+            ->where('status', '!=', self::ARQUIVADA)
+            ->whereKeyNot($this->getKey())
+            ->exists();
     }
 
     public function assumir(?User $atendente = null): void
@@ -99,12 +141,18 @@ class Conversation extends Model
         $this->forceFill(['status' => self::ARQUIVADA])->save();
     }
 
-    public function reabrir(): void
+    public function reabrir(): bool
     {
+        if (! $this->podeReabrir()) {
+            return false;
+        }
+
         $this->forceFill([
             'status'       => self::EM_ATENDIMENTO,
             'atendente_id' => $this->atendente_id ?? auth()->id(),
         ])->save();
+
+        return true;
     }
 
     public function rotuloStatus(): string

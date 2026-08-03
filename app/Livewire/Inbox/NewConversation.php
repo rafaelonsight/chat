@@ -69,10 +69,7 @@ class NewConversation extends Component
 
         $contato = Contact::firstOrCreate(['telefone_e164' => $canonico]);
 
-        $conversa = Conversation::firstOrCreate([
-            'channel_id' => $canal->id,
-            'contact_id' => $contato->id,
-        ]);
+        $conversa = Conversation::abertaOuNova($canal->id, $contato->id, $canal->tenant_id);
 
         // sobe para o topo da lista mesmo sem mensagem ainda
         $conversa->update(['ultima_msg_em' => now()]);

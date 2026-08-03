@@ -90,10 +90,10 @@ class ProcessEvolutionWebhook implements ShouldQueue
                 ['nome' => Arr::get($data, 'pushName')],
             );
 
-            $conversa = Conversation::firstOrCreate(
-                ['channel_id' => $canal->id, 'contact_id' => $contato->id],
-                ['tenant_id' => $canal->tenant_id],
-            );
+            // Nao e firstOrCreate: se o ultimo atendimento foi encerrado, o
+            // cliente que volta abre uma conversa NOVA, com comeco e fim
+            // proprios, e a arquivada preserva o historico dela.
+            $conversa = Conversation::abertaOuNova($canal->id, $contato->id, $canal->tenant_id);
 
             $mensagem = Message::updateOrCreate(
                 ['channel_id' => $canal->id, 'external_id' => $externalId],

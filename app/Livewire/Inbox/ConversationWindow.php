@@ -70,7 +70,12 @@ class ConversationWindow extends Component
     public function reabrir(): void
     {
         $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
-        $conversa->reabrir();
+
+        if (! $conversa->reabrir()) {
+            $this->addError('reabrir', 'Ja existe uma conversa aberta com este contato. Use aquela.');
+
+            return;
+        }
 
         $this->dispatch('conversa-atualizada');
     }

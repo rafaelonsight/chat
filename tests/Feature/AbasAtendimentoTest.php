@@ -95,7 +95,9 @@ it('finalizar arquiva a conversa', function () {
     expect($cv->refresh()->status)->toBe(Conversation::ARQUIVADA);
 });
 
-it('mensagem nova em conversa arquivada devolve para novas', function () {
+// Regra corrigida: arquivada nao reabre. Cliente que volta gera conversa nova,
+// resolvida por Conversation::abertaOuNova() — coberto em ConversaArquivadaTest.
+it('conversa arquivada permanece arquivada ao receber mensagem', function () {
     [, $u, $c] = cenarioAbas('ab6');
     $cv = conversaCom($c);
     $this->actingAs($u);
@@ -104,9 +106,7 @@ it('mensagem nova em conversa arquivada devolve para novas', function () {
 
     mensagem($cv->refresh(), 'in', 'voltei com outro problema');
 
-    $cv->refresh();
-    expect($cv->status)->toBe(Conversation::NOVA)
-        ->and($cv->atendente_id)->toBeNull();
+    expect($cv->refresh()->status)->toBe(Conversation::ARQUIVADA);
 });
 
 it('assumir move para em atendimento sem precisar responder', function () {

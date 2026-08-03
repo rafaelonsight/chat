@@ -25,10 +25,16 @@
                 @endif
 
                 @if ($conversa->status === \App\Models\Conversation::ARQUIVADA)
-                    <button type="button" wire:click="reabrir"
-                            class="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">
-                        Reabrir
-                    </button>
+                    @if ($conversa->podeReabrir())
+                        <button type="button" wire:click="reabrir"
+                                class="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">
+                            Reabrir
+                        </button>
+                    @else
+                        <span class="text-xs text-gray-400" title="Ja existe conversa aberta com este contato">
+                            encerrada
+                        </span>
+                    @endif
                 @else
                     <button type="button" wire:click="finalizar"
                             wire:confirm="Finalizar este atendimento?"
@@ -38,6 +44,10 @@
                 @endif
             </div>
         </div>
+
+        @error('reabrir')
+            <div class="bg-red-50 px-4 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ $message }}</div>
+        @enderror
 
         <div class="flex-1 space-y-2 overflow-y-auto bg-slate-50 p-4">
             @if ($mensagens->count() >= $limite)
