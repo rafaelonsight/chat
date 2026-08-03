@@ -39,7 +39,7 @@ class ConversationList extends Component
     public function render()
     {
         return view('livewire.inbox.conversation-list', [
-            'conversas' => Conversation::with('contact')
+            'conversas' => Conversation::with(['contact', 'ultimaMensagem'])
                 ->orderByDesc('ultima_msg_em')
                 ->limit(50)
                 ->get(),

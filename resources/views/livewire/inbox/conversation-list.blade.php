@@ -11,7 +11,25 @@
                     <span class="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-xs text-white">{{ $conversa->nao_lidas }}</span>
                 @endif
             </div>
-            <div class="text-xs text-slate-500">{{ $conversa->ultima_msg_em?->diffForHumans() }}</div>
+            @php
+                $ultima = $conversa->ultimaMensagem;
+                $previa = match (true) {
+                    ! $ultima            => null,
+                    $ultima->tipo === 'text' => $ultima->corpo,
+                    $ultima->tipo === 'image' => 'Foto',
+                    $ultima->tipo === 'video' => 'Video',
+                    $ultima->tipo === 'audio' => 'Audio',
+                    $ultima->tipo === 'sticker' => 'Figurinha',
+                    default              => $ultima->media_nome ?: 'Documento',
+                };
+            @endphp
+            @if ($previa)
+                <div class="truncate text-xs text-slate-600">
+                    @unless ($ultima->entrada()) <span class="opacity-60">voce:</span> @endunless
+                    {{ \Illuminate\Support\Str::limit($previa, 48) }}
+                </div>
+            @endif
+            <div class="text-xs text-slate-400">{{ $conversa->ultima_msg_em?->diffForHumans() }}</div>
         </button>
     @empty
         <p class="p-4 text-sm text-slate-500">Nenhuma conversa ainda.</p>

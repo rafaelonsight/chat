@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Events\MessageStored;
 use App\Models\{Channel, Contact, Conversation, Message, WebhookEvent};
 use App\Services\EvolutionService;
+use App\Services\MediaService;
 use App\Support\{PhoneNumber, TenantContext};
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -18,6 +19,15 @@ class ProcessEvolutionWebhook implements ShouldQueue
     public int $tries = 3;
 
     public array $backoff = [5, 15, 60];
+
+    private const TIPOS_MIDIA = [
+        'imageMessage'               => 'image',
+        'videoMessage'               => 'video',
+        'audioMessage'               => 'audio',
+        'documentMessage'            => 'document',
+        'stickerMessage'             => 'sticker',
+        'documentWithCaptionMessage' => 'document',
+    ];
 
     public function __construct(public int $webhookEventId) {}
 
@@ -48,7 +58,6 @@ class ProcessEvolutionWebhook implements ShouldQueue
                 $evento->update(['processado_em' => now(), 'erro' => null]);
             } catch (\Throwable $e) {
                 // Payload inesperado nao pode derrubar a fila: registra e segue.
-                // O evento fica no log para reprocessamento manual.
                 $evento->update(['processado_em' => now(), 'erro' => $e->getMessage()]);
             }
         });
@@ -69,14 +78,13 @@ class ProcessEvolutionWebhook implements ShouldQueue
             throw new \RuntimeException('remetente ou id ausente no payload');
         }
 
-        $texto = Arr::get($data, 'message.conversation')
-            ?? Arr::get($data, 'message.extendedTextMessage.text');
+        $conteudo = $this->identificarConteudo(Arr::get($data, 'message', []));
 
-        if ($texto === null) {
-            return; // nesta fatia so tratamos texto
+        if (! $conteudo) {
+            return; // tipo que ainda nao tratamos (localizacao, contato, enquete)
         }
 
-        DB::transaction(function () use ($canal, $telefone, $externalId, $texto, $data) {
+        $mensagem = DB::transaction(function () use ($canal, $telefone, $externalId, $conteudo, $data) {
             $contato = Contact::firstOrCreate(
                 ['tenant_id' => $canal->tenant_id, 'telefone_e164' => $telefone],
                 ['nome' => Arr::get($data, 'pushName')],
@@ -90,22 +98,101 @@ class ProcessEvolutionWebhook implements ShouldQueue
             $mensagem = Message::updateOrCreate(
                 ['channel_id' => $canal->id, 'external_id' => $externalId],
                 [
-                    'tenant_id'       => $canal->tenant_id,
+                    'tenant_id'      => $canal->tenant_id,
                     'conversation_id' => $conversa->id,
-                    'direcao'         => 'in',
-                    'tipo'            => 'text',
-                    'corpo'           => $texto,
-                    'status'          => Message::STATUS_DELIVERED,
-                    'enviada_em'      => now(),
+                    'direcao'        => 'in',
+                    'tipo'           => $conteudo['tipo'],
+                    'corpo'          => $conteudo['corpo'] ?? null,
+                    'legenda'        => $conteudo['legenda'] ?? null,
+                    'media_mime'     => $conteudo['mime'] ?? null,
+                    'media_nome'     => $conteudo['nome'] ?? null,
+                    'media_duracao'  => $conteudo['duracao'] ?? null,
+                    'status'         => Message::STATUS_DELIVERED,
+                    'enviada_em'     => now(),
                 ],
             );
 
             if ($mensagem->wasRecentlyCreated) {
                 $conversa->increment('nao_lidas');
                 $conversa->update(['ultima_msg_em' => now()]);
-                broadcast(new MessageStored($mensagem));
             }
+
+            return $mensagem;
         });
+
+        // Fora da transacao de proposito: o download e uma chamada HTTP que pode
+        // levar segundos, e transacao aberta esse tempo todo prende conexao.
+        if ($conteudo['tipo'] !== 'text' && $mensagem->wasRecentlyCreated) {
+            $this->baixarMidia($canal, $mensagem, $externalId);
+        }
+
+        if ($mensagem->wasRecentlyCreated) {
+            broadcast(new MessageStored($mensagem->refresh()));
+        }
+    }
+
+    private function identificarConteudo(array $msg): ?array
+    {
+        $texto = Arr::get($msg, 'conversation') ?? Arr::get($msg, 'extendedTextMessage.text');
+
+        if ($texto !== null && $texto !== '') {
+            return ['tipo' => 'text', 'corpo' => $texto];
+        }
+
+        foreach (self::TIPOS_MIDIA as $chave => $tipoPadrao) {
+            if (! Arr::has($msg, $chave)) {
+                continue;
+            }
+
+            $m = Arr::get($msg, $chave);
+
+            if ($chave === 'documentWithCaptionMessage') {
+                $m = Arr::get($m, 'message.documentMessage', $m);
+            }
+
+            $mime = (string) Arr::get($m, 'mimetype', '');
+
+            return [
+                'tipo'    => $mime !== '' ? app(MediaService::class)->tipoPorMime($mime) : $tipoPadrao,
+                'legenda' => Arr::get($m, 'caption'),
+                'mime'    => $mime !== '' ? $mime : null,
+                'nome'    => Arr::get($m, 'fileName'),
+                'duracao' => Arr::get($m, 'seconds'),
+            ];
+        }
+
+        return null;
+    }
+
+    private function baixarMidia(Channel $canal, Message $mensagem, string $externalId): void
+    {
+        try {
+            $r = app(EvolutionService::class)->getMediaBase64($canal->instance_name, $externalId);
+            $base64 = Arr::get($r, 'base64');
+
+            if (! $base64) {
+                throw new \RuntimeException('a Evolution nao devolveu o arquivo');
+            }
+
+            $meta = app(MediaService::class)->guardarBase64(
+                $mensagem->conversation,
+                $base64,
+                (string) (Arr::get($r, 'mimetype') ?: $mensagem->media_mime ?: 'application/octet-stream'),
+                Arr::get($r, 'fileName') ?: $mensagem->media_nome,
+            );
+
+            $mensagem->update([
+                'media_path'    => $meta['path'],
+                'media_mime'    => $meta['mime'],
+                'media_nome'    => $meta['nome'],
+                'media_tamanho' => $meta['tamanho'],
+                'erro'          => null,
+            ]);
+        } catch (\Throwable $e) {
+            // A mensagem fica no historico com o erro: legenda e contexto nao se
+            // perdem, e o download pode ser refeito depois pelo external_id.
+            $mensagem->update(['erro' => mb_substr('midia: '.$e->getMessage(), 0, 500)]);
+        }
     }
 
     private function statusAtualizado(Channel $canal, array $payload): void
@@ -153,8 +240,8 @@ class ProcessEvolutionWebhook implements ShouldQueue
         if ($estado === 'open' && ! $canal->telefone_e164) {
             try {
                 $info = app(EvolutionService::class)->instanceInfo($canal->instance_name);
-                $jid = data_get(collect($info)->first(), 'ownerJid')
-                    ?? data_get(collect($info)->first(), 'instance.owner');
+                $primeiro = collect($info)->first();
+                $jid = data_get($primeiro, 'ownerJid') ?? data_get($primeiro, 'instance.owner');
 
                 if ($telefone = PhoneNumber::toE164($jid)) {
                     $canal->forceFill(['telefone_e164' => $telefone])->saveQuietly();

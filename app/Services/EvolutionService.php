@@ -82,4 +82,46 @@ class EvolutionService
             ->get('/instance/fetchInstances', ['instanceName' => $instance])
             ->throw()->json();
     }
+
+    // Baixa o binario de uma mensagem de midia recebida. O webhook nao traz o
+    // arquivo, so o aviso de que existe.
+    public function getMediaBase64(string $instance, string $messageId): array
+    {
+        return $this->client()->timeout(120)
+            ->post("/chat/getBase64FromMediaMessage/{$instance}", [
+                'message'      => ['key' => ['id' => $messageId]],
+                'convertToMp4' => false,
+            ])->throw()->json();
+    }
+
+    public function sendMedia(
+        string $instance,
+        string $to,
+        string $mediatype,
+        string $base64,
+        ?string $caption = null,
+        ?string $fileName = null,
+        ?string $mimetype = null,
+    ): array {
+        return $this->client()->timeout(180)
+            ->post("/message/sendMedia/{$instance}", array_filter([
+                'number'    => $to,
+                'mediatype' => $mediatype,
+                'mimetype'  => $mimetype,
+                'caption'   => $caption,
+                'media'     => $base64,
+                'fileName'  => $fileName,
+            ], fn ($v) => $v !== null && $v !== ''))->throw()->json();
+    }
+
+    // Endpoint separado de proposito: o sendMedia manda audio como arquivo
+    // anexado; so este faz virar nota de voz.
+    public function sendAudio(string $instance, string $to, string $base64): array
+    {
+        return $this->client()->timeout(180)
+            ->post("/message/sendWhatsAppAudio/{$instance}", [
+                'number' => $to,
+                'audio'  => $base64,
+            ])->throw()->json();
+    }
 }

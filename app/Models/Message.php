@@ -19,9 +19,14 @@ class Message extends Model
     protected $fillable = [
         'tenant_id', 'conversation_id', 'channel_id', 'direcao',
         'tipo', 'corpo', 'external_id', 'status', 'erro', 'enviada_em',
+        'media_path', 'media_mime', 'media_nome', 'media_tamanho', 'media_duracao', 'legenda',
     ];
 
-    protected $casts = ['enviada_em' => 'datetime'];
+    protected $casts = [
+        'enviada_em'     => 'datetime',
+        'media_tamanho'  => 'integer',
+        'media_duracao'  => 'integer',
+    ];
 
     public function conversation(): BelongsTo
     {
@@ -31,5 +36,26 @@ class Message extends Model
     public function entrada(): bool
     {
         return $this->direcao === 'in';
+    }
+
+    public function temMidia(): bool
+    {
+        return $this->media_path !== null;
+    }
+
+    public function midiaUrl(): ?string
+    {
+        return $this->temMidia() ? route('media.show', $this) : null;
+    }
+
+    public function tamanhoLegivel(): ?string
+    {
+        if (! $this->media_tamanho) {
+            return null;
+        }
+
+        $kb = $this->media_tamanho / 1024;
+
+        return $kb < 1024 ? round($kb).' KB' : round($kb / 1024, 1).' MB';
     }
 }

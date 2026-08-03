@@ -16,3 +16,7 @@ Route::post('/webhooks/evolution/{channel}/{secret}', EvolutionWebhookController
 Route::get('/login', fn () => redirect('/admin/login'))->name('login');
 
 Route::view('/inbox', 'inbox')->middleware('auth')->name('inbox');
+
+Route::get('/media/{message}', App\Http\Controllers\MediaController::class)
+    ->middleware('auth')
+    ->name('media.show');
