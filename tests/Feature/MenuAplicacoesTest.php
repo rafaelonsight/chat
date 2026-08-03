@@ -1,6 +1,7 @@
 <?php
 
-use App\Filament\Pages\{Campanhas, Chatbot, FuncionariosDigitais, Sequencias};
+use App\Filament\Pages\{Campanhas, FuncionariosDigitais, Sequencias};
+use App\Filament\Resources\Chatbots\ChatbotResource;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Support\TenantContext;
@@ -21,15 +22,17 @@ function usuarioApps(string $slug, bool $admin = true): User
 afterEach(fn () => TenantContext::forget());
 
 it('os quatro itens ficam no grupo Aplicacoes', function () {
+    // Chatbot deixou de ser placeholder e virou recurso; o lugar no menu e o
+    // mesmo, mas quem responde agora e o recurso.
     expect(Campanhas::getNavigationGroup())->toBe('Aplicações')
-        ->and(Chatbot::getNavigationGroup())->toBe('Aplicações')
+        ->and(ChatbotResource::getNavigationGroup())->toBe('Aplicações')
         ->and(FuncionariosDigitais::getNavigationGroup())->toBe('Aplicações')
         ->and(Sequencias::getNavigationGroup())->toBe('Aplicações');
 });
 
 it('ficam no nivel de cima do grupo, sem pai', function () {
-    foreach ([Campanhas::class, Chatbot::class, FuncionariosDigitais::class, Sequencias::class] as $pagina) {
-        expect($pagina::getNavigationParentItem())->toBeNull();
+    foreach ([Campanhas::class, ChatbotResource::class, FuncionariosDigitais::class, Sequencias::class] as $item) {
+        expect($item::getNavigationParentItem())->toBeNull();
     }
 });
 
@@ -50,18 +53,30 @@ it('so admin acessa', function () {
     $this->actingAs($atendente);
 
     expect(Campanhas::canAccess())->toBeFalse()
-        ->and(Chatbot::canAccess())->toBeFalse()
+        ->and(ChatbotResource::canViewAny())->toBeFalse()
         ->and(FuncionariosDigitais::canAccess())->toBeFalse()
         ->and(Sequencias::canAccess())->toBeFalse();
 });
 
-it('as quatro telas abrem para admin, com as decisoes listadas', function () {
+it('as telas ainda reservadas abrem para admin, com as decisoes listadas', function () {
     $admin = usuarioApps('ap2');
     $chave = 'login_web_'.sha1('Illuminate\Auth\SessionGuard');
 
-    foreach (['/admin/campanhas', '/admin/chatbot', '/admin/funcionarios-digitais', '/admin/sequencias'] as $rota) {
+    foreach (['/admin/campanhas', '/admin/funcionarios-digitais', '/admin/sequencias'] as $rota) {
         $this->withSession([$chave => $admin->id])->get($rota)
             ->assertSuccessful()
             ->assertSee('em constru');
     }
+});
+
+it('o Chatbot deixou de ser tela reservada', function () {
+    $admin = usuarioApps('ap3');
+    $chave = 'login_web_'.sha1('Illuminate\Auth\SessionGuard');
+
+    // Nao basta abrir: precisa NAO dizer mais "em construcao", senao a tela
+    // continuaria mentindo sobre o proprio estado.
+    $this->withSession([$chave => $admin->id])->get('/admin/chatbot')
+        ->assertSuccessful()
+        ->assertDontSee('em constru')
+        ->assertSee('Nenhum fluxo ainda');
 });

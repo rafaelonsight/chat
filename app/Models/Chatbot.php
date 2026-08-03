@@ -1,0 +1,145 @@
+<?php
+
+namespace App\Models;
+
+use App\Models\Concerns\BelongsToTenant;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Chatbot extends Model
+{
+    use BelongsToTenant;
+
+    protected $fillable = [
+        'tenant_id', 'channel_id', 'nome', 'ativo',
+        'mensagem_boas_vindas', 'mensagem_nao_entendi',
+        'mensagem_fora_horario', 'mensagem_transferindo',
+        'max_tentativas', 'palavra_escape',
+    ];
+
+    protected $casts = [
+        'ativo'          => 'boolean',
+        'max_tentativas' => 'integer',
+    ];
+
+    protected $attributes = [
+        'ativo'          => false,
+        'max_tentativas' => 2,
+        'palavra_escape' => 'atendente',
+    ];
+
+    // O banco ja garante um bot ativo por canal com indice parcial. Sem isto, o
+    // usuario que ativa o segundo bot tomaria um erro 500 de constraint em vez do
+    // comportamento que ele obviamente quis: trocar de bot.
+    protected static function booted(): void
+    {
+        static::saving(function (self $bot) {
+            if (! $bot->ativo || ! $bot->isDirty('ativo')) {
+                return;
+            }
+
+            static::where('ativo', true)
+                ->when($bot->exists, fn ($q) => $q->whereKeyNot($bot->getKey()))
+                ->when(
+                    $bot->channel_id,
+                    fn ($q) => $q->where('channel_id', $bot->channel_id),
+                    fn ($q) => $q->whereNull('channel_id'),
+                )
+                ->update(['ativo' => false]);
+        });
+    }
+
+    /** Nome do bot que foi desligado ao ativar este, para poder avisar na tela. */
+    public function conflitante(): ?self
+    {
+        return static::where('ativo', true)
+            ->when($this->exists, fn ($q) => $q->whereKeyNot($this->getKey()))
+            ->when(
+                $this->channel_id,
+                fn ($q) => $q->where('channel_id', $this->channel_id),
+                fn ($q) => $q->whereNull('channel_id'),
+            )
+            ->first();
+    }
+
+    /**
+     * Fluxo inicial de provedor, pronto para editar. Comecar de uma arvore vazia e
+     * a parte mais dificil de configurar um bot; comecar de uma arvore plausivel e
+     * questao de trocar os textos.
+     */
+    public static function criarExemplo(): self
+    {
+        $bot = static::create([
+            'nome'                  => 'Recepção',
+            'ativo'                 => false,
+            'mensagem_boas_vindas'  => "Olá! Sou o atendimento automático. Como podemos ajudar?",
+            'mensagem_nao_entendi'  => 'Não entendi. Escolha uma das opções abaixo:',
+            'mensagem_transferindo' => 'Um momento, já vou te encaminhar para um atendente.',
+            'max_tentativas'        => 2,
+            'palavra_escape'        => 'atendente',
+        ]);
+
+        $suporte = Team::where('nome', 'ilike', 'suporte%')->first();
+        $financeiro = Team::where('nome', 'ilike', 'financ%')->first();
+
+        $no = fn (array $attr) => ChatbotNode::create(array_merge(['chatbot_id' => $bot->id], $attr));
+
+        $no([
+            'gatilho' => '1', 'rotulo' => 'Segunda via / Financeiro', 'ordem' => 1,
+            'tipo' => ChatbotNode::EQUIPE, 'team_id' => $financeiro?->id,
+            'mensagem' => 'Vou te encaminhar para o Financeiro.',
+        ]);
+
+        $tecnico = $no([
+            'gatilho' => '2', 'rotulo' => 'Suporte técnico', 'ordem' => 2,
+            'tipo' => ChatbotNode::MENU, 'mensagem' => 'Qual o problema?',
+        ]);
+
+        $no([
+            'parent_id' => $tecnico->id,
+            'gatilho' => '1', 'rotulo' => 'Sem internet', 'ordem' => 1,
+            'tipo' => ChatbotNode::EQUIPE, 'team_id' => $suporte?->id,
+            'mensagem' => 'Vou te encaminhar para o Suporte.',
+        ]);
+
+        $no([
+            'parent_id' => $tecnico->id,
+            'gatilho' => '2', 'rotulo' => 'Internet lenta', 'ordem' => 2,
+            'tipo' => ChatbotNode::MENSAGEM,
+            'mensagem' => "Tente reiniciar o roteador: desligue da tomada, aguarde 30 segundos e ligue novamente.\n\nSe continuar lento, escolha 1 para falar com o Suporte.",
+        ]);
+
+        $no([
+            'gatilho' => '3', 'rotulo' => 'Horário de atendimento', 'ordem' => 3,
+            'tipo' => ChatbotNode::MENSAGEM,
+            'mensagem' => 'Atendemos de segunda a sexta, das 8h às 18h.',
+        ]);
+
+        return $bot;
+    }
+
+    public function channel(): BelongsTo
+    {
+        return $this->belongsTo(Channel::class);
+    }
+
+    public function nodes(): HasMany
+    {
+        return $this->hasMany(ChatbotNode::class);
+    }
+
+    /** Opcoes do menu raiz. */
+    public function raiz(): HasMany
+    {
+        return $this->hasMany(ChatbotNode::class)->whereNull('parent_id')->orderBy('ordem');
+    }
+
+    // Bot do canal tem prioridade sobre o bot geral da conta: provedor com um
+    // numero de suporte e outro comercial precisa de arvores diferentes.
+    public static function ativoPara(Channel $canal): ?self
+    {
+        return static::where('ativo', true)->where('channel_id', $canal->id)->first()
+            ?? static::where('ativo', true)->whereNull('channel_id')->first();
+    }
+}

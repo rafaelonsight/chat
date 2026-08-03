@@ -25,6 +25,7 @@ class Conversation extends Model
     protected $fillable = [
         'tenant_id', 'channel_id', 'contact_id', 'status', 'atendente_id', 'team_id',
         'ultima_msg_em', 'nao_lidas',
+        'chatbot_id', 'chatbot_node_id', 'chatbot_tentativas', 'chatbot_estado',
     ];
 
     protected $casts = ['ultima_msg_em' => 'datetime'];
@@ -158,6 +159,16 @@ class Conversation extends Model
     public function rotuloStatus(): string
     {
         return self::ROTULOS[$this->status] ?? $this->status;
+    }
+
+    public function chatbot(): BelongsTo
+    {
+        return $this->belongsTo(Chatbot::class);
+    }
+
+    public function chatbotNode(): BelongsTo
+    {
+        return $this->belongsTo(ChatbotNode::class, 'chatbot_node_id');
     }
 
     public function team(): BelongsTo
