@@ -44,6 +44,19 @@
          class="shrink-0 border-b border-gray-200 dark:border-white/10">
 
         <div class="flex items-center gap-1 px-2 py-1.5">
+            {{-- so aparece quando ha equipe: sem nenhuma, a barra fica como antes --}}
+            @if ($equipes->isNotEmpty())
+                <select wire:model.live="equipe"
+                        class="mr-1 max-w-[8.5rem] rounded-full border-0 bg-gray-100 py-1 pl-2 pr-6 text-xs font-medium text-gray-700 dark:bg-white/10 dark:text-gray-200">
+                    <option value="minhas">Minhas equipes</option>
+                    <option value="todas">Todas</option>
+                    <option value="sem">Sem equipe</option>
+                    @foreach ($equipes as $eq)
+                        <option value="{{ $eq->id }}">{{ $eq->nome }}</option>
+                    @endforeach
+                </select>
+            @endif
+
             <button type="button" wire:click="$set('somenteNaoLidas', false)"
                     class="rounded-full px-2.5 py-1 text-xs font-medium transition
                            {{ ! $somenteNaoLidas ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5' }}">
@@ -170,7 +183,9 @@
                         <span class="shrink-0">{{ $conversa->messages_count }} msg</span>
                     @else
                         <span>{{ $conversa->ultima_msg_em?->diffForHumans() }}</span>
-                        @if ($conversa->atendente)
+                        @if ($conversa->team)
+                            <span class="truncate">{{ $conversa->team->nome }}</span>
+                        @elseif ($conversa->atendente)
                             <span class="truncate">{{ $conversa->atendente->name }}</span>
                         @endif
                     @endif

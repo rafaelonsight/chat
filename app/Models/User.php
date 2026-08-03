@@ -41,4 +41,17 @@ class User extends Authenticatable implements FilamentUser
     {
         return true;
     }
+
+    public function teams(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Team::class, 'team_user')
+            ->withPivot('papel')
+            ->withTimestamps();
+    }
+
+    /** @return array<int, int> */
+    public function equipeIds(): array
+    {
+        return $this->teams()->pluck('teams.id')->all();
+    }
 }

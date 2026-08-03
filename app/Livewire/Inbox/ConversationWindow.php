@@ -48,7 +48,13 @@ class ConversationWindow extends Component
             ? $conversa->messages()->orderByDesc('id')->limit($this->limite)->get()->reverse()->values()
             : collect();
 
-        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens'));
+        $equipes = \App\Models\Team::ativas()->orderBy('nome')->get();
+
+        $eventos = $conversa
+            ? $conversa->events()->with('user')->orderByDesc('id')->limit(5)->get()
+            : collect();
+
+        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'eventos'));
     }
 
     public function assumir(): void
@@ -83,5 +89,21 @@ class ConversationWindow extends Component
     public function verDetalhes(): void
     {
         $this->dispatch('abrir-detalhes');
+    }
+
+    public function transferir(int $teamId): void
+    {
+        $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
+
+        // ativas()->find() sob o escopo global: equipe de outro tenant nao existe aqui
+        $destino = \App\Models\Team::ativas()->find($teamId);
+
+        if (! $destino || ! $conversa->transferir($destino)) {
+            $this->addError('transferir', 'Não consegui transferir para essa equipe.');
+
+            return;
+        }
+
+        $this->dispatch('conversa-atualizada');
     }
 }

@@ -30,6 +30,28 @@
             </div>
 
             <div class="flex shrink-0 items-center gap-2">
+                @if ($equipes->isNotEmpty())
+                    <div class="relative" x-data="{ aberto: false }" x-on:click.outside="aberto = false">
+                        <button type="button" x-on:click="aberto = !aberto"
+                                class="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5">
+                            {{ $conversa->team?->nome ?? 'Sem equipe' }} &#9662;
+                        </button>
+                        <div x-show="aberto" x-cloak
+                             class="absolute right-0 z-20 mt-1 w-56 rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-white/10 dark:bg-gray-800">
+                            <p class="px-2 py-1 text-xs font-semibold text-gray-500 dark:text-gray-400">Transferir para</p>
+                            @foreach ($equipes as $eq)
+                                <button type="button" wire:key="tr-{{ $eq->id }}"
+                                        wire:click="transferir({{ $eq->id }})" x-on:click="aberto = false"
+                                        @disabled($conversa->team_id === $eq->id)
+                                        class="block w-full rounded-lg px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40 dark:text-gray-200 dark:hover:bg-white/5">
+                                    {{ $eq->nome }}
+                                    @if ($conversa->team_id === $eq->id) <span class="text-xs opacity-60">(atual)</span> @endif
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 @if ($conversa->status === \App\Models\Conversation::NOVA)
                     <button type="button" wire:click="assumir"
                             class="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5">
@@ -57,6 +79,22 @@
                 @endif
             </div>
         </div>
+
+        @error('transferir')
+            <div class="bg-red-50 px-4 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ $message }}</div>
+        @enderror
+
+        {{-- rastro interno: transferencia e afins. NAO vai para o cliente. --}}
+        @if ($eventos->isNotEmpty())
+            <div class="border-b border-gray-100 bg-gray-50 px-4 py-1.5 dark:border-white/5 dark:bg-white/5">
+                @foreach ($eventos->reverse() as $ev)
+                    <p class="text-[11px] text-gray-500 dark:text-gray-400">
+                        {{ $ev->created_at?->format('d/m H:i') }} &middot; {{ $ev->descricao }}
+                        @if ($ev->user) &middot; {{ $ev->user->name }} @endif
+                    </p>
+                @endforeach
+            </div>
+        @endif
 
         @error('reabrir')
             <div class="bg-red-50 px-4 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ $message }}</div>

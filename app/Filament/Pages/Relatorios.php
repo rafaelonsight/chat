@@ -83,12 +83,22 @@ class Relatorios extends Page
             ->orderByDesc('conversas')
             ->get();
 
+        $porEquipe = Conversation::query()
+            ->where('conversations.created_at', '>=', $desde)
+            ->leftJoin('teams', 'teams.id', '=', 'conversations.team_id')
+            ->selectRaw("coalesce(teams.nome, 'sem equipe') as equipe")
+            ->selectRaw('count(*) as conversas')
+            ->selectRaw("count(*) filter (where conversations.status = 'arquivada') as encerradas")
+            ->groupBy('teams.nome')
+            ->orderByDesc('conversas')
+            ->get();
+
         $primeiraResposta = $this->tempoAteAPrimeiraResposta($desde);
 
         $conta = Tenant::find(auth()->user()?->tenant_id);
         $emHorarioUtil = BusinessHours::paraConta($conta)?->configurado() ?? false;
 
-        return compact('resumo', 'porCanal', 'porAtendente', 'primeiraResposta', 'emHorarioUtil');
+        return compact('resumo', 'porCanal', 'porAtendente', 'porEquipe', 'primeiraResposta', 'emHorarioUtil');
     }
 
     // Tempo entre a primeira mensagem do cliente e a primeira resposta nossa.

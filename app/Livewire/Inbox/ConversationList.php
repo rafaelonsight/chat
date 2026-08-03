@@ -3,6 +3,7 @@
 namespace App\Livewire\Inbox;
 
 use App\Models\Contact;
+use App\Models\Team;
 use App\Models\Conversation;
 use Illuminate\Database\Eloquent\Builder;
 use Livewire\Component;
@@ -33,6 +34,9 @@ class ConversationList extends Component
 
     public string $busca = '';
 
+    // 'minhas' | 'todas' | 'sem' | id da equipe
+    public string $equipe = 'minhas';
+
     // null = padrao do balde. A escolha no menu sobrepoe e continua valendo.
     public ?string $ordem = null;
 
@@ -57,6 +61,11 @@ class ConversationList extends Component
         if (array_key_exists($balde, self::BALDES)) {
             $this->balde = $balde;
         }
+    }
+
+    public function selecionarEquipe(string $equipe): void
+    {
+        $this->equipe = $equipe;
     }
 
     public function selecionarOrdem(string $ordem): void
@@ -119,8 +128,34 @@ class ConversationList extends Component
         };
     }
 
+    // Equipe e recorte, nao balde: baldes sao fixos (palavra ou icone) e
+    // equipes sao dados que variam. Cinco equipes como cinco baldes
+    // explodiriam a barra.
+    private function aplicarEquipe(Builder $query): Builder
+    {
+        $minhas = auth()->user()?->equipeIds() ?? [];
+
+        // Quem nao esta em equipe nenhuma continua vendo tudo. Sem isto, o dia
+        // em que a primeira equipe fosse criada, todo mundo fora dela ficaria
+        // com o inbox vazio sem entender por que.
+        if ($this->equipe === 'minhas' && $minhas === []) {
+            return $query;
+        }
+
+        return match ($this->equipe) {
+            'todas'  => $query,
+            'sem'    => $query->whereNull('team_id'),
+            'minhas' => $query->where(fn ($q) => $q->whereIn('team_id', $minhas)->orWhereNull('team_id')),
+            default  => ctype_digit($this->equipe)
+                ? $query->where('team_id', (int) $this->equipe)
+                : $query,
+        };
+    }
+
     private function aplicarRecortes(Builder $query): Builder
     {
+        $query = $this->aplicarEquipe($query);
+
         if ($this->somenteNaoLidas) {
             $query->where('nao_lidas', '>', 0);
         }
@@ -155,17 +190,19 @@ class ConversationList extends Component
         // Badge de Novos conta tudo (toda conversa ali esta pendente). Nos outros
         // conta so nao lidas — assim todo badge significa a mesma coisa:
         // precisa dos seus olhos.
+        // os badges tambem respeitam a equipe escolhida, senao contariam
+        // conversa que a lista nem mostra
         $badges = [
-            'novos'      => $this->doBalde('novos')->count(),
-            'meus'       => $this->doBalde('meus')->where('nao_lidas', '>', 0)->count(),
-            'outros'     => $this->doBalde('outros')->where('nao_lidas', '>', 0)->count(),
-            'grupos'     => $this->doBalde('grupos')->where('nao_lidas', '>', 0)->count(),
+            'novos'      => $this->aplicarEquipe($this->doBalde('novos'))->count(),
+            'meus'       => $this->aplicarEquipe($this->doBalde('meus'))->where('nao_lidas', '>', 0)->count(),
+            'outros'     => $this->aplicarEquipe($this->doBalde('outros'))->where('nao_lidas', '>', 0)->count(),
+            'grupos'     => $this->aplicarEquipe($this->doBalde('grupos'))->where('nao_lidas', '>', 0)->count(),
             'arquivadas' => null,
         ];
 
         $conversas = $this->aplicarRecortes(
             $this->doBalde($this->balde)
-                ->with(['contact', 'ultimaMensagem', 'atendente'])
+                ->with(['contact', 'ultimaMensagem', 'atendente', 'team'])
                 ->withCount('messages')
         )
             ->orderBy('ultima_msg_em', $this->ordemEfetiva() === 'antigos' ? 'asc' : 'desc')
@@ -174,6 +211,7 @@ class ConversationList extends Component
 
         return view('livewire.inbox.conversation-list', [
             'conversas'     => $conversas,
+            'equipes'       => Team::ativas()->orderBy('nome')->get(),
             'badges'        => $badges,
             'baldes'        => self::BALDES,
             'ordens'        => self::ORDENS,

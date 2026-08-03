@@ -2,10 +2,10 @@
 
 use App\Filament\Pages\Cadastro;
 use App\Filament\Pages\ConsumoConversas;
-use App\Filament\Pages\Equipe;
 use App\Filament\Pages\HorarioAtendimento;
 use App\Filament\Resources\Channels\ChannelResource;
 use App\Filament\Resources\MessageTemplates\MessageTemplateResource;
+use App\Filament\Resources\Teams\TeamResource;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\Tenant;
 use App\Models\User;
@@ -33,7 +33,7 @@ afterEach(fn () => TenantContext::forget());
 
 it('tudo de configuracao fica no grupo Configuracoes', function () {
     expect(UserResource::getNavigationGroup())->toBe('Configurações')
-        ->and(Equipe::getNavigationGroup())->toBe('Configurações')
+        ->and(TeamResource::getNavigationGroup())->toBe('Configurações')
         ->and(MessageTemplateResource::getNavigationGroup())->toBe('Configurações')
         ->and(Cadastro::getNavigationGroup())->toBe('Configurações')
         ->and(ChannelResource::getNavigationGroup())->toBe('Configurações')
@@ -50,7 +50,7 @@ it('os quatro itens de Conta ficam aninhados sob Conta', function () {
 
 it('Usuarios, Equipe e Modelo de mensagens ficam no nivel de cima', function () {
     expect(UserResource::getNavigationParentItem())->toBeNull()
-        ->and(Equipe::getNavigationParentItem())->toBeNull()
+        ->and(TeamResource::getNavigationParentItem())->toBeNull()
         ->and(MessageTemplateResource::getNavigationParentItem())->toBeNull();
 });
 
@@ -59,7 +59,7 @@ it('configuracao inteira e so para admin', function () {
     $this->actingAs($atendente);
 
     expect(Cadastro::canAccess())->toBeFalse()
-        ->and(Equipe::canAccess())->toBeFalse()
+        ->and(TeamResource::canViewAny())->toBeFalse()
         ->and(HorarioAtendimento::canAccess())->toBeFalse()
         ->and(ConsumoConversas::canAccess())->toBeFalse()
         ->and(MessageTemplateResource::canViewAny())->toBeFalse();
@@ -68,7 +68,7 @@ it('configuracao inteira e so para admin', function () {
 it('as telas reservadas abrem com aviso, para o admin', function () {
     $admin = usuarioConf('cf2');
 
-    foreach (['/admin/equipe', '/admin/consumo-conversas'] as $rota) {
+    foreach (['/admin/consumo-conversas'] as $rota) {
         $this->withSession(sessaoConf($admin))->get($rota)
             ->assertSuccessful()
             ->assertSee('em constru');

@@ -69,7 +69,7 @@
 
     {{-- tabelas --}}
     <div class="grid gap-4 lg:grid-cols-2">
-        @foreach ([['Por canal', $porCanal, 'canal'], ['Por atendente', $porAtendente, 'atendente']] as [$titulo, $linhas, $campo])
+        @foreach ([['Por canal', $porCanal, 'canal'], ['Por atendente', $porAtendente, 'atendente'], ['Por equipe', $porEquipe, 'equipe']] as [$titulo, $linhas, $campo])
             <div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900">
                 <div class="border-b border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-white/10 dark:text-gray-200">
                     {{ $titulo }}

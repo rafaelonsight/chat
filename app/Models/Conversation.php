@@ -23,7 +23,7 @@ class Conversation extends Model
     ];
 
     protected $fillable = [
-        'tenant_id', 'channel_id', 'contact_id', 'status', 'atendente_id',
+        'tenant_id', 'channel_id', 'contact_id', 'status', 'atendente_id', 'team_id',
         'ultima_msg_em', 'nao_lidas',
     ];
 
@@ -158,5 +158,46 @@ class Conversation extends Model
     public function rotuloStatus(): string
     {
         return self::ROTULOS[$this->status] ?? $this->status;
+    }
+
+    public function team(): BelongsTo
+    {
+        return $this->belongsTo(Team::class);
+    }
+
+    public function events(): HasMany
+    {
+        return $this->hasMany(ConversationEvent::class);
+    }
+
+    // Transferir devolve a conversa para a fila da equipe destino: ninguem da
+    // nova equipe esta nela ainda, entao volta para Novos sem atendente. O rastro
+    // vai para conversation_events porque mensagem nossa iria para o cliente.
+    public function transferir(Team $destino, ?User $por = null): bool
+    {
+        if ($destino->tenant_id !== $this->tenant_id) {
+            return false;
+        }
+
+        $origem = $this->team?->nome;
+
+        $this->forceFill([
+            'team_id'      => $destino->id,
+            'status'       => self::NOVA,
+            'atendente_id' => null,
+        ])->save();
+
+        ConversationEvent::create([
+            'tenant_id'       => $this->tenant_id,
+            'conversation_id' => $this->id,
+            'user_id'         => $por?->id ?? auth()->id(),
+            'tipo'            => ConversationEvent::TRANSFERENCIA,
+            'descricao'       => $origem
+                ? "Transferida de {$origem} para {$destino->nome}"
+                : "Transferida para {$destino->nome}",
+            'dados'           => ['de' => $origem, 'para' => $destino->nome],
+        ]);
+
+        return true;
     }
 }
