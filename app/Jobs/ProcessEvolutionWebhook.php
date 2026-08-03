@@ -256,6 +256,13 @@ class ProcessEvolutionWebhook implements ShouldQueue
                 'media_tamanho' => $meta['tamanho'],
                 'erro'          => null,
             ]);
+
+            // So audio que ENTRA: transcrever o que nos mesmos gravamos custaria
+            // o dobro de CPU pelo que o atendente ja sabe que disse.
+            if ($mensagem->tipo === 'audio' && $mensagem->direcao === 'in') {
+                $mensagem->update(['transcricao_status' => 'pendente']);
+                TranscribeAudio::dispatch($mensagem->id);
+            }
         } catch (\Throwable $e) {
             // A mensagem fica no historico com o erro: legenda e contexto nao se
             // perdem, e o download pode ser refeito depois pelo external_id.

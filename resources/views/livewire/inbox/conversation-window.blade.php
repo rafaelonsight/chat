@@ -101,6 +101,17 @@
                                     <div class="text-[10px] opacity-70">{{ $m->media_duracao }}s</div>
                                 @endif
 
+                                @if ($m->transcricao)
+                                    <details class="mt-1" open>
+                                        <summary class="cursor-pointer text-[10px] uppercase tracking-wide opacity-60">transcrição</summary>
+                                        <div class="mt-1 whitespace-pre-wrap text-xs italic opacity-90">{{ $m->transcricao }}</div>
+                                    </details>
+                                @elseif ($m->transcricao_status === 'pendente')
+                                    <div class="mt-1 text-[10px] opacity-60">transcrevendo&hellip;</div>
+                                @elseif ($m->transcricao_status === 'ignorada')
+                                    <div class="mt-1 text-[10px] opacity-60">áudio longo: não transcrito</div>
+                                @endif
+
                             @else
                                 <a href="{{ $m->midiaUrl() }}" target="_blank" rel="noopener"
                                    class="flex items-center gap-2 underline">

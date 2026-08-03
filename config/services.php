@@ -41,4 +41,16 @@ return [
         'key' => env('EVOLUTION_API_KEY'),
     ],
 
+
+    'transcricao' => [
+        // whisper.cpp como servico local: o audio do cliente nunca sai do
+        // servidor, o que resolve o lado LGPD sem trabalho de compliance.
+        'ativa'        => (bool) env('TRANSCRICAO_ATIVA', true),
+        'url'          => env('TRANSCRICAO_URL', 'http://127.0.0.1:9090'),
+        // Audio de 8 minutos travaria um nucleo por minutos. Recusar e dizer e
+        // melhor que degradar a maquina em silencio.
+        'max_segundos' => (int) env('TRANSCRICAO_MAX_SEGUNDOS', 300),
+        'vocabulario'  => env('TRANSCRICAO_VOCABULARIO', 'Provedor de internet. ONU, OLT, roteador, PPPoE, sinal, fibra, boleto, segunda via, plano, velocidade, instalacao.'),
+    ],
+
 ];

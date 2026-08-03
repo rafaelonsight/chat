@@ -20,6 +20,7 @@ class Message extends Model
         'tenant_id', 'conversation_id', 'channel_id', 'direcao',
         'tipo', 'corpo', 'external_id', 'status', 'erro', 'enviada_em',
         'remetente_nome', 'remetente_jid', 'automatica',
+        'transcricao', 'transcricao_status',
         'media_path', 'media_mime', 'media_nome', 'media_tamanho', 'media_duracao', 'legenda',
     ];
 

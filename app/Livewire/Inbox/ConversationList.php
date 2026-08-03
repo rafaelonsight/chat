@@ -141,8 +141,11 @@ class ConversationList extends Component
                     $c->orWhere('telefone_e164', 'ilike', '%'.$digitos.'%');
                 }
             })->orWhereHas('messages', function ($m) use ($termo) {
+                // transcricao entra na busca: sem ela, audio e buraco negro no
+                // historico — "o cliente falou de cancelamento" nao encontra nada
                 $m->where('corpo', 'ilike', '%'.$termo.'%')
-                    ->orWhere('legenda', 'ilike', '%'.$termo.'%');
+                    ->orWhere('legenda', 'ilike', '%'.$termo.'%')
+                    ->orWhere('transcricao', 'ilike', '%'.$termo.'%');
             });
         });
     }
