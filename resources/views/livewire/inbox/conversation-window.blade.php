@@ -73,6 +73,10 @@
                 @php $entrada = $m->entrada(); @endphp
                 <div wire:key="msg-{{ $m->id }}" class="flex {{ $entrada ? 'justify-start' : 'justify-end' }}">
                     <div class="max-w-lg rounded-lg px-3 py-2 text-sm {{ $entrada ? 'border border-slate-200 bg-white text-slate-800' : 'bg-emerald-600 text-white' }}">
+                        @if ($entrada && $m->remetente_nome)
+                            {{-- em grupo, quem falou importa tanto quanto o que foi dito --}}
+                            <div class="mb-0.5 text-xs font-semibold text-emerald-700">{{ $m->remetente_nome }}</div>
+                        @endif
 
                         @if ($m->tipo === 'text')
                             <div class="whitespace-pre-wrap">{{ $m->corpo }}</div>

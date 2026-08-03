@@ -19,10 +19,17 @@ class ContactForm
 
             // O telefone e a identidade da conversa no WhatsApp: trocar depois
             // quebraria o vinculo com o historico. Editavel so na criacao.
+            // Grupo nao tem telefone: o campo desaparece para ele.
+            \Filament\Forms\Components\Placeholder::make('tipo_info')
+                ->label('Tipo')
+                ->content(fn ($record) => $record?->eGrupo() ? 'Grupo de WhatsApp' : 'Pessoa')
+                ->visibleOn('edit'),
+
             TextInput::make('telefone_e164')
                 ->label('Telefone')
                 ->tel()
-                ->required()
+                ->required(fn (string $operation) => $operation === 'create')
+                ->hidden(fn ($record) => (bool) $record?->eGrupo())
                 ->disabledOn('edit')
                 ->helperText(fn (string $operation) => $operation === 'edit'
                     ? 'Nao pode mudar: e a identidade da conversa no WhatsApp.'

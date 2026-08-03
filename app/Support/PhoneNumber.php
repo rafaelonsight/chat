@@ -12,7 +12,11 @@ class PhoneNumber
             return null;
         }
 
-        $digitos = preg_replace('/\D+/', '', explode('@', $bruto)[0]) ?? '';
+        // Corta no '@' (JID) e depois no ':' (sufixo de dispositivo do
+        // multi-dispositivo). Sem o corte no ':' o numero ganha digitos a mais e
+        // a mensagem era descartada como payload invalido.
+        $local = explode(':', explode('@', $bruto)[0])[0];
+        $digitos = preg_replace('/\D+/', '', $local) ?? '';
 
         if ($digitos === '') {
             return null;

@@ -124,4 +124,11 @@ class EvolutionService
                 'audio'  => $base64,
             ])->throw()->json();
     }
+
+    public function groupInfo(string $instance, string $groupJid): array
+    {
+        return $this->client()
+            ->get("/group/findGroupInfos/{$instance}", ['groupJid' => $groupJid])
+            ->throw()->json();
+    }
 }

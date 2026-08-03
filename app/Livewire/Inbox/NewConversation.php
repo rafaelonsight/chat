@@ -67,7 +67,10 @@ class NewConversation extends Component
 
         $canonico = PhoneNumber::toE164($info['jid'] ?? $info['number'] ?? null) ?: $e164;
 
-        $contato = Contact::firstOrCreate(['telefone_e164' => $canonico]);
+        $contato = Contact::firstOrCreate(
+            ['jid' => Contact::jidDoTelefone($canonico)],
+            ['tipo' => Contact::PESSOA, 'telefone_e164' => $canonico],
+        );
 
         $conversa = Conversation::abertaOuNova($canal->id, $contato->id, $canal->tenant_id);
 

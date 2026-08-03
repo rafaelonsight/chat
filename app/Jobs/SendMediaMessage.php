@@ -40,7 +40,7 @@ class SendMediaMessage implements ShouldQueue
 
         TenantContext::runAs($mensagem->tenant_id, function () use ($mensagem, $evolution) {
             $canal = $mensagem->conversation->channel;
-            $destino = $mensagem->conversation->contact->telefone_e164;
+            $destino = $mensagem->conversation->contact->destinoWhatsApp();
 
             try {
                 if (! $mensagem->media_path || ! Storage::disk('local')->exists($mensagem->media_path)) {

@@ -21,6 +21,12 @@ class ContactsTable
                     ->sortable()
                     ->placeholder('sem nome'),
 
+                TextColumn::make('tipo')
+                    ->label('Tipo')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state) => $state === 'grupo' ? 'Grupo' : 'Pessoa')
+                    ->color(fn (string $state) => $state === 'grupo' ? 'info' : 'gray'),
+
                 TextColumn::make('telefone_e164')
                     ->label('Telefone')
                     ->searchable()
@@ -46,6 +52,10 @@ class ContactsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Filter::make('so_grupos')
+                    ->label('Somente grupos')
+                    ->query(fn ($query) => $query->where('tipo', 'grupo')),
+
                 Filter::make('sem_nome')
                     ->label('Sem nome definido')
                     ->query(fn ($query) => $query->whereNull('nome')),

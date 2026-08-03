@@ -1,4 +1,21 @@
 <div class="flex flex-1 flex-col overflow-hidden">
+    {{-- escopo: o que eu olho agora --}}
+    <div class="flex shrink-0 flex-wrap gap-1 border-b border-gray-200 px-2 py-2 dark:border-white/10">
+        @foreach ($rotulosEscopo as $chave => $rotulo)
+            <button type="button" wire:key="esc-{{ $chave }}"
+                    wire:click="selecionarEscopo('{{ $chave }}')"
+                    class="rounded-full px-2.5 py-1 text-xs font-medium transition
+                           {{ $escopo === $chave
+                                ? 'bg-gray-800 text-white dark:bg-white/20'
+                                : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5' }}">
+                {{ $rotulo }}
+                @if ($escopos[$chave] > 0)
+                    <span class="ml-0.5 opacity-70">{{ $escopos[$chave] }}</span>
+                @endif
+            </button>
+        @endforeach
+    </div>
+
     {{-- abas --}}
     <div class="flex shrink-0 border-b border-gray-200 dark:border-white/10">
         @foreach ($rotulos as $estado => $rotulo)
@@ -26,8 +43,17 @@
                     class="block w-full border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50 dark:border-white/5 dark:hover:bg-white/5
                            {{ $selecionada === $conversa->id ? 'bg-emerald-50 dark:bg-emerald-500/10' : '' }}">
                 <div class="flex items-center justify-between gap-2">
-                    <span class="truncate font-medium text-gray-800 dark:text-gray-100">
-                        {{ $conversa->contact->nomeExibicao() }}
+                    <span class="flex min-w-0 items-center gap-1.5">
+                        @if ($conversa->contact->eGrupo())
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8"
+                                 stroke="currentColor" class="h-3.5 w-3.5 shrink-0 text-gray-400" title="Grupo">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72M18 18.72m0 0a5.971 5.971 0 0 1-.941 3.197m0 0A5.995 5.995 0 0 1 12 21.75c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
+                            </svg>
+                        @endif
+                        <span class="truncate font-medium text-gray-800 dark:text-gray-100">
+                            {{ $conversa->contact->nomeExibicao() }}
+                        </span>
                     </span>
                     @if ($conversa->nao_lidas > 0)
                         <span class="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-xs text-white">

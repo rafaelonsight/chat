@@ -6,7 +6,7 @@ use App\Events\MessageStored;
 use App\Models\{Channel, Contact, Conversation, Message, WebhookEvent};
 use App\Services\EvolutionService;
 use App\Services\MediaService;
-use App\Support\{PhoneNumber, TenantContext};
+use App\Support\{Jid, PhoneNumber, TenantContext};
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Arr;
@@ -71,10 +71,10 @@ class ProcessEvolutionWebhook implements ShouldQueue
             return; // eco do que nos mesmos enviamos
         }
 
-        $telefone = PhoneNumber::toE164(Arr::get($data, 'key.remoteJid'));
         $externalId = Arr::get($data, 'key.id');
+        $origem = $this->resolverOrigem($canal, $data);
 
-        if (! $telefone || ! $externalId) {
+        if (! $origem || ! $externalId) {
             throw new \RuntimeException('remetente ou id ausente no payload');
         }
 
@@ -84,11 +84,8 @@ class ProcessEvolutionWebhook implements ShouldQueue
             return; // tipo que ainda nao tratamos (localizacao, contato, enquete)
         }
 
-        $mensagem = DB::transaction(function () use ($canal, $telefone, $externalId, $conteudo, $data) {
-            $contato = Contact::firstOrCreate(
-                ['tenant_id' => $canal->tenant_id, 'telefone_e164' => $telefone],
-                ['nome' => Arr::get($data, 'pushName')],
-            );
+        $mensagem = DB::transaction(function () use ($canal, $origem, $externalId, $conteudo) {
+            $contato = $origem['contato'];
 
             // Nao e firstOrCreate: se o ultimo atendimento foi encerrado, o
             // cliente que volta abre uma conversa NOVA, com comeco e fim
@@ -101,6 +98,8 @@ class ProcessEvolutionWebhook implements ShouldQueue
                     'tenant_id'      => $canal->tenant_id,
                     'conversation_id' => $conversa->id,
                     'direcao'        => 'in',
+                    'remetente_nome' => $origem['remetente_nome'],
+                    'remetente_jid'  => $origem['remetente_jid'],
                     'tipo'           => $conteudo['tipo'],
                     'corpo'          => $conteudo['corpo'] ?? null,
                     'legenda'        => $conteudo['legenda'] ?? null,
@@ -249,6 +248,58 @@ class ProcessEvolutionWebhook implements ShouldQueue
             } catch (\Throwable $e) {
                 // numero e informativo: nao vale derrubar o processamento
             }
+        }
+    }
+
+    // Pessoa e grupo chegam pelo mesmo evento, diferenciados pelo dominio do
+    // JID. Em grupo o remoteJid identifica o GRUPO e quem falou vem em
+    // key.participant — sem separar isso, cada participante viraria um contato
+    // e a conversa do grupo se estilhacaria.
+    private function resolverOrigem(Channel $canal, array $data): ?array
+    {
+        $bruto = Arr::get($data, 'key.remoteJid');
+        $jid = Jid::limpar($bruto);
+
+        if (! $jid) {
+            return null;
+        }
+
+        if (Jid::eGrupo($jid)) {
+            $contato = Contact::firstOrCreate(
+                ['tenant_id' => $canal->tenant_id, 'jid' => $jid],
+                ['tipo' => Contact::GRUPO, 'nome' => $this->nomeDoGrupo($canal, $jid)],
+            );
+
+            return [
+                'contato'        => $contato,
+                'remetente_nome' => Arr::get($data, 'pushName'),
+                'remetente_jid'  => Jid::limpar(Arr::get($data, 'key.participant')),
+            ];
+        }
+
+        $telefone = PhoneNumber::toE164($jid);
+
+        if (! $telefone) {
+            return null;
+        }
+
+        $contato = Contact::firstOrCreate(
+            ['tenant_id' => $canal->tenant_id, 'jid' => $jid],
+            ['tipo' => Contact::PESSOA, 'telefone_e164' => $telefone, 'nome' => Arr::get($data, 'pushName')],
+        );
+
+        return ['contato' => $contato, 'remetente_nome' => null, 'remetente_jid' => null];
+    }
+
+    private function nomeDoGrupo(Channel $canal, string $jid): ?string
+    {
+        try {
+            $info = app(EvolutionService::class)->groupInfo($canal->instance_name, $jid);
+
+            return Arr::get($info, 'subject') ?: null;
+        } catch (\Throwable $e) {
+            // nome e cosmetico: o grupo funciona sem ele
+            return null;
         }
     }
 }
