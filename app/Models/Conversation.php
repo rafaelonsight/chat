@@ -26,9 +26,14 @@ class Conversation extends Model
         'tenant_id', 'channel_id', 'contact_id', 'status', 'atendente_id', 'team_id',
         'ultima_msg_em', 'nao_lidas',
         'chatbot_id', 'chatbot_node_id', 'chatbot_tentativas', 'chatbot_estado',
+        'chatbot_step_id', 'chatbot_aguardando', 'chatbot_acao_ordem', 'chatbot_respostas',
     ];
 
-    protected $casts = ['ultima_msg_em' => 'datetime'];
+    protected $casts = [
+        'ultima_msg_em'      => 'datetime',
+        'chatbot_respostas'  => 'array',
+        'chatbot_acao_ordem' => 'integer',
+    ];
 
     // O default tambem em PHP: sem isto uma conversa recem-criada reporta status
     // null ate alguem dar refresh(), porque o valor vem do banco.
@@ -164,6 +169,11 @@ class Conversation extends Model
     public function chatbot(): BelongsTo
     {
         return $this->belongsTo(Chatbot::class);
+    }
+
+    public function chatbotStep(): BelongsTo
+    {
+        return $this->belongsTo(ChatbotStep::class, 'chatbot_step_id');
     }
 
     public function chatbotNode(): BelongsTo
