@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Events\MessageStored;
 use App\Models\{Channel, Contact, Conversation, Message, WebhookEvent};
+use App\Services\EvolutionService;
 use App\Support\{PhoneNumber, TenantContext};
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -145,5 +146,22 @@ class ProcessEvolutionWebhook implements ShouldQueue
             'status'       => $estado ?: 'desconhecido',
             'conectado_em' => $estado === 'open' ? now() : $canal->conectado_em,
         ])->saveQuietly();
+
+        // O payload de connection.update nao traz o numero. Quando a conexao
+        // abre, perguntamos a Evolution qual e — para o painel mostrar de qual
+        // chip cada canal se trata.
+        if ($estado === 'open' && ! $canal->telefone_e164) {
+            try {
+                $info = app(EvolutionService::class)->instanceInfo($canal->instance_name);
+                $jid = data_get(collect($info)->first(), 'ownerJid')
+                    ?? data_get(collect($info)->first(), 'instance.owner');
+
+                if ($telefone = PhoneNumber::toE164($jid)) {
+                    $canal->forceFill(['telefone_e164' => $telefone])->saveQuietly();
+                }
+            } catch (\Throwable $e) {
+                // numero e informativo: nao vale derrubar o processamento
+            }
+        }
     }
 }

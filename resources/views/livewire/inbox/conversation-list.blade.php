@@ -1,4 +1,4 @@
-<div class="w-80 shrink-0 overflow-y-auto border-r border-slate-200">
+<div class="flex-1 overflow-y-auto">
     <div class="border-b border-slate-200 px-4 py-3 font-semibold text-slate-700">Conversas</div>
 
     @forelse ($conversas as $conversa)

@@ -16,9 +16,13 @@ class ConversationList extends Component
     {
         $tenantId = auth()->user()?->tenant_id;
 
-        return $tenantId
-            ? ['echo-private:tenant.'.$tenantId.'.conversations,.message.stored' => '$refresh']
-            : [];
+        $listeners = ['abrir-conversa' => 'marcarSelecionada'];
+
+        if ($tenantId) {
+            $listeners['echo-private:tenant.'.$tenantId.'.conversations,.message.stored'] = '$refresh';
+        }
+
+        return $listeners;
     }
 
     public function selecionar(int $id): void
@@ -40,5 +44,13 @@ class ConversationList extends Component
                 ->limit(50)
                 ->get(),
         ]);
+    }
+
+    // Conversa aberta por outro componente (o botao Nova conversa) tambem
+    // precisa aparecer e ficar destacada aqui. Sem este listener a conversa
+    // nova so surgiria no proximo refresh da pagina.
+    public function marcarSelecionada(int $conversationId): void
+    {
+        $this->selecionada = $conversationId;
     }
 }

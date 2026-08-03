@@ -65,4 +65,21 @@ class EvolutionService
             'text'   => $text,
         ])->throw()->json();
     }
+
+    // Pergunta ao WhatsApp se os numeros existem e devolve o JID canonico.
+    // No Brasil isso e o que resolve o nono digito: (84) 9614-3373 digitado a
+    // mao pode virar 5584996143373 de verdade, e so o WhatsApp sabe qual e.
+    public function checkNumbers(string $instance, array $numbers): array
+    {
+        return $this->client()
+            ->post("/chat/whatsappNumbers/{$instance}", ['numbers' => $numbers])
+            ->throw()->json();
+    }
+
+    public function instanceInfo(string $instance): array
+    {
+        return $this->client()
+            ->get('/instance/fetchInstances', ['instanceName' => $instance])
+            ->throw()->json();
+    }
 }
