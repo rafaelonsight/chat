@@ -56,9 +56,20 @@
                 @endif
 
                 <div class="flex items-center justify-between gap-2 text-xs text-gray-400">
-                    <span>{{ $conversa->ultima_msg_em?->diffForHumans() }}</span>
-                    @if ($conversa->atendente)
-                        <span class="truncate">{{ $conversa->atendente->name }}</span>
+                    @if ($aba === \App\Models\Conversation::ARQUIVADA)
+                        {{-- em Arquivadas o mesmo contato pode ter varios
+                             atendimentos: sem o periodo as linhas ficam iguais --}}
+                        <span title="atendimento de {{ $conversa->created_at?->format('d/m/Y H:i') }} a {{ $conversa->ultima_msg_em?->format('d/m/Y H:i') }}">
+                            {{ $conversa->created_at?->format('d/m H:i') }}
+                            &rarr;
+                            {{ $conversa->ultima_msg_em?->format('d/m H:i') }}
+                        </span>
+                        <span class="shrink-0">{{ $conversa->messages_count }} msg</span>
+                    @else
+                        <span>{{ $conversa->ultima_msg_em?->diffForHumans() }}</span>
+                        @if ($conversa->atendente)
+                            <span class="truncate">{{ $conversa->atendente->name }}</span>
+                        @endif
                     @endif
                 </div>
             </button>

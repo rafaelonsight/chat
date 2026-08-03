@@ -60,9 +60,47 @@ class MediaService
         return $this->guardarBytes(
             $conversa,
             (string) $arquivo->get(),
-            $arquivo->getMimeType() ?: 'application/octet-stream',
+            $this->mimeEfetivo($arquivo),
             $arquivo->getClientOriginalName(),
         );
+    }
+
+    // O finfo adivinha pelo conteudo, e um conteiner webm ou ogg com apenas
+    // faixa de audio ele chama de video/*. Nota de voz classificada como video
+    // vai pelo endpoint errado e chega no cliente sem onda nem play. Quando o
+    // navegador declara audio, o ffprobe da a palavra final: se nao existe
+    // faixa de video, e audio.
+    private function mimeEfetivo(UploadedFile $arquivo): string
+    {
+        $detectado = strtolower($arquivo->getMimeType() ?: 'application/octet-stream');
+        $declarado = strtolower((string) $arquivo->getClientMimeType());
+
+        if (! str_starts_with($declarado, 'audio/')) {
+            return $detectado;
+        }
+
+        return $this->temFaixaDeVideo($arquivo->getRealPath()) ? $detectado : $declarado;
+    }
+
+    private function temFaixaDeVideo(?string $caminho): bool
+    {
+        if (! $caminho || ! is_file($caminho) || ! $this->temFfprobe()) {
+            return false;
+        }
+
+        exec(sprintf(
+            'ffprobe -v error -select_streams v -show_entries stream=codec_type -of csv=p=0 %s',
+            escapeshellarg($caminho)
+        ), $saida, $codigo);
+
+        return $codigo === 0 && trim(implode('', $saida)) !== '';
+    }
+
+    public function temFfprobe(): bool
+    {
+        exec('which ffprobe', $s, $c);
+
+        return $c === 0;
     }
 
     private function guardarBytes(Conversation $conversa, string $bytes, string $mime, ?string $nome): array

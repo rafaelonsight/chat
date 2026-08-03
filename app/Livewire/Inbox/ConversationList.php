@@ -67,6 +67,7 @@ class ConversationList extends Component
 
         return view('livewire.inbox.conversation-list', [
             'conversas' => Conversation::with(['contact', 'ultimaMensagem', 'atendente'])
+                ->withCount('messages')
                 ->where('status', $this->aba)
                 ->orderByDesc('ultima_msg_em')
                 ->limit(50)

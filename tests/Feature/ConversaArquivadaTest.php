@@ -185,3 +185,29 @@ it('conversa arquivada nao volta para Novas nem com mensagem direta', function (
 
     expect($cv->refresh()->status)->toBe(Conversation::ARQUIVADA);
 });
+
+it('a lista de arquivadas distingue cada atendimento', function () {
+    [, $u, $c, $ct] = cenarioArq('aqa');
+
+    $primeiro = Conversation::create(['channel_id' => $c->id, 'contact_id' => $ct->id]);
+    msgArq($primeiro, 'in');
+    msgArq($primeiro, 'in');
+    $primeiro->refresh()->arquivar();
+
+    $segundo = Conversation::create(['channel_id' => $c->id, 'contact_id' => $ct->id]);
+    msgArq($segundo, 'in');
+    $segundo->refresh()->arquivar();
+
+    Livewire::actingAs($u)
+        ->test(App\Livewire\Inbox\ConversationList::class)
+        ->set('aba', Conversation::ARQUIVADA)
+        ->assertViewHas('conversas', function ($cs) use ($primeiro, $segundo) {
+            if ($cs->count() !== 2) {
+                return false;
+            }
+            $porId = $cs->keyBy('id');
+
+            return (int) $porId[$primeiro->id]->messages_count === 2
+                && (int) $porId[$segundo->id]->messages_count === 1;
+        });
+});
