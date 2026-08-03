@@ -19,7 +19,7 @@ class BusinessHour extends Model
         6 => 'Sábado',
     ];
 
-    protected $fillable = ['tenant_id', 'channel_id', 'dia_semana', 'ativo', 'intervalos'];
+    protected $fillable = ['tenant_id', 'channel_id', 'team_id', 'dia_semana', 'ativo', 'intervalos'];
 
     protected $casts = [
         'ativo'      => 'boolean',

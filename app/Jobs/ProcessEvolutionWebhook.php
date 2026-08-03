@@ -161,7 +161,12 @@ class ProcessEvolutionWebhook implements ShouldQueue
 
         $horas = new BusinessHours($conta);
 
-        if (! $horas->configurado($canal) || $horas->abertoEm($mensagem->created_at ?? now(), $canal)) {
+        // Enquanto nao houver chatbot, team_id vem nulo e cai no canal/conta —
+        // exatamente o comportamento anterior. Quando o bot rotear, o horario
+        // passa a ser o da equipe que recebeu a conversa.
+        $equipe = $conversa->team;
+
+        if (! $horas->configurado($canal, $equipe) || $horas->abertoEm($mensagem->created_at ?? now(), $canal, $equipe)) {
             return;
         }
 
@@ -189,7 +194,7 @@ class ProcessEvolutionWebhook implements ShouldQueue
                 $texto,
                 $conversa,
                 null,
-                $horas->proximaAberturaLegivel($mensagem->created_at ?? now(), $canal),
+                $horas->proximaAberturaLegivel($mensagem->created_at ?? now(), $canal, $equipe),
             ),
             'status'          => Message::STATUS_QUEUED,
         ]);

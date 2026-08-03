@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\BusinessHour;
 use App\Models\BusinessHourException;
 use App\Models\Channel;
+use App\Models\Team;
 use App\Models\Tenant;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -17,7 +18,8 @@ class BusinessHours
 {
     private const FUSO_PADRAO = 'America/Sao_Paulo';
 
-    private ?Collection $gradeConta = null;
+    /** @var array<string, Collection> */
+    private array $grades = [];
 
     public function __construct(private readonly Tenant $conta) {}
 
@@ -33,20 +35,20 @@ class BusinessHours
 
     // Sem grade configurada a feature fica inerte: sempre aberto, nenhuma
     // resposta automatica, relatorio inalterado.
-    public function configurado(?Channel $canal = null): bool
+    public function configurado(?Channel $canal = null, ?Team $equipe = null): bool
     {
-        return $this->grade($canal)->isNotEmpty();
+        return $this->grade($canal, $equipe)->isNotEmpty();
     }
 
-    public function abertoEm(Carbon $momento, ?Channel $canal = null): bool
+    public function abertoEm(Carbon $momento, ?Channel $canal = null, ?Team $equipe = null): bool
     {
-        if (! $this->configurado($canal)) {
+        if (! $this->configurado($canal, $equipe)) {
             return true;
         }
 
         $local = $momento->copy()->setTimezone($this->fuso());
 
-        foreach ($this->janelasEmTorno($local, $canal) as [$inicio, $fim]) {
+        foreach ($this->janelasEmTorno($local, $canal, $equipe) as [$inicio, $fim]) {
             if ($local->greaterThanOrEqualTo($inicio) && $local->lessThan($fim)) {
                 return true;
             }
@@ -55,14 +57,14 @@ class BusinessHours
         return false;
     }
 
-    public function abertoAgora(?Channel $canal = null): bool
+    public function abertoAgora(?Channel $canal = null, ?Team $equipe = null): bool
     {
-        return $this->abertoEm(Carbon::now(), $canal);
+        return $this->abertoEm(Carbon::now(), $canal, $equipe);
     }
 
-    public function proximaAbertura(Carbon $de, ?Channel $canal = null): ?Carbon
+    public function proximaAbertura(Carbon $de, ?Channel $canal = null, ?Team $equipe = null): ?Carbon
     {
-        if (! $this->configurado($canal)) {
+        if (! $this->configurado($canal, $equipe)) {
             return null;
         }
 
@@ -72,7 +74,7 @@ class BusinessHours
         for ($dias = 0; $dias <= 21; $dias++) {
             $dia = $local->copy()->addDays($dias)->startOfDay();
 
-            foreach ($this->janelasDoDia($dia, $canal) as [$inicio, $fim]) {
+            foreach ($this->janelasDoDia($dia, $canal, $equipe) as [$inicio, $fim]) {
                 if ($inicio->greaterThan($local)) {
                     return $inicio;
                 }
@@ -87,10 +89,10 @@ class BusinessHours
         return null;
     }
 
-    public function proximaAberturaLegivel(?Carbon $de = null, ?Channel $canal = null): ?string
+    public function proximaAberturaLegivel(?Carbon $de = null, ?Channel $canal = null, ?Team $equipe = null): ?string
     {
         $de = ($de ?? Carbon::now())->copy()->setTimezone($this->fuso());
-        $proxima = $this->proximaAbertura($de, $canal);
+        $proxima = $this->proximaAbertura($de, $canal, $equipe);
 
         if (! $proxima) {
             return null;
@@ -107,13 +109,13 @@ class BusinessHours
         };
     }
 
-    public function minutosUteisEntre(Carbon $de, Carbon $ate, ?Channel $canal = null): int
+    public function minutosUteisEntre(Carbon $de, Carbon $ate, ?Channel $canal = null, ?Team $equipe = null): int
     {
         if ($ate->lessThanOrEqualTo($de)) {
             return 0;
         }
 
-        if (! $this->configurado($canal)) {
+        if (! $this->configurado($canal, $equipe)) {
             return (int) round($de->diffInSeconds($ate) / 60);
         }
 
@@ -125,7 +127,7 @@ class BusinessHours
         $limite = $fim->copy()->startOfDay()->addDay();
 
         while ($dia->lessThanOrEqualTo($limite)) {
-            foreach ($this->janelasDoDia($dia, $canal) as [$jIni, $jFim]) {
+            foreach ($this->janelasDoDia($dia, $canal, $equipe) as [$jIni, $jFim]) {
                 $a = $jIni->greaterThan($inicio) ? $jIni : $inicio;
                 $b = $jFim->lessThan($fim) ? $jFim : $fim;
 
@@ -142,21 +144,42 @@ class BusinessHours
 
     // ----------------------------------------------------------------- interno
 
-    private function grade(?Channel $canal): Collection
+    private function grade(?Channel $canal, ?Team $equipe = null): Collection
     {
+        $chave = sprintf('e%s|c%s', $equipe?->id ?? '-', $canal?->id ?? '-');
+
+        if (isset($this->grades[$chave])) {
+            return $this->grades[$chave];
+        }
+
+        // Precedencia equipe > canal > conta. A equipe e o escopo mais especifico
+        // porque o mesmo numero atende Suporte 24h e Financeiro comercial.
+        if ($equipe) {
+            $daEquipe = BusinessHour::where('team_id', $equipe->id)->get();
+
+            if ($daEquipe->isNotEmpty()) {
+                return $this->grades[$chave] = $daEquipe->keyBy('dia_semana');
+            }
+        }
+
         if ($canal) {
             $doCanal = BusinessHour::where('channel_id', $canal->id)->get();
 
             if ($doCanal->isNotEmpty()) {
-                return $doCanal->keyBy('dia_semana');
+                return $this->grades[$chave] = $doCanal->keyBy('dia_semana');
             }
         }
 
-        return $this->gradeConta ??= BusinessHour::whereNull('channel_id')->get()->keyBy('dia_semana');
+        // whereNull nos DOIS: so channel_id deixaria as linhas de equipe entrarem
+        // na grade da conta e a conta passaria a herdar horario de equipe.
+        return $this->grades[$chave] = BusinessHour::whereNull('channel_id')
+            ->whereNull('team_id')
+            ->get()
+            ->keyBy('dia_semana');
     }
 
     // Intervalos do dia, com excecao de data tendo prioridade sobre a grade.
-    private function intervalosDo(Carbon $dia, ?Channel $canal): array
+    private function intervalosDo(Carbon $dia, ?Channel $canal, ?Team $equipe = null): array
     {
         $excecao = BusinessHourException::where('data', $dia->toDateString())->first();
 
@@ -164,7 +187,7 @@ class BusinessHours
             return $excecao->fechado ? [] : ($excecao->intervalos ?? []);
         }
 
-        $linha = $this->grade($canal)->get((int) $dia->dayOfWeek);
+        $linha = $this->grade($canal, $equipe)->get((int) $dia->dayOfWeek);
 
         if (! $linha || ! $linha->ativo) {
             return [];
@@ -175,12 +198,12 @@ class BusinessHours
 
     // Janelas absolutas do dia. Fim menor ou igual ao inicio significa que a
     // janela atravessa a meia-noite (plantao 22h->02h).
-    private function janelasDoDia(Carbon $dia, ?Channel $canal): array
+    private function janelasDoDia(Carbon $dia, ?Channel $canal, ?Team $equipe = null): array
     {
         $base = $dia->copy()->setTimezone($this->fuso())->startOfDay();
         $janelas = [];
 
-        foreach ($this->intervalosDo($base, $canal) as $intervalo) {
+        foreach ($this->intervalosDo($base, $canal, $equipe) as $intervalo) {
             $ini = $intervalo['inicio'] ?? null;
             $fim = $intervalo['fim'] ?? null;
 
@@ -203,11 +226,11 @@ class BusinessHours
 
     // Para saber se um momento esta aberto, o dia anterior importa: uma janela
     // que cruzou a meia-noite ainda pode estar valendo.
-    private function janelasEmTorno(Carbon $local, ?Channel $canal): array
+    private function janelasEmTorno(Carbon $local, ?Channel $canal, ?Team $equipe = null): array
     {
         return array_merge(
-            $this->janelasDoDia($local->copy()->subDay(), $canal),
-            $this->janelasDoDia($local, $canal),
+            $this->janelasDoDia($local->copy()->subDay(), $canal, $equipe),
+            $this->janelasDoDia($local, $canal, $equipe),
         );
     }
 }

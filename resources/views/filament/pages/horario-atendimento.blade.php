@@ -19,6 +19,44 @@
         </div>
     @endif
 
+    {{-- de quem e esta grade --}}
+    <div class="flex flex-wrap items-center gap-1.5">
+        <span class="mr-1 text-xs font-medium text-gray-500 dark:text-gray-400">Horário de</span>
+
+        <button type="button" wire:click="trocarEscopo('conta')"
+                class="rounded-full px-3 py-1 text-xs font-medium {{ $escopo === 'conta' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-gray-300' }}">
+            Conta (padrão)
+        </button>
+
+        @foreach ($equipes as $eq)
+            <button type="button" wire:key="esc-{{ $eq->id }}" wire:click="trocarEscopo('equipe:{{ $eq->id }}')"
+                    class="rounded-full px-3 py-1 text-xs font-medium {{ $escopo === 'equipe:'.$eq->id ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-gray-300' }}">
+                {{ $eq->nome }}
+            </button>
+        @endforeach
+    </div>
+
+    @if ($escopo !== 'conta')
+        @if ($herdando)
+            <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                Esta equipe <strong>herda o horário da conta</strong>. Os campos abaixo mostram o que ela usa hoje;
+                salvar cria uma grade própria para ela.
+            </div>
+        @else
+            <div class="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+                <span>Esta equipe tem <strong>grade própria</strong>, que prevalece sobre a da conta.</span>
+                <button type="button" wire:click="limparEscopo"
+                        class="rounded border border-emerald-300 px-2 py-0.5 font-medium hover:bg-emerald-100 dark:border-emerald-500/40 dark:hover:bg-emerald-500/20">
+                    voltar a herdar da conta
+                </button>
+            </div>
+        @endif
+
+        <p class="text-xs text-gray-500 dark:text-gray-400">
+            Fuso horário, resposta automática e exceções de data valem para a <strong>conta inteira</strong>, não por equipe.
+        </p>
+    @endif
+
     <form wire:submit="salvar" class="space-y-6">
         {{-- grade --}}
         <div class="overflow-x-auto rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900">

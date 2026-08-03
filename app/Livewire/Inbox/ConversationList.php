@@ -42,6 +42,13 @@ class ConversationList extends Component
 
     public ?int $selecionada = null;
 
+    public const PAGINA = 30;
+
+    // Antes havia limit(50) fixo: com 51 conversas a 51a simplesmente nao
+    // aparecia e nada avisava. Nao era lentidao, era resultado errado em
+    // silencio — o atendente nao tem como saber que existe fila escondida.
+    public int $limite = self::PAGINA;
+
     public function getListeners(): array
     {
         $listeners = [
@@ -58,6 +65,8 @@ class ConversationList extends Component
 
     public function selecionarBalde(string $balde): void
     {
+        $this->limite = self::PAGINA;
+
         if (array_key_exists($balde, self::BALDES)) {
             $this->balde = $balde;
         }
@@ -65,11 +74,15 @@ class ConversationList extends Component
 
     public function selecionarEquipe(string $equipe): void
     {
+        $this->limite = self::PAGINA;
+
         $this->equipe = $equipe;
     }
 
     public function selecionarOrdem(string $ordem): void
     {
+        $this->limite = self::PAGINA;
+
         if (array_key_exists($ordem, self::ORDENS)) {
             $this->ordem = $ordem;
         }
@@ -77,6 +90,23 @@ class ConversationList extends Component
 
     // Fila se atende por ordem de chegada: em Novos, quem espera mais aparece
     // primeiro. Nos outros baldes o que importa e a conversa que se moveu agora.
+    public function carregarMais(): void
+    {
+        $this->limite += self::PAGINA;
+    }
+
+    // Busca e filtro de nao lidas vem de wire:model, entao usam os hooks do
+    // Livewire; balde, equipe e ordem passam por metodo e reiniciam lá.
+    public function updatedBusca(): void
+    {
+        $this->limite = self::PAGINA;
+    }
+
+    public function updatedSomenteNaoLidas(): void
+    {
+        $this->limite = self::PAGINA;
+    }
+
     public function ordemEfetiva(): string
     {
         return $this->ordem ?? ($this->balde === 'novos' ? 'antigos' : 'recentes');
@@ -204,17 +234,23 @@ class ConversationList extends Component
             'arquivadas' => null,
         ];
 
+        // Conta antes de limitar: e o total que permite dizer quantas ficaram
+        // de fora. Sem ele a lista truncaria calada.
+        $total = $this->aplicarRecortes($this->doBalde($this->balde))->count();
+
         $conversas = $this->aplicarRecortes(
             $this->doBalde($this->balde)
                 ->with(['contact', 'ultimaMensagem', 'atendente', 'team'])
                 ->withCount('messages')
         )
             ->orderBy('ultima_msg_em', $this->ordemEfetiva() === 'antigos' ? 'asc' : 'desc')
-            ->limit(50)
+            ->limit($this->limite)
             ->get();
 
         return view('livewire.inbox.conversation-list', [
             'conversas'     => $conversas,
+            'total'         => $total,
+            'restantes'     => max(0, $total - $conversas->count()),
             'equipes'       => Team::ativas()->orderBy('nome')->get(),
             'badges'        => $badges,
             'baldes'        => self::BALDES,

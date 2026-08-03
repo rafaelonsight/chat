@@ -4,6 +4,7 @@ namespace App\Filament\Pages;
 
 use App\Models\BusinessHour;
 use App\Models\BusinessHourException;
+use App\Models\Team;
 use App\Models\Tenant;
 use App\Services\BusinessHours;
 use App\Support\Marcadores;
@@ -34,6 +35,10 @@ class HorarioAtendimento extends Page
 
     /** @var array<int, array{ativo: bool, inicio: string, almoco_inicio: string, almoco_fim: string, fim: string}> */
     public array $dias = [];
+
+    // 'conta' ou 'equipe:{id}'. O mesmo numero atende Suporte 24h e Financeiro
+    // comercial, entao a grade precisa de um eixo por equipe.
+    public string $escopo = 'conta';
 
     public string $fuso_horario = 'America/Sao_Paulo';
 
@@ -66,7 +71,74 @@ class HorarioAtendimento extends Page
         $this->resposta_texto = (string) ($conta?->resposta_automatica_texto
             ?: 'Olá {{nome}}, no momento estamos fora do horário de atendimento. Voltamos {{proxima_abertura}}.');
 
-        $grade = BusinessHour::whereNull('channel_id')->get()->keyBy('dia_semana');
+        $this->carregarGrade();
+    }
+
+    // ------------------------------------------------------------------- escopo
+
+    public function trocarEscopo(string $escopo): void
+    {
+        $this->escopo = $escopo;
+        $this->resetErrorBag();
+        $this->carregarGrade();
+    }
+
+    public function equipeDoEscopo(): ?Team
+    {
+        if (! str_starts_with($this->escopo, 'equipe:')) {
+            return null;
+        }
+
+        return Team::find((int) substr($this->escopo, 7));
+    }
+
+    /** As chaves que identificam uma linha no escopo atual. */
+    private function chavesDoEscopo(): array
+    {
+        $equipe = $this->equipeDoEscopo();
+
+        return ['channel_id' => null, 'team_id' => $equipe?->id];
+    }
+
+    private function linhasDoEscopo()
+    {
+        $equipe = $this->equipeDoEscopo();
+
+        return $equipe
+            ? BusinessHour::where('team_id', $equipe->id)->get()
+            : BusinessHour::whereNull('channel_id')->whereNull('team_id')->get();
+    }
+
+    // Equipe sem grade propria HERDA a da conta. Sem dizer isso na tela, o admin
+    // ve um formulario preenchido e nao tem como saber se vale ou nao.
+    public function herdando(): bool
+    {
+        return $this->equipeDoEscopo() !== null && $this->linhasDoEscopo()->isEmpty();
+    }
+
+    public function limparEscopo(): void
+    {
+        $equipe = $this->equipeDoEscopo();
+
+        if (! $equipe) {
+            return;
+        }
+
+        BusinessHour::where('team_id', $equipe->id)->delete();
+        $this->carregarGrade();
+
+        Notification::make()->success()->title($equipe->nome.' volta a herdar o horário da conta')->send();
+    }
+
+    private function carregarGrade(): void
+    {
+        $grade = $this->linhasDoEscopo()->keyBy('dia_semana');
+
+        // Equipe sem grade propria mostra a da conta como ponto de partida: e o
+        // que ela esta usando de fato hoje.
+        if ($grade->isEmpty() && $this->equipeDoEscopo()) {
+            $grade = BusinessHour::whereNull('channel_id')->whereNull('team_id')->get()->keyBy('dia_semana');
+        }
 
         foreach (array_keys(BusinessHour::DIAS) as $dia) {
             $linha = $grade->get($dia);
@@ -107,14 +179,22 @@ class HorarioAtendimento extends Page
             }
 
             $nome = BusinessHour::DIAS[$dia];
-            $ordem = [$d['inicio'], $d['almoco_inicio'], $d['almoco_fim'], $d['fim']];
 
-            for ($i = 1; $i < count($ordem); $i++) {
-                if ($ordem[$i] <= $ordem[$i - 1]) {
-                    $this->addError("dias.{$dia}.inicio", "{$nome}: os horários precisam estar em ordem crescente.");
+            // Almoco de duracao zero significa "dia sem pausa" e a propria tela
+            // diz isso ao usuario. A regra antiga exigia os quatro horarios
+            // estritamente crescentes, entao o dia sem pausa era recusado: a tela
+            // prometia algo que o codigo nao aceitava.
+            $ordenado = $d['inicio'] < $d['almoco_inicio']
+                && $d['almoco_inicio'] <= $d['almoco_fim']
+                && $d['almoco_fim'] < $d['fim'];
 
-                    return;
-                }
+            if (! $ordenado) {
+                $this->addError(
+                    "dias.{$dia}.inicio",
+                    "{$nome}: os horários precisam estar em ordem crescente (o almoço pode ter início e fim iguais para um dia sem pausa)."
+                );
+
+                return;
             }
         }
 
@@ -146,12 +226,13 @@ class HorarioAtendimento extends Page
             }
 
             BusinessHour::updateOrCreate(
-                ['channel_id' => null, 'dia_semana' => $dia],
+                array_merge($this->chavesDoEscopo(), ['dia_semana' => $dia]),
                 ['ativo' => $d['ativo'], 'intervalos' => $intervalos],
             );
         }
 
-        Notification::make()->success()->title('Horário salvo')->send();
+        $onde = $this->equipeDoEscopo()?->nome ?? 'conta';
+        Notification::make()->success()->title("Horário salvo ({$onde})")->send();
     }
 
     public function adicionarExcecao(): void
@@ -192,12 +273,16 @@ class HorarioAtendimento extends Page
         $conta = $this->conta();
         $horas = $conta ? new BusinessHours($conta) : null;
 
+        $equipe = $this->equipeDoEscopo();
+
         return [
             'nomesDias'   => BusinessHour::DIAS,
+            'equipes'     => Team::ativas()->orderBy('nome')->get(),
+            'herdando'    => $this->herdando(),
             'excecoes'    => BusinessHourException::orderBy('data')->get(),
             'marcadores'  => Marcadores::DISPONIVEIS,
-            'abertoAgora' => $horas?->configurado() ? $horas->abertoAgora() : null,
-            'proxima'     => $horas?->proximaAberturaLegivel(),
+            'abertoAgora' => $horas?->configurado(null, $equipe) ? $horas->abertoAgora(null, $equipe) : null,
+            'proxima'     => $horas?->proximaAberturaLegivel(null, null, $equipe),
             'fusos'       => [
                 'America/Sao_Paulo'  => 'Brasília (GMT-3)',
                 'America/Manaus'     => 'Manaus (GMT-4)',

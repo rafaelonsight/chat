@@ -208,5 +208,16 @@
                 @endif
             </p>
         @endforelse
+
+        {{-- Nunca truncar calado: se sobrou fila, ela precisa estar visivel. --}}
+        @if ($restantes > 0)
+            <button type="button" wire:click="carregarMais"
+                    class="block w-full border-b border-gray-100 px-4 py-3 text-center text-xs text-gray-600 hover:bg-gray-50 dark:border-white/5 dark:text-gray-300 dark:hover:bg-white/5">
+                carregar mais
+                <span class="opacity-70">({{ $conversas->count() }} de {{ $total }})</span>
+            </button>
+        @elseif ($total > \App\Livewire\Inbox\ConversationList::PAGINA)
+            <p class="px-4 py-3 text-center text-[11px] text-gray-400">{{ $total }} conversas &middot; fim da lista</p>
+        @endif
     </div>
 </div>
