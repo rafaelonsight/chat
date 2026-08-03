@@ -50,4 +50,28 @@ class ConversationWindow extends Component
 
         return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens'));
     }
+
+    public function assumir(): void
+    {
+        $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
+        $conversa->assumir();
+
+        $this->dispatch('conversa-atualizada');
+    }
+
+    public function finalizar(): void
+    {
+        $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
+        $conversa->arquivar();
+
+        $this->dispatch('conversa-atualizada');
+    }
+
+    public function reabrir(): void
+    {
+        $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
+        $conversa->reabrir();
+
+        $this->dispatch('conversa-atualizada');
+    }
 }

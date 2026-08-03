@@ -10,19 +10,31 @@ use Livewire\Component;
 // cada mensagem que chega.
 class ConversationList extends Component
 {
+    public string $aba = Conversation::NOVA;
+
     public ?int $selecionada = null;
 
     public function getListeners(): array
     {
-        $tenantId = auth()->user()?->tenant_id;
+        $listeners = [
+            'abrir-conversa'      => 'marcarSelecionada',
+            'conversa-atualizada' => '$refresh',
+        ];
 
-        $listeners = ['abrir-conversa' => 'marcarSelecionada'];
-
-        if ($tenantId) {
+        if ($tenantId = auth()->user()?->tenant_id) {
             $listeners['echo-private:tenant.'.$tenantId.'.conversations,.message.stored'] = '$refresh';
         }
 
         return $listeners;
+    }
+
+    public function selecionarAba(string $aba): void
+    {
+        if (! array_key_exists($aba, Conversation::ROTULOS)) {
+            return;
+        }
+
+        $this->aba = $aba;
     }
 
     public function selecionar(int $id): void
@@ -36,21 +48,31 @@ class ConversationList extends Component
         $this->dispatch('abrir-conversa', conversationId: $conversa->id);
     }
 
-    public function render()
-    {
-        return view('livewire.inbox.conversation-list', [
-            'conversas' => Conversation::with(['contact', 'ultimaMensagem'])
-                ->orderByDesc('ultima_msg_em')
-                ->limit(50)
-                ->get(),
-        ]);
-    }
-
-    // Conversa aberta por outro componente (o botao Nova conversa) tambem
-    // precisa aparecer e ficar destacada aqui. Sem este listener a conversa
-    // nova so surgiria no proximo refresh da pagina.
     public function marcarSelecionada(int $conversationId): void
     {
         $this->selecionada = $conversationId;
+    }
+
+    public function render()
+    {
+        $brutos = Conversation::query()
+            ->selectRaw('status, count(*) as total')
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        $contadores = [];
+        foreach (array_keys(Conversation::ROTULOS) as $estado) {
+            $contadores[$estado] = (int) $brutos->get($estado, 0);
+        }
+
+        return view('livewire.inbox.conversation-list', [
+            'conversas' => Conversation::with(['contact', 'ultimaMensagem', 'atendente'])
+                ->where('status', $this->aba)
+                ->orderByDesc('ultima_msg_em')
+                ->limit(50)
+                ->get(),
+            'contadores' => $contadores,
+            'rotulos'    => Conversation::ROTULOS,
+        ]);
     }
 }

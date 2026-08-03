@@ -28,6 +28,16 @@ class Message extends Model
         'media_duracao'  => 'integer',
     ];
 
+    protected static function booted(): void
+    {
+        // A transicao de estado da conversa mora aqui, num lugar so: toda
+        // mensagem criada — pela tela, por job ou pela IA no futuro — move a
+        // conversa do jeito certo sem depender de alguem lembrar.
+        static::created(function (Message $mensagem) {
+            $mensagem->conversation?->aoReceberMensagem($mensagem);
+        });
+    }
+
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);

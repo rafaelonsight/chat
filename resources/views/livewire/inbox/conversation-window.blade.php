@@ -1,8 +1,42 @@
 <div class="flex flex-1 flex-col overflow-hidden">
     @if ($conversa)
-        <div class="border-b border-slate-200 px-4 py-3 font-semibold text-slate-700">
-            {{ $conversa->contact->nomeExibicao() }}
-            <span class="ml-2 text-xs font-normal text-slate-500">{{ $conversa->contact->telefone_e164 }}</span>
+        <div class="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-white/10">
+            <div class="min-w-0">
+                <div class="truncate font-semibold text-gray-800 dark:text-gray-100">
+                    {{ $conversa->contact->nomeExibicao() }}
+                </div>
+                <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    <span>{{ $conversa->contact->telefone_e164 }}</span>
+                    <span class="rounded-full bg-gray-100 px-2 py-0.5 dark:bg-white/10">
+                        {{ $conversa->rotuloStatus() }}
+                    </span>
+                    @if ($conversa->atendente)
+                        <span>&middot; {{ $conversa->atendente->name }}</span>
+                    @endif
+                </div>
+            </div>
+
+            <div class="flex shrink-0 items-center gap-2">
+                @if ($conversa->status === \App\Models\Conversation::NOVA)
+                    <button type="button" wire:click="assumir"
+                            class="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5">
+                        Assumir
+                    </button>
+                @endif
+
+                @if ($conversa->status === \App\Models\Conversation::ARQUIVADA)
+                    <button type="button" wire:click="reabrir"
+                            class="rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">
+                        Reabrir
+                    </button>
+                @else
+                    <button type="button" wire:click="finalizar"
+                            wire:confirm="Finalizar este atendimento?"
+                            class="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5">
+                        Finalizar
+                    </button>
+                @endif
+            </div>
         </div>
 
         <div class="flex-1 space-y-2 overflow-y-auto bg-slate-50 p-4">
