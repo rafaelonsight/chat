@@ -25,20 +25,8 @@ class MessageTemplate extends Model
     // modelo serve para qualquer conversa.
     public function renderizar(?Conversation $conversa, ?User $usuario): string
     {
-        return str_replace(
-            ['{{nome}}', '{{telefone}}', '{{atendente}}'],
-            [
-                $conversa?->contact?->nomeExibicao() ?? '',
-                $conversa?->contact?->telefone_e164 ?? '',
-                $usuario?->name ?? '',
-            ],
-            (string) $this->corpo,
-        );
+        return \App\Support\Marcadores::aplicar((string) $this->corpo, $conversa, $usuario);
     }
 
-    public const MARCADORES = [
-        '{{nome}}'      => 'nome do contato',
-        '{{telefone}}'  => 'telefone do contato',
-        '{{atendente}}' => 'seu nome',
-    ];
+    public const MARCADORES = \App\Support\Marcadores::DISPONIVEIS;
 }

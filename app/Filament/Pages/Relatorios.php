@@ -4,6 +4,8 @@ namespace App\Filament\Pages;
 
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\Tenant;
+use App\Services\BusinessHours;
 use BackedEnum;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
@@ -83,7 +85,10 @@ class Relatorios extends Page
 
         $primeiraResposta = $this->tempoAteAPrimeiraResposta($desde);
 
-        return compact('resumo', 'porCanal', 'porAtendente', 'primeiraResposta');
+        $conta = Tenant::find(auth()->user()?->tenant_id);
+        $emHorarioUtil = BusinessHours::paraConta($conta)?->configurado() ?? false;
+
+        return compact('resumo', 'porCanal', 'porAtendente', 'primeiraResposta', 'emHorarioUtil');
     }
 
     // Tempo entre a primeira mensagem do cliente e a primeira resposta nossa.
@@ -101,6 +106,9 @@ class Relatorios extends Page
             ->selectRaw("min(case when direcao = 'in' then created_at end) as entrada")
             ->selectRaw("min(case when direcao = 'out' then created_at end) as saida")
             ->get();
+
+        $conta = Tenant::find(auth()->user()?->tenant_id);
+        $horas = BusinessHours::paraConta($conta);
 
         $segundos = [];
         $semResposta = 0;
@@ -123,7 +131,13 @@ class Relatorios extends Page
                 continue;
             }
 
-            $segundos[] = $entrada->diffInSeconds($saida);
+            // So o tempo dentro do horario de atendimento. Sem isto, mensagem das
+            // 23h respondida as 8h35 aparece como 9h35 de espera e pune a equipe
+            // pela noite. Sem grade configurada, o servico devolve o relogio de
+            // parede — a metrica nao muda ate a conta configurar o horario.
+            $segundos[] = $horas
+                ? $horas->minutosUteisEntre($entrada, $saida) * 60
+                : $entrada->diffInSeconds($saida);
         }
 
         return [

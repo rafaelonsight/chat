@@ -3,10 +3,11 @@
 namespace App\Jobs;
 
 use App\Events\MessageStored;
-use App\Models\{Channel, Contact, Conversation, Message, WebhookEvent};
+use App\Models\{Channel, Contact, Conversation, Message, Tenant, WebhookEvent};
 use App\Services\EvolutionService;
+use App\Services\BusinessHours;
 use App\Services\MediaService;
-use App\Support\{Jid, PhoneNumber, TenantContext};
+use App\Support\{Jid, Marcadores, PhoneNumber, TenantContext};
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Arr;
@@ -127,7 +128,75 @@ class ProcessEvolutionWebhook implements ShouldQueue
 
         if ($mensagem->wasRecentlyCreated) {
             broadcast(new MessageStored($mensagem->refresh()));
+            $this->talvezResponderAutomaticamente($canal, $mensagem);
         }
+    }
+
+    // Tres travas, e cada uma existe por um motivo concreto:
+    //  1. Grupo nunca: bairro com 40 mensagens a noite viraria 40 respostas na
+    //     frente de todos os clientes daquele bairro.
+    //  2. Uma vez por conversa, rearmando quando um humano responde: cinco
+    //     mensagens as 22h nao podem gerar cinco respostas identicas.
+    //  3. Marcada como automatica, para nao mover a conversa de Novos — senao o
+    //     cliente espera a noite inteira e de manha ninguem ve.
+    private function talvezResponderAutomaticamente(Channel $canal, Message $mensagem): void
+    {
+        $conversa = $mensagem->conversation;
+
+        if (! $conversa || $conversa->contact?->eGrupo()) {
+            return;
+        }
+
+        $conta = Tenant::find($canal->tenant_id);
+
+        if (! $conta || ! $conta->resposta_automatica_ativa) {
+            return;
+        }
+
+        $texto = trim((string) $conta->resposta_automatica_texto);
+
+        if ($texto === '') {
+            return;
+        }
+
+        $horas = new BusinessHours($conta);
+
+        if (! $horas->configurado($canal) || $horas->abertoEm($mensagem->created_at ?? now(), $canal)) {
+            return;
+        }
+
+        $ultimaHumana = $conversa->messages()
+            ->where('direcao', 'out')
+            ->where('automatica', false)
+            ->max('id');
+
+        $jaRespondeu = $conversa->messages()
+            ->where('automatica', true)
+            ->when($ultimaHumana, fn ($q) => $q->where('id', '>', $ultimaHumana))
+            ->exists();
+
+        if ($jaRespondeu) {
+            return;
+        }
+
+        $automatica = Message::create([
+            'conversation_id' => $conversa->id,
+            'channel_id'      => $canal->id,
+            'direcao'         => 'out',
+            'automatica'      => true,
+            'tipo'            => 'text',
+            'corpo'           => Marcadores::aplicar(
+                $texto,
+                $conversa,
+                null,
+                $horas->proximaAberturaLegivel($mensagem->created_at ?? now(), $canal),
+            ),
+            'status'          => Message::STATUS_QUEUED,
+        ]);
+
+        // ultima_msg_em NAO e atualizado de proposito: a espera do cliente comecou
+        // quando ele escreveu, e em Novos a fila e ordenada por isso.
+        SendTextMessage::dispatch($automatica->id);
     }
 
     private function identificarConteudo(array $msg): ?array

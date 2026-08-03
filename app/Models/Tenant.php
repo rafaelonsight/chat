@@ -9,7 +9,10 @@ class Tenant extends Model
 {
     protected $fillable = [
         'nome', 'slug', 'razao_social', 'documento', 'email', 'telefone', 'fuso_horario',
+        'resposta_automatica_ativa', 'resposta_automatica_texto',
     ];
+
+    protected $casts = ['resposta_automatica_ativa' => 'boolean'];
 
     public function users(): HasMany
     {

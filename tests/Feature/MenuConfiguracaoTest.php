@@ -68,7 +68,7 @@ it('configuracao inteira e so para admin', function () {
 it('as telas reservadas abrem com aviso, para o admin', function () {
     $admin = usuarioConf('cf2');
 
-    foreach (['/admin/equipe', '/admin/horario-atendimento', '/admin/consumo-conversas'] as $rota) {
+    foreach (['/admin/equipe', '/admin/consumo-conversas'] as $rota) {
         $this->withSession(sessaoConf($admin))->get($rota)
             ->assertSuccessful()
             ->assertSee('em constru');
@@ -118,4 +118,17 @@ it('o Cadastro nao alcanca a conta de outro tenant', function () {
         ->call('salvar');
 
     expect(Tenant::find($a->tenant_id)->nome)->toBe('CF5');
+});
+
+it('Horario de Atendimento deixou de ser reservado e abre a grade', function () {
+    $admin = usuarioConf('cf7');
+
+    $this->withoutExceptionHandling();
+    $this->withSession(sessaoConf($admin))
+        ->get('/admin/horario-atendimento')
+        ->assertSuccessful()
+        ->assertSee('Segunda-feira')
+        ->assertSee('Início do almoço')
+        ->assertSee('Feriados e exceções')
+        ->assertDontSee('em constru');
 });

@@ -19,7 +19,7 @@ class Message extends Model
     protected $fillable = [
         'tenant_id', 'conversation_id', 'channel_id', 'direcao',
         'tipo', 'corpo', 'external_id', 'status', 'erro', 'enviada_em',
-        'remetente_nome', 'remetente_jid',
+        'remetente_nome', 'remetente_jid', 'automatica',
         'media_path', 'media_mime', 'media_nome', 'media_tamanho', 'media_duracao', 'legenda',
     ];
 
@@ -27,6 +27,7 @@ class Message extends Model
         'enviada_em'     => 'datetime',
         'media_tamanho'  => 'integer',
         'media_duracao'  => 'integer',
+        'automatica'     => 'boolean',
     ];
 
     protected static function booted(): void
@@ -35,6 +36,13 @@ class Message extends Model
         // mensagem criada — pela tela, por job ou pela IA no futuro — move a
         // conversa do jeito certo sem depender de alguem lembrar.
         static::created(function (Message $mensagem) {
+            // Resposta automatica nao e atendimento: se movesse a conversa para
+            // "em atendimento", ela sairia de Novos e ninguem veria o cliente
+            // na manha seguinte.
+            if ($mensagem->automatica) {
+                return;
+            }
+
             $mensagem->conversation?->aoReceberMensagem($mensagem);
         });
     }

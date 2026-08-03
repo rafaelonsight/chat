@@ -129,6 +129,7 @@
                         <div class="mt-1 text-[10px] opacity-70">
                             {{ $m->created_at?->format('H:i') }}
                             @unless ($entrada) &middot; {{ $m->status }} @endunless
+                            @if ($m->automatica) &middot; automática @endif
                         </div>
 
                         @if ($m->erro)

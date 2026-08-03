@@ -2,9 +2,16 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\BusinessHour;
+use App\Models\BusinessHourException;
+use App\Models\Tenant;
+use App\Services\BusinessHours;
+use App\Support\Marcadores;
 use BackedEnum;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Support\Carbon;
 use UnitEnum;
 
 class HorarioAtendimento extends Page
@@ -17,7 +24,7 @@ class HorarioAtendimento extends Page
 
     protected static ?string $navigationLabel = 'Horário de Atendimento';
 
-    protected static ?string $title = 'Horário de Atendimento';
+    protected static ?string $title = 'Horário de atendimento';
 
     protected static ?int $navigationSort = 3;
 
@@ -25,8 +32,183 @@ class HorarioAtendimento extends Page
 
     protected string $view = 'filament.pages.horario-atendimento';
 
+    /** @var array<int, array{ativo: bool, inicio: string, almoco_inicio: string, almoco_fim: string, fim: string}> */
+    public array $dias = [];
+
+    public string $fuso_horario = 'America/Sao_Paulo';
+
+    public bool $resposta_ativa = false;
+
+    public string $resposta_texto = '';
+
+    // excecao nova
+    public string $ex_data = '';
+
+    public bool $ex_fechado = true;
+
+    public string $ex_inicio = '08:30';
+
+    public string $ex_fim = '12:00';
+
+    public string $ex_descricao = '';
+
     public static function canAccess(): bool
     {
         return (bool) auth()->user()?->admin;
+    }
+
+    public function mount(): void
+    {
+        $conta = $this->conta();
+
+        $this->fuso_horario = (string) ($conta?->fuso_horario ?: 'America/Sao_Paulo');
+        $this->resposta_ativa = (bool) $conta?->resposta_automatica_ativa;
+        $this->resposta_texto = (string) ($conta?->resposta_automatica_texto
+            ?: 'Olá {{nome}}, no momento estamos fora do horário de atendimento. Voltamos {{proxima_abertura}}.');
+
+        $grade = BusinessHour::whereNull('channel_id')->get()->keyBy('dia_semana');
+
+        foreach (array_keys(BusinessHour::DIAS) as $dia) {
+            $linha = $grade->get($dia);
+            $intervalos = $linha->intervalos ?? [];
+
+            // A tela mostra quatro campos porque cobre o caso real do provedor.
+            // O banco guarda intervalos, entao horarios fora desse molde
+            // (plantao, turno triplo) sobrevivem mesmo sem UI para eles.
+            $this->dias[$dia] = [
+                'ativo'         => $linha ? (bool) $linha->ativo : $dia !== 0,
+                'inicio'        => $intervalos[0]['inicio'] ?? '08:30',
+                'almoco_inicio' => $intervalos[0]['fim'] ?? '12:00',
+                'almoco_fim'    => $intervalos[1]['inicio'] ?? '13:00',
+                'fim'           => $intervalos[1]['fim'] ?? ($intervalos[0]['fim'] ?? '18:00'),
+            ];
+        }
+    }
+
+    private function conta(): ?Tenant
+    {
+        $id = auth()->user()?->tenant_id;
+
+        return $id ? Tenant::find($id) : null;
+    }
+
+    public function salvar(): void
+    {
+        $this->validate([
+            'fuso_horario'   => 'required|timezone',
+            'resposta_texto' => 'required_if:resposta_ativa,true|nullable|string|max:1000',
+        ], [], ['resposta_texto' => 'mensagem da resposta automática']);
+
+        // A grade precisa fazer sentido: fora de ordem, a logica de "estamos
+        // abertos" quebra em silencio e a resposta automatica dispara errado.
+        foreach ($this->dias as $dia => $d) {
+            if (! $d['ativo']) {
+                continue;
+            }
+
+            $nome = BusinessHour::DIAS[$dia];
+            $ordem = [$d['inicio'], $d['almoco_inicio'], $d['almoco_fim'], $d['fim']];
+
+            for ($i = 1; $i < count($ordem); $i++) {
+                if ($ordem[$i] <= $ordem[$i - 1]) {
+                    $this->addError("dias.{$dia}.inicio", "{$nome}: os horários precisam estar em ordem crescente.");
+
+                    return;
+                }
+            }
+        }
+
+        $conta = $this->conta();
+
+        if (! $conta) {
+            return;
+        }
+
+        $conta->update([
+            'fuso_horario'              => $this->fuso_horario,
+            'resposta_automatica_ativa' => $this->resposta_ativa,
+            'resposta_automatica_texto' => trim($this->resposta_texto) ?: null,
+        ]);
+
+        foreach ($this->dias as $dia => $d) {
+            $intervalos = [];
+
+            if ($d['ativo']) {
+                // almoco de duracao zero = dia sem pausa, um intervalo unico
+                if ($d['almoco_inicio'] === $d['almoco_fim']) {
+                    $intervalos = [['inicio' => $d['inicio'], 'fim' => $d['fim']]];
+                } else {
+                    $intervalos = [
+                        ['inicio' => $d['inicio'], 'fim' => $d['almoco_inicio']],
+                        ['inicio' => $d['almoco_fim'], 'fim' => $d['fim']],
+                    ];
+                }
+            }
+
+            BusinessHour::updateOrCreate(
+                ['channel_id' => null, 'dia_semana' => $dia],
+                ['ativo' => $d['ativo'], 'intervalos' => $intervalos],
+            );
+        }
+
+        Notification::make()->success()->title('Horário salvo')->send();
+    }
+
+    public function adicionarExcecao(): void
+    {
+        $this->validate([
+            'ex_data'      => 'required|date',
+            'ex_descricao' => 'nullable|string|max:120',
+            'ex_inicio'    => 'required_if:ex_fechado,false|nullable|string',
+            'ex_fim'       => 'required_if:ex_fechado,false|nullable|string',
+        ], [], ['ex_data' => 'data']);
+
+        if (! $this->ex_fechado && $this->ex_fim <= $this->ex_inicio) {
+            $this->addError('ex_fim', 'O fim tem que ser depois do início.');
+
+            return;
+        }
+
+        BusinessHourException::updateOrCreate(
+            ['data' => $this->ex_data],
+            [
+                'fechado'    => $this->ex_fechado,
+                'intervalos' => $this->ex_fechado ? null : [['inicio' => $this->ex_inicio, 'fim' => $this->ex_fim]],
+                'descricao'  => trim($this->ex_descricao) ?: null,
+            ],
+        );
+
+        $this->reset(['ex_data', 'ex_descricao']);
+        Notification::make()->success()->title('Exceção salva')->send();
+    }
+
+    public function removerExcecao(int $id): void
+    {
+        BusinessHourException::find($id)?->delete();
+    }
+
+    public function getViewData(): array
+    {
+        $conta = $this->conta();
+        $horas = $conta ? new BusinessHours($conta) : null;
+
+        return [
+            'nomesDias'   => BusinessHour::DIAS,
+            'excecoes'    => BusinessHourException::orderBy('data')->get(),
+            'marcadores'  => Marcadores::DISPONIVEIS,
+            'abertoAgora' => $horas?->configurado() ? $horas->abertoAgora() : null,
+            'proxima'     => $horas?->proximaAberturaLegivel(),
+            'fusos'       => [
+                'America/Sao_Paulo'  => 'Brasília (GMT-3)',
+                'America/Manaus'     => 'Manaus (GMT-4)',
+                'America/Rio_Branco' => 'Rio Branco (GMT-5)',
+                'America/Fortaleza'  => 'Fortaleza (GMT-3)',
+                'America/Belem'      => 'Belém (GMT-3)',
+                'America/Recife'     => 'Recife (GMT-3)',
+                'America/Cuiaba'     => 'Cuiabá (GMT-4)',
+                'America/Noronha'    => 'Fernando de Noronha (GMT-2)',
+            ],
+            'agora' => Carbon::now($this->fuso_horario)->format('d/m/Y H:i'),
+        ];
     }
 }

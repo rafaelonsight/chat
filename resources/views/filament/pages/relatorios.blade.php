@@ -39,7 +39,7 @@
                 ['Recebidas', $resumo['recebidas'], 'do cliente'],
                 ['Enviadas', $resumo['enviadas'], 'nossas'],
                 ['1a resposta (media)', \App\Filament\Pages\Relatorios::formatarDuracao($primeiraResposta['media']),
-                 'base de '.$primeiraResposta['base'].' conversa(s)'],
+                 'base de '.$primeiraResposta['base'].' conversa(s)'.($emHorarioUtil ? ' · em horário útil' : '')],
             ];
         @endphp
         @foreach ($cartoes2 as [$titulo, $valor, $nota])
@@ -50,6 +50,14 @@
             </div>
         @endforeach
     </div>
+
+    @unless ($emHorarioUtil)
+        <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
+            O tempo de primeira resposta está contando <strong>relógio de parede</strong>. Configure o
+            <a href="/admin/horario-atendimento" class="underline">horário de atendimento</a> para que a noite,
+            o fim de semana e os feriados deixem de entrar na conta.
+        </div>
+    @endunless
 
     @if ($primeiraResposta['sem_resposta'] > 0)
         <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
