@@ -41,6 +41,7 @@ class Diagnostico
             $this->falhas($limites['falhas_por_hora']),
             $this->canaisDesconectados(),
             $this->disco($limites['disco_aviso'], $limites['disco_critico']),
+            $this->backupAtrasado($limites['backup_horas']),
         ]));
     }
 
@@ -190,6 +191,25 @@ class Diagnostico
 
         return $usado >= $aviso
             ? $this->problema('disco', self::AVISO, "Disco em {$usado}%")
+            : null;
+    }
+
+    // Pior que nao ter backup e acreditar que tem. O diretorio de backup e 700
+    // root, entao o script grava um carimbo legivel e o que se vigia e a idade
+    // dele.
+    private function backupAtrasado(int $horas): ?array
+    {
+        $carimbo = '/var/lib/onchat/ultimo-backup';
+
+        if (! is_readable($carimbo)) {
+            return $this->problema('backup', self::AVISO, 'Nunca rodou backup do OnChat');
+        }
+
+        $quando = (int) trim((string) @file_get_contents($carimbo));
+        $idade = (int) floor((time() - $quando) / 3600);
+
+        return $idade > $horas
+            ? $this->problema('backup', self::AVISO, "Ultimo backup ha {$idade}h")
             : null;
     }
 

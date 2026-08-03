@@ -16,5 +16,7 @@ return [
         'falhas_por_hora'        => (int) env('ONCHAT_LIMITE_FALHAS', 1),
         'disco_aviso'            => (int) env('ONCHAT_LIMITE_DISCO_AVISO', 85),
         'disco_critico'          => (int) env('ONCHAT_LIMITE_DISCO_CRITICO', 95),
+        // 26h e nao 24h: da folga para o horario do timer sem gerar falso alarme.
+        'backup_horas'           => (int) env('ONCHAT_LIMITE_BACKUP_HORAS', 26),
     ],
 ];
