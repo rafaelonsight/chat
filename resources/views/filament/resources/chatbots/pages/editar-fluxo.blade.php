@@ -110,7 +110,10 @@
                 style="height: calc(100dvh - 19rem); min-height: 30rem;
                        background-image: radial-gradient(circle, rgb(0 0 0 / 0.07) 1px, transparent 1px);
                        background-size: 22px 22px;"
-                x-bind:style="`background-position: ${pan.x}px ${pan.y}px; background-size: ${22 * escala}px ${22 * escala}px`"
+                x-bind:style="{
+                    backgroundPosition: `${pan.x}px ${pan.y}px`,
+                    backgroundSize: `${22 * escala}px ${22 * escala}px`,
+                }"
             >
                 <div
                     x-ref="mundo"
@@ -126,16 +129,21 @@
                             </marker>
                         </defs>
 
-                        <template x-for="linha in linhas" :key="linha.chave">
-                            <g>
-                                <path :d="linha.d" fill="none"
-                                      class="stroke-gray-300 dark:stroke-gray-700"
-                                      stroke-width="3.5" />
-                                <path :d="linha.d" fill="none" marker-end="url(#pontaFluxo)"
-                                      class="stroke-gray-400 dark:stroke-gray-500"
-                                      stroke-width="1.75" />
-                            </g>
-                        </template>
+                        @foreach ($desenho as $passo)
+                            @foreach ($passo['handles'] as $h)
+                                @php $destino = $passo['saidas'][$h['handle']] ?? null; @endphp
+                                @if ($destino)
+                                    @php $chave = $passo['id'].':'.$h['handle']; @endphp
+                                    <path x-bind:d="linhas[@js($chave)] ?? ''" fill="none"
+                                          class="stroke-gray-300 dark:stroke-gray-700"
+                                          stroke-width="3.5" />
+                                    <path x-bind:d="linhas[@js($chave)] ?? ''" fill="none"
+                                          marker-end="url(#pontaFluxo)"
+                                          class="stroke-gray-400 dark:stroke-gray-500"
+                                          stroke-width="1.75" />
+                                @endif
+                            @endforeach
+                        @endforeach
 
                         {{-- linha fantasma enquanto escolhe o destino --}}
                         <path x-show="ligando" :d="fantasma" fill="none" stroke-dasharray="5 4"
@@ -319,7 +327,7 @@
         window.construtorDeFluxo = (desenho) => ({
             escala: 1,
             pan: { x: 40, y: 20 },
-            linhas: [],
+            linhas: {},
             ligando: null,
             fantasma: '',
             desenho,
@@ -342,7 +350,7 @@
              * de altura. Chutar a altura funciona ate alguem mexer num padding.
              */
             recalcular() {
-                const linhas = [];
+                const linhas = {};
 
                 this.$el.querySelectorAll('[data-handle-row]').forEach((linha) => {
                     const deId = linha.dataset.from;
@@ -367,7 +375,7 @@
                     const x2 = this.coordX(cartaoPara);
                     const y2 = this.coordY(cartaoPara) + (ancora ? ancora.offsetTop + ancora.offsetHeight / 2 : 20);
 
-                    linhas.push({ chave: `${deId}:${handle}`, d: this.curva(x1, y1, x2, y2) });
+                    linhas[`${deId}:${handle}`] = this.curva(x1, y1, x2, y2);
                 });
 
                 this.linhas = linhas;
