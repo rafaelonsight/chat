@@ -93,6 +93,12 @@ class ChatbotMotor
             return false;
         }
 
+        // Contato bloqueado nao recebe nada nosso. Interruptor de bloqueio que nao
+        // impede o robo de responder nao bloqueia nada.
+        if ($conversa->contact?->bloqueado()) {
+            return false;
+        }
+
         // Humano assumiu: o bot sai de cena e nao volta.
         if ($conversa->atendente_id) {
             return false;

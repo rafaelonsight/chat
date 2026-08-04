@@ -150,7 +150,7 @@ class ProcessEvolutionWebhook implements ShouldQueue
     {
         $conversa = $mensagem->conversation;
 
-        if (! $conversa || $conversa->contact?->eGrupo()) {
+        if (! $conversa || $conversa->contact?->eGrupo() || $conversa->contact?->bloqueado()) {
             return;
         }
 

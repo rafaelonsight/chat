@@ -19,6 +19,12 @@ class Contact extends Model
     protected $fillable = [
         'tenant_id', 'jid', 'tipo', 'telefone_e164', 'nome', 'email', 'instagram',
         'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
+        'arquivado_em', 'bloqueado_em', 'bloqueio_motivo',
+    ];
+
+    protected $casts = [
+        'arquivado_em' => 'datetime',
+        'bloqueado_em' => 'datetime',
     ];
 
     protected $attributes = ['tipo' => self::PESSOA];
@@ -66,6 +72,21 @@ class Contact extends Model
     public function instagramUrl(): ?string
     {
         return $this->instagram ? 'https://instagram.com/'.$this->instagram : null;
+    }
+
+    public function bloqueado(): bool
+    {
+        return $this->bloqueado_em !== null;
+    }
+
+    public function arquivado(): bool
+    {
+        return $this->arquivado_em !== null;
+    }
+
+    public function scopeAtivos(\Illuminate\Database\Eloquent\Builder $q): \Illuminate\Database\Eloquent\Builder
+    {
+        return $q->whereNull('arquivado_em')->whereNull('bloqueado_em');
     }
 
     public function fieldValues(): \Illuminate\Database\Eloquent\Relations\HasMany

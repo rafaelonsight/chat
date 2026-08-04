@@ -5,9 +5,13 @@ namespace App\Filament\Resources\Contacts\Tables;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Tag;
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Notifications\Notification;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\HtmlString;
 
@@ -32,7 +36,12 @@ class ContactsTable
                         .'</div>'
                     ))
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->description(fn (Contact $record) => match (true) {
+                        $record->bloqueado() => 'bloqueado'.($record->bloqueio_motivo ? ': '.$record->bloqueio_motivo : ''),
+                        $record->arquivado() => 'arquivado',
+                        default              => null,
+                    }),
 
                 TextColumn::make('telefone_e164')
                     ->label('Telefone')
@@ -115,6 +124,30 @@ class ContactsTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                // blank oculta de proposito: a lista do dia a dia e a dos ativos, e
+                // quem foi arquivado ou bloqueado nao deve competir por atencao.
+                TernaryFilter::make('arquivado_em')
+                    ->label('Arquivados')
+                    ->placeholder('Sem arquivados')
+                    ->trueLabel('Só arquivados')
+                    ->falseLabel('Sem arquivados')
+                    ->queries(
+                        true: fn ($query) => $query->whereNotNull('arquivado_em'),
+                        false: fn ($query) => $query->whereNull('arquivado_em'),
+                        blank: fn ($query) => $query->whereNull('arquivado_em'),
+                    ),
+
+                TernaryFilter::make('bloqueado_em')
+                    ->label('Bloqueados')
+                    ->placeholder('Sem bloqueados')
+                    ->trueLabel('Só bloqueados')
+                    ->falseLabel('Sem bloqueados')
+                    ->queries(
+                        true: fn ($query) => $query->whereNotNull('bloqueado_em'),
+                        false: fn ($query) => $query->whereNull('bloqueado_em'),
+                        blank: fn ($query) => $query->whereNull('bloqueado_em'),
+                    ),
+
                 Filter::make('so_grupos')
                     ->label('Somente grupos')
                     ->query(fn ($query) => $query->where('tipo', 'grupo')),
@@ -127,8 +160,54 @@ class ContactsTable
                     ->label('Nunca atendidos')
                     ->query(fn ($query) => $query->whereDoesntHave('conversations')),
             ])
+            // Acima da tabela, nao atras do funil: filtro escondido nao e usado, e
+            // "tem arquivado que eu nao estou vendo?" e pergunta de todo dia.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->defaultSort('created_at', 'desc')
-            ->recordActions([EditAction::make()])
+            ->recordActions([
+                EditAction::make(),
+
+                Action::make('arquivar')
+                    ->label(fn (Contact $record) => $record->arquivado() ? 'Desarquivar' : 'Arquivar')
+                    ->icon('heroicon-o-archive-box')
+                    ->color('gray')
+                    ->modalDescription('Arquivar tira o contato da lista do dia a dia. Ele continua podendo conversar normalmente.')
+                    ->requiresConfirmation(fn (Contact $record) => ! $record->arquivado())
+                    ->action(function (Contact $record) {
+                        $record->update(['arquivado_em' => $record->arquivado() ? null : now()]);
+
+                        Notification::make()->success()
+                            ->title($record->arquivado() ? 'Contato arquivado' : 'Contato desarquivado')
+                            ->send();
+                    }),
+
+                // Bloquear FAZ efeito: o motor do chatbot e a resposta automatica
+                // checam isto. Interruptor que nao impede o robo de responder nao
+                // bloqueia nada.
+                Action::make('bloquear')
+                    ->label(fn (Contact $record) => $record->bloqueado() ? 'Desbloquear' : 'Bloquear')
+                    ->icon('heroicon-o-no-symbol')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalDescription(fn (Contact $record) => $record->bloqueado()
+                        ? 'O contato volta a ser atendido pelo chatbot e pela resposta automática.'
+                        : 'Bloqueado, ele NÃO recebe resposta do chatbot nem resposta automática. As mensagens dele continuam chegando no atendimento, para uma pessoa decidir.')
+                    ->schema(fn (Contact $record) => $record->bloqueado() ? [] : [
+                        \Filament\Forms\Components\TextInput::make('motivo')
+                            ->label('Motivo')
+                            ->maxLength(120)
+                            ->helperText('Opcional, mas ajuda quem revisar depois.'),
+                    ])
+                    ->action(function (Contact $record, array $data) {
+                        $record->update($record->bloqueado()
+                            ? ['bloqueado_em' => null, 'bloqueio_motivo' => null]
+                            : ['bloqueado_em' => now(), 'bloqueio_motivo' => $data['motivo'] ?? null]);
+
+                        Notification::make()->success()
+                            ->title($record->bloqueado() ? 'Contato bloqueado' : 'Contato desbloqueado')
+                            ->send();
+                    }),
+            ])
             ->emptyStateHeading('Nenhum contato ainda')
             ->emptyStateDescription('Os contatos aparecem sozinhos quando alguem manda mensagem.');
     }
