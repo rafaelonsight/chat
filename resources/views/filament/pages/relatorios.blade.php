@@ -11,6 +11,31 @@
                 {{ $rotulo }}
             </button>
         @endforeach
+
+        @if ($etiquetas->isNotEmpty())
+            {{-- Recorte por etiqueta: vale para TODOS os numeros da pagina, nao so para
+                 a tabela de etiquetas. Filtro que pega em parte da tela faria o gestor
+                 comparar conversas de um recorte com mensagens de outro. --}}
+            <span class="ml-4 text-sm text-gray-500 dark:text-gray-400">Etiqueta:</span>
+            <select wire:model.live="etiqueta"
+                    class="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-700 dark:border-white/20 dark:bg-gray-800 dark:text-gray-200">
+                <option value="">Todas</option>
+                @foreach ($etiquetas as $et)
+                    <option value="{{ $et->id }}">{{ $et->nome }}</option>
+                @endforeach
+            </select>
+
+            @if ($etiquetaEscolhida)
+                <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 {{ $etiquetaEscolhida->classes() }}">
+                    <span class="h-1.5 w-1.5 rounded-full {{ $etiquetaEscolhida->pontinho() }}"></span>
+                    {{ $etiquetaEscolhida->nome }}
+                </span>
+                <button type="button" wire:click="$set('etiqueta', null)"
+                        class="text-xs text-gray-500 underline hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200">
+                    limpar
+                </button>
+            @endif
+        @endif
     </div>
 
     {{-- cartoes --}}
@@ -98,5 +123,62 @@
                 @endif
             </div>
         @endforeach
+
+        {{-- Fora do laco porque tem o ponto de cor e a nota de rodape: etiqueta e o
+             unico corte em que uma conversa cabe em mais de uma linha. --}}
+        <div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900">
+            <div class="border-b border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-white/10 dark:text-gray-200">
+                Por etiqueta
+            </div>
+
+            @if ($porEtiqueta->isEmpty() && $semEtiqueta === 0)
+                <p class="p-4 text-sm text-gray-500 dark:text-gray-400">Nada no periodo.</p>
+            @else
+                <table class="w-full text-sm">
+                    <thead class="text-xs text-gray-500 dark:text-gray-400">
+                        <tr>
+                            <th class="px-4 py-2 text-left font-medium">Etiqueta</th>
+                            <th class="px-4 py-2 text-right font-medium">Conversas</th>
+                            <th class="px-4 py-2 text-right font-medium">Encerradas</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-white/5">
+                        @foreach ($porEtiqueta as $linha)
+                            <tr wire:key="rel-et-{{ $loop->index }}">
+                                <td class="px-4 py-2 text-gray-800 dark:text-gray-100">
+                                    <span class="inline-flex items-center gap-1.5">
+                                        <span class="h-2 w-2 rounded-full {{ \App\Models\Tag::ponto($linha->cor) }}"></span>
+                                        {{ $linha->etiqueta }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-2 text-right text-gray-800 dark:text-gray-100">{{ $linha->conversas }}</td>
+                                <td class="px-4 py-2 text-right text-gray-500 dark:text-gray-400">{{ $linha->encerradas }}</td>
+                            </tr>
+                        @endforeach
+
+                        @if ($semEtiqueta > 0)
+                            {{-- Cobertura: cem conversas etiquetadas parecem otimo ate se
+                                 descobrir que houve mil. --}}
+                            <tr class="bg-gray-50/60 dark:bg-white/5">
+                                <td class="px-4 py-2 text-gray-500 dark:text-gray-400">
+                                    <span class="inline-flex items-center gap-1.5">
+                                        <span class="h-2 w-2 rounded-full bg-gray-300 dark:bg-white/20"></span>
+                                        sem etiqueta
+                                    </span>
+                                </td>
+                                <td class="px-4 py-2 text-right text-gray-500 dark:text-gray-400">{{ $semEtiqueta }}</td>
+                                <td class="px-4 py-2 text-right text-gray-400">—</td>
+                            </tr>
+                        @endif
+                    </tbody>
+                </table>
+
+                <p class="border-t border-gray-100 px-4 py-2 text-xs text-gray-500 dark:border-white/5 dark:text-gray-400">
+                    A etiqueta fica no contato, não na conversa: conta quem tem a etiqueta
+                    <strong>hoje</strong>. Contato com duas etiquetas aparece nas duas, então a
+                    soma passa do total.
+                </p>
+            @endif
+        </div>
     </div>
 </x-filament-panels::page>
