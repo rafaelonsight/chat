@@ -978,3 +978,109 @@ it('menu em campo de texto aceita qualquer rotulo', function () {
     expect(ContactFieldValue::where('contact_field_id', $motivo->id)->value('valor'))
         ->toBe('Suporte técnico');
 });
+
+// ================== ENCERRADOR E O ULTIMO: NAO EXISTE ACAO MORTA NO GRUPO ====
+//
+// Transferir e Concluir terminam o fluxo. Uma acao depois deles aparece no cartao,
+// o usuario configura, e ela nunca roda. Foi assim que uma etiqueta configurada no
+// painel nunca chegou ao contato.
+
+use App\Models\Tag;
+
+it('a etiqueta antes do transferir chega no contato', function () {
+    $tag = Tag::create(['nome' => 'Financeiro', 'cor' => 'verde']);
+
+    $bloco = $this->fluxo->criarPasso($this->bot, 0, 0, 'Financeiro');
+    $this->fluxo->adicionarAcao($bloco, ChatbotAction::ETIQUETA, [
+        'adicionar' => [(string) $tag->id], 'remover' => [],
+    ]);
+    $this->fluxo->adicionarAcao($bloco, ChatbotAction::TRANSFERIR, [
+        'team_id' => $this->suporte->id, 'aviso' => 'Vou te encaminhar.',
+    ]);
+    $this->fluxo->ligar($this->inicio, $bloco);
+    publicar();
+
+    recebe('oi');
+
+    expect($this->contato->fresh()->tags->pluck('nome')->all())->toBe(['Financeiro']);
+});
+
+it('acao adicionada num grupo que ja transfere entra ANTES do transferir', function () {
+    // Sem isso a acao nova nasce morta: o cartao mostra, o usuario configura, e o
+    // fluxo termina antes de chegar nela.
+    $bloco = $this->fluxo->criarPasso($this->bot, 0, 0, 'Financeiro');
+
+    $transferir = $this->fluxo->adicionarAcao($bloco, ChatbotAction::TRANSFERIR, [
+        'team_id' => $this->suporte->id, 'aviso' => 'Vou te encaminhar.',
+    ]);
+    $etiqueta = $this->fluxo->adicionarAcao($bloco, ChatbotAction::ETIQUETA, [
+        'adicionar' => [], 'remover' => [],
+    ]);
+
+    expect($etiqueta->ordem)->toBeLessThan($transferir->fresh()->ordem);
+});
+
+it('a etiqueta adicionada depois do transferir ainda assim aplica, porque foi para antes', function () {
+    // Repete o caminho exato do Rafael: primeiro criou o transferir, depois a
+    // etiqueta. Antes, a etiqueta ficava em ordem 4 e nunca rodava.
+    $tag = Tag::create(['nome' => 'Financeiro', 'cor' => 'verde']);
+
+    $bloco = $this->fluxo->criarPasso($this->bot, 0, 0, 'Financeiro');
+    $this->fluxo->adicionarAcao($bloco, ChatbotAction::TRANSFERIR, [
+        'team_id' => $this->suporte->id, 'aviso' => 'Vou te encaminhar para o Financeiro.',
+    ]);
+    $this->fluxo->adicionarAcao($bloco, ChatbotAction::ETIQUETA, [
+        'adicionar' => [(string) $tag->id], 'remover' => [],
+    ]);
+    $this->fluxo->ligar($this->inicio, $bloco);
+    publicar();
+
+    recebe('oi');
+
+    expect($this->contato->fresh()->tags->pluck('nome')->all())->toBe(['Financeiro'])
+        ->and(ultimaDita())->toBe('Vou te encaminhar para o Financeiro.');
+});
+
+it('arrumarOrdem move o encerrador para o fim mantendo o resto na ordem', function () {
+    // Reparo de fluxo montado antes da regra — o que a migracao faz no banco.
+    $bloco = $this->fluxo->criarPasso($this->bot, 0, 0, 'Financeiro');
+
+    // Cria fora de ordem na forca, como estava no banco do Rafael.
+    $transferir = ChatbotAction::create([
+        'chatbot_id' => $this->bot->id, 'step_id' => $bloco->id, 'ordem' => 1,
+        'tipo' => ChatbotAction::TRANSFERIR, 'config' => ['team_id' => $this->suporte->id],
+    ]);
+    $etiqueta = ChatbotAction::create([
+        'chatbot_id' => $this->bot->id, 'step_id' => $bloco->id, 'ordem' => 4,
+        'tipo' => ChatbotAction::ETIQUETA, 'config' => ['adicionar' => [], 'remover' => []],
+    ]);
+    $mensagem = ChatbotAction::create([
+        'chatbot_id' => $this->bot->id, 'step_id' => $bloco->id, 'ordem' => 5,
+        'tipo' => ChatbotAction::MENSAGEM, 'config' => ['texto' => 'oi'],
+    ]);
+
+    $this->fluxo->arrumarOrdem($bloco->fresh());
+
+    expect($etiqueta->fresh()->ordem)->toBe(1)
+        ->and($mensagem->fresh()->ordem)->toBe(2)
+        ->and($transferir->fresh()->ordem)->toBe(3);
+});
+
+it('publicar acusa acao depois do encerrador quando ela existe', function () {
+    // Rede de seguranca: hoje adicionarAcao impede criar, mas barrar e melhor do que
+    // deixar alguem configurar algo que nunca roda.
+    $bloco = $this->fluxo->criarPasso($this->bot, 0, 0, 'Financeiro');
+
+    ChatbotAction::create([
+        'chatbot_id' => $this->bot->id, 'step_id' => $bloco->id, 'ordem' => 1,
+        'tipo' => ChatbotAction::TRANSFERIR, 'config' => ['team_id' => $this->suporte->id],
+    ]);
+    ChatbotAction::create([
+        'chatbot_id' => $this->bot->id, 'step_id' => $bloco->id, 'ordem' => 2,
+        'tipo' => ChatbotAction::ETIQUETA, 'config' => ['adicionar' => [], 'remover' => []],
+    ]);
+
+    $this->fluxo->ligar($this->inicio, $bloco);
+
+    expect(implode(' ', $this->fluxo->validar($this->bot)))->toContain('nunca vai rodar');
+});

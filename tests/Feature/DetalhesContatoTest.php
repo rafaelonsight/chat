@@ -307,3 +307,41 @@ it('Detalhes mostra campo personalizado preenchido e esconde o vazio', function 
         // para editar aqui.
         ->assertDontSee('Plano');
 });
+
+// ================================ QUAL ETIQUETA ESTA POSTA TEM DE SER OBVIO ==
+
+it('a etiqueta posta se distingue da nao posta pela COR, nao so pelo fundo', function () {
+    // Nos prints do Rafael as tres etiquetas pareciam iguais: todas tinham o ponto
+    // colorido, posta ou nao, e a diferenca de fundo era fraca demais. Cor que
+    // aparece nas duas nao informa nada.
+    [, $u, , $ct, $cv] = cenarioDet('et1');
+
+    $posta = \App\Models\Tag::create(['nome' => 'Financeiro', 'cor' => 'verde']);
+    \App\Models\Tag::create(['nome' => 'Cancelado', 'cor' => 'vermelho']);
+
+    $ct->tags()->attach($posta->id, ['origem' => 'manual']);
+
+    $html = Livewire::actingAs($u)
+        ->test(ContactDetails::class, ['conversationId' => $cv->id])
+        ->call('alternar')
+        ->html();
+
+    // A posta tem a cor da paleta e o anel grosso.
+    expect($html)->toContain('bg-green-100')
+        ->and($html)->toContain('ring-2')
+        // A nao posta fica cinza: o ponto vermelho do "Cancelado" NAO aparece.
+        ->and($html)->not->toContain('bg-red-500')
+        ->and($html)->toContain('bg-gray-300');
+});
+
+it('a bolinha da etiqueta aparece na frente do nome na lista de conversas', function () {
+    // O que o Rafael pediu: reconhecer a etiqueta sem abrir o contato.
+    [, $u, , $ct, ] = cenarioDet('et2');
+
+    $tag = \App\Models\Tag::create(['nome' => 'Financeiro', 'cor' => 'verde']);
+    $ct->tags()->attach($tag->id, ['origem' => 'chatbot']);
+
+    Livewire::actingAs($u)
+        ->test(\App\Livewire\Inbox\ConversationList::class)
+        ->assertSee('bg-green-500', escape: false);
+});

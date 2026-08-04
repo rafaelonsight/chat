@@ -43,15 +43,56 @@ class ChatbotFluxo
         ]);
     }
 
+    /**
+     * Acrescenta uma acao ao grupo, SEMPRE antes de um encerrador.
+     *
+     * Transferir e Concluir terminam o fluxo: nada roda depois deles. Deixar a acao
+     * nova cair no fim de um grupo que ja transfere criava uma acao MORTA — aparecia
+     * no cartao, o usuario configurava, e ela nunca executava. Aconteceu de verdade
+     * com uma etiqueta que nunca chegou ao contato. Em vez de permitir e avisar
+     * depois, o encerrador continua sendo o ultimo.
+     */
     public function adicionarAcao(ChatbotStep $passo, string $tipo, array $config = []): ChatbotAction
     {
+        $primeiroEncerrador = $passo->actions()
+            ->whereIn('tipo', ChatbotAction::ENCERRAM)
+            ->orderBy('ordem')
+            ->first();
+
+        if ($primeiroEncerrador) {
+            $ordem = (int) $primeiroEncerrador->ordem;
+
+            // Abre espaco empurrando o encerrador (e o que vier depois) para baixo.
+            $passo->actions()->where('ordem', '>=', $ordem)->increment('ordem');
+        } else {
+            $ordem = (int) $passo->actions()->max('ordem') + 1;
+        }
+
         return ChatbotAction::create([
             'chatbot_id' => $passo->chatbot_id,
             'step_id'    => $passo->id,
-            'ordem'      => (int) $passo->actions()->max('ordem') + 1,
+            'ordem'      => $ordem,
             'tipo'       => $tipo,
             'config'     => $config,
         ]);
+    }
+
+    /**
+     * Reordena o grupo deixando os encerradores no fim, mantendo o resto na mesma
+     * ordem relativa. Serve para reparar fluxo montado antes desta regra.
+     */
+    public function arrumarOrdem(ChatbotStep $passo): void
+    {
+        $acoes = $passo->actions()->orderBy('ordem')->orderBy('id')->get();
+
+        // sortBy e estavel no PHP 8: quem nao encerra mantem a ordem que tinha.
+        $ordenadas = $acoes->sortBy(fn (ChatbotAction $a) => $a->encerra() ? 1 : 0)->values();
+
+        foreach ($ordenadas as $i => $acao) {
+            if ((int) $acao->ordem !== $i + 1) {
+                $acao->update(['ordem' => $i + 1]);
+            }
+        }
     }
 
     /**
@@ -143,6 +184,22 @@ class ChatbotFluxo
                 $problemas[] = "O grupo \"{$passo->nome}\" não tem nenhuma ação.";
 
                 continue;
+            }
+
+            // Rede de seguranca: adicionarAcao ja impede criar isso, e a migracao
+            // reparou o que existia. Se aparecer de novo, e melhor barrar do que
+            // deixar o usuario configurar uma acao que nunca roda.
+            $encerrouEm = null;
+
+            foreach ($passo->actions->sortBy('ordem') as $acao) {
+                if ($encerrouEm !== null) {
+                    $problemas[] = "\"{$passo->nome}\" → {$acao->rotulo()} vem depois de \"{$encerrouEm}\" e nunca vai rodar.";
+                    break;
+                }
+
+                if ($acao->encerra()) {
+                    $encerrouEm = $acao->rotulo();
+                }
             }
 
             foreach ($passo->actions as $acao) {

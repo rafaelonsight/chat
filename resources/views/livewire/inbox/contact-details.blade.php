@@ -190,12 +190,19 @@
                                     <button type="button" wire:key="et-{{ $etiqueta->id }}"
                                             wire:click="alternarEtiqueta({{ $etiqueta->id }})"
                                             @class([
-                                                'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 transition',
-                                                $etiqueta->classes() => $posta,
-                                                'bg-transparent text-gray-500 ring-gray-200 hover:bg-gray-50 dark:text-gray-400 dark:ring-white/10 dark:hover:bg-white/5' => ! $posta,
+                                                'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs transition',
+                                                'font-semibold ring-2 '.$etiqueta->classes() => $posta,
+                                                'font-medium ring-1 bg-transparent text-gray-400 ring-gray-200 hover:bg-gray-50 hover:text-gray-600 dark:text-gray-500 dark:ring-white/10 dark:hover:bg-white/5' => ! $posta,
                                             ])
                                             title="{{ $posta ? 'Clique para remover' : 'Clique para aplicar' }}">
-                                        <span class="h-1.5 w-1.5 rounded-full {{ $etiqueta->pontinho() }}"></span>
+                                        {{-- A COR so aparece quando a etiqueta esta no contato. Ponto
+                                             colorido em etiqueta nao aplicada fazia as duas parecerem
+                                             iguais, e ai a tela nao respondia "qual esta valendo?". --}}
+                                        <span @class([
+                                            'h-1.5 w-1.5 rounded-full',
+                                            $etiqueta->pontinho() => $posta,
+                                            'bg-gray-300 dark:bg-white/20' => ! $posta,
+                                        ])></span>
                                         {{ $etiqueta->nome }}
                                     </button>
                                 @endforeach
