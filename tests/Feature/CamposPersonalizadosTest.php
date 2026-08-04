@@ -196,10 +196,15 @@ it('CPF invalido no cadastro do contato e recusado', function () {
         ->assertHasFormErrors(['campos.'.$campo->id]);
 });
 
-it('nao mostra a secao quando nao ha campo definido', function () {
-    // Secao vazia no formulario e ruido: faz o usuario procurar o que preencher.
-    $tela = Livewire::actingAs($this->admin)
-        ->test(EditContact::class, ['record' => $this->contato->getKey()]);
+it('a secao aparece mesmo sem campo definido, porque nela fica o botao de criar', function () {
+    // Mudou de proposito: antes a secao ficava escondida quando vazia, para nao ser
+    // ruido. Agora ela contem o botao de criar campo — quem cadastra o cliente e
+    // quem descobre que falta um campo, e mandar essa pessoa a outra tela deixa o
+    // cadastro pela metade.
+    expect(ContactField::count())->toBe(0);
 
-    $tela->assertDontSee('Campos personalizados');
+    Livewire::actingAs($this->admin)
+        ->test(EditContact::class, ['record' => $this->contato->getKey()])
+        ->assertSee('Campos personalizados')
+        ->assertSee('Novo campo personalizado');
 });

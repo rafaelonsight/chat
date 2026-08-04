@@ -75,12 +75,15 @@ class ContactForm
                         ->label('CEP')
                         ->columnSpan(2)
                         ->maxLength(9)
-                        // .blur e nao a cada tecla: a ViaCEP nao precisa ver o CEP
-                        // sendo digitado digito por digito.
-                        ->live(onBlur: true)
+                        // Busca ao DIGITAR, com meio segundo de folga. O que evita
+                        // martelar a ViaCEP nao e esperar o blur, e a guarda dos 8
+                        // digitos dentro do callback: antes disso nao ha o que
+                        // consultar. Esperar o blur obrigava a sair do campo para o
+                        // endereco aparecer, o que nao e automatico.
+                        ->live(debounce: 500)
                         ->afterStateUpdated(self::preencherPeloCep())
                         ->dehydrateStateUsing(fn ($state) => ConsultaCep::digitos($state) ?: null)
-                        ->helperText('Preenche rua, bairro e cidade.'),
+                        ->helperText('Digite os 8 dígitos e o endereço se preenche sozinho.'),
 
                     TextInput::make('logradouro')
                         ->label('Logradouro')
@@ -117,9 +120,61 @@ class ContactForm
             // Só aparece quando ha campo definido: secao vazia no formulario e ruido
             // que faz o usuario procurar o que preencher.
             Section::make('Campos personalizados')
-                ->schema(CamposDoContato::componentes())
-                ->columns(2)
-                ->visible(fn () => ContactField::query()->exists()),
+                ->schema(array_merge(CamposDoContato::componentes(), [
+                    // Criar o campo aqui, e nao so em Configuracoes: quem esta
+                    // cadastrando o cliente e quem descobre que falta um campo, e
+                    // mandar essa pessoa a outra tela faz o cadastro pela metade.
+                    \Filament\Schemas\Components\Actions::make([
+                        \Filament\Actions\Action::make('novoCampo')
+                            ->label('Novo campo personalizado')
+                            ->icon('heroicon-o-plus')
+                            ->link()
+                            ->modalHeading('Adicionar novo campo personalizado')
+                            ->modalSubmitActionLabel('Salvar')
+                            ->schema([
+                                \Filament\Forms\Components\TextInput::make('nome')
+                                    ->label('Nome do campo')
+                                    ->required()
+                                    ->maxLength(60),
+
+                                \Filament\Forms\Components\Select::make('tipo')
+                                    ->label('Tipo')
+                                    ->options(\App\Models\ContactField::TIPOS)
+                                    ->default(\App\Models\ContactField::TEXTO_CURTO)
+                                    ->required()
+                                    ->native(false)
+                                    ->live(),
+
+                                \Filament\Forms\Components\Repeater::make('opcoes')
+                                    ->label('Opções')
+                                    ->simple(\Filament\Forms\Components\TextInput::make('opcao')->required())
+                                    ->visible(fn (\Filament\Schemas\Components\Utilities\Get $get) => in_array(
+                                        $get('tipo'), \App\Models\ContactField::COM_OPCOES, true
+                                    ))
+                                    ->minItems(1)
+                                    ->addActionLabel('Adicionar opção'),
+                            ])
+                            ->action(function (array $data, $livewire) {
+                                \App\Models\ContactField::create([
+                                    'nome'   => $data['nome'],
+                                    'tipo'   => $data['tipo'],
+                                    'opcoes' => $data['opcoes'] ?? [],
+                                    'ordem'  => (int) \App\Models\ContactField::max('ordem') + 1,
+                                ]);
+
+                                \Filament\Notifications\Notification::make()
+                                    ->success()
+                                    ->title('Campo criado')
+                                    ->send();
+
+                                // Recarrega a tela: o formulario e montado a partir
+                                // das definicoes, e sem recarregar o campo novo so
+                                // apareceria na proxima visita.
+                                $livewire->redirect(url()->current(), navigate: false);
+                            }),
+                    ]),
+                ]))
+                ->columns(2),
         ]);
     }
 
