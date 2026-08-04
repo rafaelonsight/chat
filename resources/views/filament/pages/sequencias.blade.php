@@ -6,7 +6,7 @@
             Decisões que faltam
         </p>
         <ul class="mx-auto mt-2 max-w-2xl list-disc space-y-1 pl-5 text-sm text-gray-600 dark:text-gray-300">
-            <li>Quais gatilhos: contato novo, conversa sem resposta há X, atendimento encerrado, fatura vencendo?</li>
+            <li>Quais gatilhos: contato novo, conversa sem resposta há X, atendimento encerrado, cobrança vencendo?</li>
             <li>Cadência: quantas mensagens, com que intervalo?</li>
             <li>Para de disparar quando o cliente responde? (deveria — senão vira perseguição)</li>
             <li>Respeita horário de atendimento e opt-out?</li>

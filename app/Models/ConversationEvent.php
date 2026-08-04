@@ -22,7 +22,7 @@ class ConversationEvent extends Model
 
     // O caminho que o cliente percorreu no bot. Vale ouro para quem recebe a
     // conversa: em vez de perguntar de novo, ja se ve "escolheu Suporte >
-    // Sem internet".
+    // Trocar produto".
     public const CHATBOT = 'chatbot';
 
     public function ehNota(): bool

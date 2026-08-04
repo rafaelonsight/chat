@@ -253,7 +253,7 @@ class ChatbotFluxo
     }
 
     /**
-     * Fluxo de provedor pronto para editar. Canvas vazio nao ensina nada; canvas
+     * Fluxo de exemplo pronto para editar. Canvas vazio nao ensina nada; canvas
      * com um fluxo plausivel ensina o modelo inteiro de uma vez.
      */
     public function criarExemplo(Chatbot $bot): void

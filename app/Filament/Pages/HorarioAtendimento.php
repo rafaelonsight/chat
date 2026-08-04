@@ -144,7 +144,7 @@ class HorarioAtendimento extends Page
             $linha = $grade->get($dia);
             $intervalos = $linha->intervalos ?? [];
 
-            // A tela mostra quatro campos porque cobre o caso real do provedor.
+            // A tela mostra quatro campos porque cobre o caso real de quem para no almoco.
             // O banco guarda intervalos, entao horarios fora desse molde
             // (plantao, turno triplo) sobrevivem mesmo sem UI para eles.
             $this->dias[$dia] = [

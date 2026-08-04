@@ -32,7 +32,7 @@ class TeamForm
                 ->multiple()
                 ->preload()
                 ->searchable()
-                ->helperText('Uma pessoa pode estar em várias equipes — num provedor pequeno é o normal.'),
+                ->helperText('Uma pessoa pode estar em várias equipes — em equipe pequena é o normal.'),
 
             Toggle::make('ativa')
                 ->label('Ativa')

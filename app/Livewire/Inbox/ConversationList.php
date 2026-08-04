@@ -136,9 +136,9 @@ class ConversationList extends Component
     {
         $eu = auth()->id();
 
-        // Grupo fica FORA da fila de atendimento: num provedor e bairro, tecnicos
+        // Grupo fica FORA da fila de atendimento: grupo e quase sempre equipe interna,
         // e revenda — volume alto e quase nada exige atendimento individual. Em
-        // Novos, 30 mensagens de grupo enterrariam quem pediu segunda via.
+        // Novos, 30 mensagens de grupo enterrariam quem esta esperando resposta.
         $semGrupo = fn (Builder $q) => $q->whereHas('contact', fn ($c) => $c->where('tipo', '!=', Contact::GRUPO));
 
         return match ($balde) {

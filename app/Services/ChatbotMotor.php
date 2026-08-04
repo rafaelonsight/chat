@@ -260,7 +260,7 @@ class ChatbotMotor
 
             if (! $r['ok'] && $r['erro'] !== null) {
                 // Nao guarda errado e explica o que esta errado. CPF com digito
-                // trocado no cadastro faz o provedor cobrar a pessoa errada, e a
+                // trocado no cadastro faz a empresa cobrar a pessoa errada, e a
                 // mensagem generica de "nao entendi" nao ensina nada a quem esta
                 // do outro lado.
                 return $this->respostaInvalida($bot, $conversa, $r['erro']);

@@ -16,7 +16,7 @@ class ContactDetails extends Component
 
     /**
      * Aba visivel. O painel tem 320px: empilhar cadastro, anexos, historico de
-     * conversas e dados do provedor numa coluna unica faria o telefone — que e o
+     * conversas e dados de outros sistemas numa coluna unica faria o telefone — que e o
      * que mais se procura — sair da tela.
      */
     public string $aba = 'detalhes';

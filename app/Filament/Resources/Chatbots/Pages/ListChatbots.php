@@ -26,7 +26,7 @@ class ListChatbots extends ListRecords
                 ->icon('heroicon-o-sparkles')
                 ->color('gray')
                 ->requiresConfirmation()
-                ->modalDescription('Cria um fluxo de provedor já montado (Financeiro, Suporte com submenu, Horário), desativado, para você editar.')
+                ->modalDescription('Cria um fluxo de exemplo já montado (Financeiro, Suporte com submenu, Horário), desativado, para você editar.')
                 ->action(function () {
                     // O exemplo tem que nascer no formato que o motor percorre.
                     // Antes montava a arvore antiga, que virou codigo morto.

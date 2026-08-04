@@ -35,7 +35,7 @@
 
         @php
             $identidade = [
-                ['nome', 'Nome da conta', 'text', 'Como o provedor é conhecido.'],
+                ['nome', 'Nome da conta', 'text', 'Como a sua empresa é conhecida.'],
                 ['razao_social', 'Razão social', 'text', 'Vem da Receita.'],
                 ['nome_fantasia', 'Nome fantasia', 'text', 'Vem da Receita, quando houver.'],
                 ['email', 'E-mail de contato', 'email', 'Opcional.'],

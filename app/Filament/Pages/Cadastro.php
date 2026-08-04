@@ -167,7 +167,7 @@ class Cadastro extends Page
     /**
      * Politica de sobrescrita: o que e da Receita (razao social, endereco,
      * situacao) vem dela, porque e a fonte oficial e o motivo de ter clicado.
-     * O que e escolha do provedor (nome da conta, e-mail e telefone de contato)
+     * O que e escolha da empresa (nome da conta, e-mail e telefone de contato)
      * so e preenchido se estiver vazio — o cadastro da Receita costuma ter
      * telefone antigo, e apagar o contato certo seria pior que nao preencher.
      *

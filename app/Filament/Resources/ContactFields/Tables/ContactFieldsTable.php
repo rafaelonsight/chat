@@ -42,6 +42,6 @@ class ContactFieldsTable
             ->reorderable('ordem')
             ->recordActions([EditAction::make(), DeleteAction::make()])
             ->emptyStateHeading('Nenhum campo personalizado')
-            ->emptyStateDescription('Serve para o que é do seu negócio e não cabe nos campos fixos: número de contrato, plano, dia de vencimento, ponto de acesso.');
+            ->emptyStateDescription('Serve para o que é do seu negócio e não cabe nos campos fixos: número do pedido, plano contratado, dia de vencimento, código do cliente.');
     }
 }

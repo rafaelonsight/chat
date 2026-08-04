@@ -11,12 +11,12 @@ use Illuminate\Support\Str;
  * Traduz "guardar a resposta no campo X" em gravacao de verdade no cadastro.
  *
  * Um lugar so para os dois mundos: as COLUNAS do contato (nome, e-mail, CEP...) e
- * os campos PERSONALIZADOS que o provedor cria em Configuracoes. O chatbot, o
+ * os campos PERSONALIZADOS que a empresa cria em Configuracoes. O chatbot, o
  * formulario e qualquer coisa que venha depois falam a mesma lingua — a chave
  * "contato.email" ou "personalizado.7".
  *
  * A regra que da sentido ao resto: resposta que nao passa na validacao NAO e
- * gravada. CPF com digito errado guardado no cadastro faz o provedor cobrar a
+ * gravada. CPF com digito errado guardado no cadastro faz a empresa cobrar a
  * pessoa errada, e um cadastro errado e mais caro que um cadastro vazio — o vazio
  * ao menos se ve.
  */
@@ -54,7 +54,7 @@ class CampoDoContato
      * Para o <select> do construtor, em dois grupos.
      *
      * Os personalizados saem da tabela a cada chamada de proposito: campo criado
-     * agora tem de aparecer no fluxo agora. Guardar em cache faria o provedor criar
+     * agora tem de aparecer no fluxo agora. Guardar em cache faria alguem criar
      * o campo e nao o encontrar.
      *
      * @return array<string, array<string, string>>
@@ -479,7 +479,7 @@ class CampoDoContato
         $opcoes = array_values((array) ($campo->opcoes ?? []));
 
         // Listar as validas em vez de so dizer "invalido": o cliente nao adivinha o
-        // que o provedor cadastrou.
+        // que a empresa cadastrou.
         return $opcoes === []
             ? 'Não entendi. Pode escrever de novo?'
             : 'Não achei essa opção. As possíveis são: '.implode(', ', $opcoes).'.';

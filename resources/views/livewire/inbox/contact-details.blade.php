@@ -359,14 +359,16 @@
         @if ($aba === 'paineis')
             <div class="p-4 text-sm">
                 {{-- Aba declarada e vazia de proposito, com o motivo escrito: e aqui
-                     que os dados do provedor (contrato, faturas, conexao) vao entrar
-                     pela integracao. Aba que finge ter dado e pior que aba vazia. --}}
+                     que os dados dos outros sistemas da empresa vao entrar pela
+                     integracao. Aba que finge ter dado e pior que aba vazia. --}}
                 <p class="text-xs text-gray-500 dark:text-gray-400">
-                    Aqui vão aparecer os dados do cliente vindos do sistema do provedor —
-                    contrato, faturas em aberto e situação da conexão — sem sair do atendimento.
+                    Aqui vão aparecer os dados deste cliente que hoje moram nos seus outros
+                    sistemas — cadastro, pedidos, pagamentos, agendamentos — sem sair do
+                    atendimento.
                 </p>
                 <p class="mt-2 text-xs text-gray-400">
-                    A integração ainda não está ligada. Enquanto isso, consulte no sistema do provedor.
+                    A integração ainda não está ligada. Enquanto isso, consulte no sistema
+                    onde esses dados ficam hoje.
                 </p>
             </div>
         @endif

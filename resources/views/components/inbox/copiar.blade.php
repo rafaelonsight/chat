@@ -1,7 +1,7 @@
 @props(['valor', 'titulo' => 'Copiar'])
 
 {{-- Copiar telefone e e-mail e a acao mais repetida do atendimento: quem atende
-     precisa colar o dado no sistema do provedor. Selecionar com o mouse dentro de
+     precisa colar o dado em outro sistema. Selecionar com o mouse dentro de
      um painel estreito erra a selecao metade das vezes.
 
      O aviso de "Copiado" e obrigatorio: sem retorno visivel, a pessoa clica de

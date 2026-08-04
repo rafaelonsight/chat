@@ -71,7 +71,7 @@ class Chatbot extends Model
     }
 
     /**
-     * Fluxo inicial de provedor, pronto para editar. Comecar de uma arvore vazia e
+     * Fluxo inicial de exemplo, pronto para editar. Comecar de uma arvore vazia e
      * a parte mais dificil de configurar um bot; comecar de uma arvore plausivel e
      * questao de trocar os textos.
      */
@@ -93,7 +93,7 @@ class Chatbot extends Model
         $no = fn (array $attr) => ChatbotNode::create(array_merge(['chatbot_id' => $bot->id], $attr));
 
         $no([
-            'gatilho' => '1', 'rotulo' => 'Segunda via / Financeiro', 'ordem' => 1,
+            'gatilho' => '1', 'rotulo' => 'Financeiro', 'ordem' => 1,
             'tipo' => ChatbotNode::EQUIPE, 'team_id' => $financeiro?->id,
             'mensagem' => 'Vou te encaminhar para o Financeiro.',
         ]);
@@ -105,16 +105,16 @@ class Chatbot extends Model
 
         $no([
             'parent_id' => $tecnico->id,
-            'gatilho' => '1', 'rotulo' => 'Sem internet', 'ordem' => 1,
+            'gatilho' => '1', 'rotulo' => 'Falar com o Suporte', 'ordem' => 1,
             'tipo' => ChatbotNode::EQUIPE, 'team_id' => $suporte?->id,
             'mensagem' => 'Vou te encaminhar para o Suporte.',
         ]);
 
         $no([
             'parent_id' => $tecnico->id,
-            'gatilho' => '2', 'rotulo' => 'Internet lenta', 'ordem' => 2,
+            'gatilho' => '2', 'rotulo' => 'Ver dúvidas frequentes', 'ordem' => 2,
             'tipo' => ChatbotNode::MENSAGEM,
-            'mensagem' => "Tente reiniciar o roteador: desligue da tomada, aguarde 30 segundos e ligue novamente.\n\nSe continuar lento, escolha 1 para falar com o Suporte.",
+            'mensagem' => "Boa parte das dúvidas já está respondida na nossa página de ajuda.\n\nSe não resolver, escolha 1 para falar com o Suporte.",
         ]);
 
         $no([
@@ -176,7 +176,7 @@ class Chatbot extends Model
         return $this->hasMany(ChatbotNode::class)->whereNull('parent_id')->orderBy('ordem');
     }
 
-    // Bot do canal tem prioridade sobre o bot geral da conta: provedor com um
+    // Bot do canal tem prioridade sobre o bot geral da conta: conta com um
     // numero de suporte e outro comercial precisa de arvores diferentes.
     /**
      * O que atende de verdade: ativo E publicado. Rascunho existe para poder mexer

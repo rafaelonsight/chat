@@ -60,8 +60,9 @@ class TranscriptionService
                     'language'        => 'pt',
                     'response_format' => 'json',
                     'temperature'     => '0.0',
-                    // Dica de vocabulario: sem ela "a ONU esta piscando" vira
-                    // "a onda esta piscando".
+                    // Dica de vocabulario: sem ela "manda o boleto no Pix" vira
+                    // "manda o boleto no pique". O conteudo vem do .env, porque as
+                    // palavras que importam mudam de negocio para negocio.
                     'prompt'          => $this->vocabulario,
                 ]);
 

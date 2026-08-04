@@ -137,7 +137,7 @@ class ContactField extends Model
 
     /**
      * Digito verificador de verdade. Campo que aceita 111.111.111-11 nao valida
-     * nada — e esse e justamente o lixo que entra em cadastro de provedor.
+     * nada — e esse e justamente o lixo que entra em cadastro feito as pressas.
      */
     public static function cpfCnpjValido(?string $valor): bool
     {

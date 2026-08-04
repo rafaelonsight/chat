@@ -50,7 +50,11 @@ return [
         // Audio de 8 minutos travaria um nucleo por minutos. Recusar e dizer e
         // melhor que degradar a maquina em silencio.
         'max_segundos' => (int) env('TRANSCRICAO_MAX_SEGUNDOS', 300),
-        'vocabulario'  => env('TRANSCRICAO_VOCABULARIO', 'Provedor de internet. ONU, OLT, roteador, PPPoE, sinal, fibra, boleto, segunda via, plano, velocidade, instalacao.'),
+        // Dica de vocabulario para o Whisper. O padrao e de atendimento em geral, de
+        // proposito: jargao de um setio so puxaria a transcricao para o lado errado em
+        // todos os outros — numa clinica, "olho" viraria "OLT". Quem tem jargao
+        // proprio ajusta pelo .env, que e o lugar de conhecimento de UM cliente.
+        'vocabulario'  => env('TRANSCRICAO_VOCABULARIO', 'Atendimento ao cliente no Brasil. Boleto, Pix, nota fiscal, CPF, CNPJ, orcamento, pedido, entrega, agendamento, garantia, cancelamento, segunda via, parcelamento, vencimento.'),
     ],
 
 

@@ -8,7 +8,7 @@
         <ul class="mx-auto mt-2 max-w-2xl list-disc space-y-1 pl-5 text-sm text-gray-600 dark:text-gray-300">
             <li>O agente é um <strong>usuário de verdade</strong> no sistema, com nome próprio? (recomendo: aí ele aparece em "Outros", o relatório por atendente já o contabiliza, e nada de código novo)</li>
             <li>Qual modelo, e o dado do cliente pode sair do servidor? Mesma questão de LGPD da transcrição.</li>
-            <li>O que ele pode <strong>fazer</strong>, além de responder: consultar fatura, gerar segunda via, abrir OS, desbloqueio em confiança?</li>
+            <li>O que ele pode <strong>fazer</strong>, além de responder: consultar um pedido, emitir segunda via de cobrança, abrir um chamado, agendar visita?</li>
             <li>Guardrails: o que ele nunca pode prometer (prazo, desconto, cancelamento)?</li>
             <li>Quando escala para humano: por palavra-chave, por confiança baixa, por pedido do cliente?</li>
             <li>Quem audita o que ele respondeu?</li>

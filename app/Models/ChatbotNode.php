@@ -52,7 +52,7 @@ class ChatbotNode extends Model
         return $this->belongsTo(Team::class);
     }
 
-    /** "Suporte > Sem internet", para a tela mostrar hierarquia numa lista plana. */
+    /** "Suporte > Trocar produto", para a tela mostrar hierarquia numa lista plana. */
     public function caminho(): string
     {
         $nomes = [$this->rotulo];
