@@ -21,6 +21,11 @@ class AppServiceProvider extends ServiceProvider
             (string) config('services.evolution.url'),
             (string) config('services.evolution.key'),
         ));
+        $this->app->singleton(\App\Services\ConsultaCnpj::class, fn () => new \App\Services\ConsultaCnpj(
+            (string) config('services.cnpj.url'),
+            (int) config('services.cnpj.timeout'),
+            (int) config('services.cnpj.cache_horas'),
+        ));
         //
     }
 

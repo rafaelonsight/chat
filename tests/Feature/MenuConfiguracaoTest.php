@@ -80,12 +80,17 @@ it('as telas reservadas abrem com aviso, para o admin', function () {
 it('o Cadastro carrega os dados da conta e salva', function () {
     $admin = usuarioConf('cf3');
 
+    // Preencher o CNPJ dispara a consulta na Receita. Aqui o assunto e carregar e
+    // salvar, entao a consulta e cortada: sem isso o teste sai na rede de verdade
+    // e o que vier de la sobrescreve a razao social digitada logo abaixo.
+    Illuminate\Support\Facades\Http::fake(['*' => Illuminate\Support\Facades\Http::response([], 404)]);
+
     $pagina = Livewire\Livewire::actingAs($admin)->test(Cadastro::class);
 
     $pagina->assertSet('nome', 'CF3')
         ->set('nome', 'Provedor Alfa')
         ->set('razao_social', 'Alfa Telecom LTDA')
-        ->set('documento', '12.345.678/0001-90')
+        ->set('documento', '11.222.333/0001-81')
         ->set('email', 'contato@alfa.test')
         ->set('telefone', '(84) 3333-4444')
         ->call('salvar')
@@ -94,7 +99,7 @@ it('o Cadastro carrega os dados da conta e salva', function () {
     $t = Tenant::find($admin->tenant_id);
     expect($t->nome)->toBe('Provedor Alfa')
         ->and($t->razao_social)->toBe('Alfa Telecom LTDA')
-        ->and($t->documento)->toBe('12.345.678/0001-90')
+        ->and($t->documento)->toBe('11.222.333/0001-81')
         ->and($t->email)->toBe('contato@alfa.test');
 });
 

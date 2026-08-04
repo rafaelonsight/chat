@@ -53,4 +53,16 @@ return [
         'vocabulario'  => env('TRANSCRICAO_VOCABULARIO', 'Provedor de internet. ONU, OLT, roteador, PPPoE, sinal, fibra, boleto, segunda via, plano, velocidade, instalacao.'),
     ],
 
+
+    'cnpj' => [
+        // BrasilAPI serve a base publica da Receita Federal sem chave nem
+        // cadastro. Trocavel por env caso o limite por IP aperte: qualquer
+        // servico com o mesmo formato de resposta serve.
+        'url'         => env('CNPJ_API_URL', 'https://brasilapi.com.br/api/cnpj/v1'),
+        // Curto de proposito: e o usuario esperando na tela de cadastro.
+        'timeout'     => (int) env('CNPJ_API_TIMEOUT', 12),
+        // Dado cadastral da Receita muda em meses, nao em horas.
+        'cache_horas' => (int) env('CNPJ_CACHE_HORAS', 24),
+    ],
+
 ];
