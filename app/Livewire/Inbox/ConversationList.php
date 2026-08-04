@@ -240,7 +240,7 @@ class ConversationList extends Component
 
         $conversas = $this->aplicarRecortes(
             $this->doBalde($this->balde)
-                ->with(['contact', 'ultimaMensagem', 'atendente', 'team'])
+                ->with(['contact.tags', 'ultimaMensagem', 'atendente', 'team'])
                 ->withCount('messages')
         )
             ->orderBy('ultima_msg_em', $this->ordemEfetiva() === 'antigos' ? 'asc' : 'desc')

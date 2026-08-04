@@ -71,6 +71,54 @@
             </dl>
 
             <div class="rounded border border-gray-200 dark:border-white/10">
+                {{-- Etiquetas: aqui COM nome, ao contrario da lista, onde so a cor
+                     aparece para nao roubar espaco do nome do cliente. --}}
+                <div class="border-t border-gray-100 pt-3 dark:border-white/5">
+                    <p class="mb-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">Etiquetas</p>
+
+                    @if ($etiquetas->isEmpty())
+                        <p class="text-xs text-gray-400">
+                            Nenhuma cadastrada. Crie em <strong>Configurações &rarr; Etiquetas</strong>.
+                        </p>
+                    @else
+                        <div class="flex flex-wrap gap-1">
+                            @foreach ($etiquetas as $etiqueta)
+                                @php $posta = in_array($etiqueta->id, $doContato, true); @endphp
+                                <button type="button" wire:key="et-{{ $etiqueta->id }}"
+                                        wire:click="alternarEtiqueta({{ $etiqueta->id }})"
+                                        @class([
+                                            'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 transition',
+                                            $etiqueta->classes() => $posta,
+                                            'bg-transparent text-gray-500 ring-gray-200 hover:bg-gray-50 dark:text-gray-400 dark:ring-white/10 dark:hover:bg-white/5' => ! $posta,
+                                        ])
+                                        title="{{ $posta ? 'Clique para remover' : 'Clique para aplicar' }}">
+                                    <span class="h-1.5 w-1.5 rounded-full {{ $etiqueta->pontinho() }}"></span>
+                                    {{ $etiqueta->nome }}
+                                </button>
+                            @endforeach
+                        </div>
+                    @endif
+                </div>
+
+                {{-- Notas internas: ficam no historico da conversa e NUNCA vao para o
+                     cliente. Escreve-se pelo cadeado no compositor. --}}
+                <div class="border-t border-gray-100 pt-3 dark:border-white/5">
+                    <p class="mb-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">Notas internas</p>
+
+                    @forelse ($notas as $nota)
+                        <div wire:key="nota-{{ $nota->id }}" class="mb-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 dark:border-amber-500/30 dark:bg-amber-500/10">
+                            <p class="whitespace-pre-wrap text-xs text-amber-900 dark:text-amber-200">{{ $nota->descricao }}</p>
+                            <p class="mt-0.5 text-[10px] text-amber-700/80 dark:text-amber-300/70">
+                                {{ $nota->created_at?->format('d/m H:i') }}
+                                @if ($nota->user) &middot; {{ $nota->user->name }} @endif
+                            </p>
+                        </div>
+                    @empty
+                        <p class="text-xs text-gray-400">Nenhuma nota. Use o cadeado no campo de mensagem.</p>
+                    @endforelse
+                </div>
+
+
                 <div class="border-b border-gray-200 px-3 py-2 text-xs font-medium text-gray-500 dark:border-white/10 dark:text-gray-400">
                     Historico
                 </div>

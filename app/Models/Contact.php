@@ -68,6 +68,17 @@ class Contact extends Model
         return $this->instagram ? 'https://instagram.com/'.$this->instagram : null;
     }
 
+    public function fieldValues(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ContactFieldValue::class);
+    }
+
+    /** Valores dos campos personalizados, indexados pelo id do campo. */
+    public function camposPersonalizados(): array
+    {
+        return $this->fieldValues()->pluck('valor', 'contact_field_id')->all();
+    }
+
     public function tags(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Tag::class)

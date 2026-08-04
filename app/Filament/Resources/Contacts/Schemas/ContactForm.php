@@ -8,6 +8,8 @@ use App\Support\PhoneNumber;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use App\Filament\Support\CamposDoContato;
+use App\Models\ContactField;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
@@ -111,6 +113,13 @@ class ContactForm
                         ->maxLength(2)
                         ->dehydrateStateUsing(fn ($state) => $state ? mb_strtoupper($state) : null),
                 ]),
+
+            // Só aparece quando ha campo definido: secao vazia no formulario e ruido
+            // que faz o usuario procurar o que preencher.
+            Section::make('Campos personalizados')
+                ->schema(CamposDoContato::componentes())
+                ->columns(2)
+                ->visible(fn () => ContactField::query()->exists()),
         ]);
     }
 
