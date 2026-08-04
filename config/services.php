@@ -65,4 +65,14 @@ return [
         'cache_horas' => (int) env('CNPJ_CACHE_HORAS', 24),
     ],
 
+
+    'cep' => [
+        // ViaCEP: publica, sem chave. Atencao ao consumir direto — CEP que nao
+        // existe volta com status 200 e {"erro":"true"} no corpo.
+        'url'         => env('CEP_API_URL', 'https://viacep.com.br/ws'),
+        'timeout'     => (int) env('CEP_API_TIMEOUT', 8),
+        // Rua nao muda de bairro: cache longo, ao contrario do CNPJ.
+        'cache_horas' => (int) env('CEP_CACHE_HORAS', 720),
+    ],
+
 ];

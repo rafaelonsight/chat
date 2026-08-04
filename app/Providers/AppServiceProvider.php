@@ -26,6 +26,11 @@ class AppServiceProvider extends ServiceProvider
             (int) config('services.cnpj.timeout'),
             (int) config('services.cnpj.cache_horas'),
         ));
+        $this->app->singleton(\App\Services\ConsultaCep::class, fn () => new \App\Services\ConsultaCep(
+            (string) config('services.cep.url'),
+            (int) config('services.cep.timeout'),
+            (int) config('services.cep.cache_horas'),
+        ));
         //
     }
 
