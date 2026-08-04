@@ -63,9 +63,11 @@ class ConversationList extends Component
             'conversa-atualizada' => '$refresh',
         ];
 
-        if ($tenantId = auth()->user()?->tenant_id) {
-            $listeners['echo-private:tenant.'.$tenantId.'.conversations,.message.stored'] = '$refresh';
-        }
+        // Ponte propria, e nao o ouvinte "echo-private:..." do Livewire. Medido em
+        // producao: o evento chegava no navegador e a ponte automatica do Livewire
+        // nunca se registrava, entao a lista so mudava quando alguem clicava. O
+        // resources/js/app.js escuta o canal e dispara este evento.
+        $listeners['mensagem-chegou'] = '$refresh';
 
         return $listeners;
     }

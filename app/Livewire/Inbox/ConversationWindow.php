@@ -22,6 +22,22 @@ class ConversationWindow extends Component
         $this->limite = 30;
     }
 
+    /**
+     * Atualiza SO quando a mensagem e desta conversa.
+     *
+     * A ponte avisa toda mensagem da conta, porque a lista lateral precisa de todas.
+     * Refazer a janela por mensagem de outra conversa seria um request por mensagem
+     * de um atendimento que ninguem esta olhando.
+     */
+    public function talvezAtualizar(?int $conversationId = null): void
+    {
+        if ($conversationId !== null && $conversationId !== $this->conversationId) {
+            return;
+        }
+
+        // Sem corpo: o render ja refaz a lista de mensagens.
+    }
+
     public function getListeners(): array
     {
         $listeners = [
@@ -34,11 +50,12 @@ class ConversationWindow extends Component
             // dispara aquele (assumir, transferir, finalizar), e escutar o que se
             // dispara custa um ida-e-volta extra a cada acao.
             'contato-atualizado' => '$refresh',
+
+            // Mensagem nova, vinda da ponte em resources/js/app.js.
+            'mensagem-chegou' => 'talvezAtualizar',
         ];
 
-        if ($this->conversationId) {
-            $listeners['echo-private:conversation.'.$this->conversationId.',.message.stored'] = '$refresh';
-        }
+
 
         return $listeners;
     }

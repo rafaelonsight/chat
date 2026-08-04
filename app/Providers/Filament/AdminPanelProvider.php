@@ -13,6 +13,8 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\View\PanelsRenderHook;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
@@ -30,6 +32,20 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->viteTheme('resources/css/filament/admin/theme.css')
+            // O viteTheme acima traz SO o CSS. Sem esta linha o resources/js/app.js
+            // era compilado e nunca servido: window.Echo nao existia, o navegador nao
+            // abria websocket nenhum, e todo ouvinte de tempo real dos componentes
+            // ficava morto — a caixa de entrada so mudava quando algo forcava um
+            // request do Livewire (clicar numa aba, por exemplo).
+            //
+            // HEAD_END e nao o fim do body: o modulo do Vite e "defer", entao roda
+            // depois do HTML e ANTES do DOMContentLoaded, que e quando o Livewire
+            // inicia e procura o window.Echo. Se rodasse depois, o Livewire ja teria
+            // desistido dos ouvintes com "Laravel Echo cannot be found".
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => view('filament.tempo-real')->render(),
+            )
             ->login()
             ->colors([
                 'primary' => Color::Amber,

@@ -78,6 +78,24 @@
                     </svg>
                 </button>
 
+                {{-- Som do alerta. Vive no navegador (localStorage) e nao no banco: e
+                     escolha da MAQUINA, nao da pessoa — o mesmo atendente quer som no
+                     posto de atendimento e silencio no notebook de casa. --}}
+                <button type="button"
+                        x-data="{ ligado: true }"
+                        x-init="ligado = window.onchatSomLigado ? window.onchatSomLigado() : true"
+                        x-on:click="ligado = window.onchatAlternarSom ? window.onchatAlternarSom() : ligado"
+                        x-bind:title="ligado ? 'Som ligado — clique para silenciar' : 'Som desligado — clique para ligar'"
+                        x-bind:class="ligado ? 'text-gray-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'"
+                        class="rounded p-1.5 transition hover:bg-gray-100 dark:hover:bg-white/5">
+                    <svg x-show="ligado" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                    </svg>
+                    <svg x-show="! ligado" x-cloak xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.143 17.082a24.248 24.248 0 0 0 3.844.148m-3.844-.148a23.856 23.856 0 0 1-5.455-1.31 8.964 8.964 0 0 0 2.3-5.542m3.155 6.852a3 3 0 0 0 5.667 1.97m1.965-2.277L3 3m18 18-4.5-4.5" />
+                    </svg>
+                </button>
+
                 {{-- Etiqueta como ICONE, no mesmo grupo de buscar e ordenar: um select
                      a mais na linha de cima nao caberia, e o padrao da tela ja e
                      icone que abre menu. O botao fica aceso enquanto o recorte
