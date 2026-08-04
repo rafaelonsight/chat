@@ -65,7 +65,7 @@
             <button type="button" wire:click="$set('somenteNaoLidas', true)"
                     class="rounded-full px-2.5 py-1 text-xs font-medium transition
                            {{ $somenteNaoLidas ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5' }}">
-                Apenas não lidas
+                Não lidas
             </button>
 
             <span class="ml-auto flex items-center gap-0.5">
@@ -77,6 +77,52 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                     </svg>
                 </button>
+
+                {{-- Etiqueta como ICONE, no mesmo grupo de buscar e ordenar: um select
+                     a mais na linha de cima nao caberia, e o padrao da tela ja e
+                     icone que abre menu. O botao fica aceso enquanto o recorte
+                     estiver valendo, senao a lista curta parece fila vazia. --}}
+                <div class="relative" x-data="{ etq: false }" x-on:click.outside="etq = false">
+                    <button type="button" x-on:click="etq = !etq" title="Filtrar por etiqueta"
+                            class="rounded p-1.5 transition hover:bg-gray-100 dark:hover:bg-white/5
+                                   {{ $etiquetaAtiva
+                                        ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                        : 'text-gray-400' }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-4 w-4">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 0 0 3 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 0 0 5.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 0 0 9.568 3Z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6Z" />
+                        </svg>
+                    </button>
+
+                    <div x-show="etq" x-cloak x-transition.opacity
+                         class="absolute right-0 z-20 mt-1 w-64 rounded-xl border border-gray-200 bg-white p-2 shadow-lg dark:border-white/10 dark:bg-gray-800">
+                        <p class="px-2 py-1 text-xs font-semibold text-gray-500 dark:text-gray-400">Filtrar por etiqueta:</p>
+
+                        <button type="button" wire:click="filtrarEtiqueta(null)" x-on:click="etq = false"
+                                class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition
+                                       {{ ! $etiquetaAtiva
+                                            ? 'bg-indigo-50 text-indigo-900 dark:bg-indigo-500/15 dark:text-indigo-200'
+                                            : 'text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/5' }}">
+                            Todas
+                        </button>
+
+                        @forelse ($etiquetas as $et)
+                            <button type="button" wire:key="fet-{{ $et->id }}"
+                                    wire:click="filtrarEtiqueta('{{ $et->id }}')" x-on:click="etq = false"
+                                    class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-sm transition
+                                           {{ $etiquetaAtiva?->id === $et->id
+                                                ? 'bg-indigo-50 text-indigo-900 dark:bg-indigo-500/15 dark:text-indigo-200'
+                                                : 'text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/5' }}">
+                                <span class="h-2 w-2 shrink-0 rounded-full {{ $et->pontinho() }}"></span>
+                                <span class="truncate">{{ $et->nome }}</span>
+                            </button>
+                        @empty
+                            <p class="px-2 py-2 text-xs text-gray-400">
+                                Nenhuma etiqueta cadastrada.
+                            </p>
+                        @endforelse
+                    </div>
+                </div>
 
                 {{-- ordenar --}}
                 <div class="relative" x-on:click.outside="ordem = false">
@@ -211,6 +257,10 @@
             <p class="p-4 text-sm text-gray-500 dark:text-gray-400">
                 @if (trim($busca) !== '')
                     Nada encontrado para "{{ $busca }}".
+                @elseif ($etiquetaAtiva)
+                    {{-- Diz o motivo: lista vazia com filtro ligado e lida como fila
+                         vazia, e o atendente vai embora achando que nao ha trabalho. --}}
+                    Nenhuma conversa com a etiqueta <strong>{{ $etiquetaAtiva->nome }}</strong> aqui.
                 @elseif ($somenteNaoLidas)
                     Nada sem ler aqui.
                 @else

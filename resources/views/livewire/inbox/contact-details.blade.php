@@ -194,7 +194,13 @@
                                                 'font-semibold ring-2 '.$etiqueta->classes() => $posta,
                                                 'font-medium ring-1 bg-transparent text-gray-400 ring-gray-200 hover:bg-gray-50 hover:text-gray-600 dark:text-gray-500 dark:ring-white/10 dark:hover:bg-white/5' => ! $posta,
                                             ])
-                                            title="{{ $posta ? 'Clique para remover' : 'Clique para aplicar' }}">
+                                            {{-- A origem esta gravada desde sempre e nunca
+                                                 aparecia em tela nenhuma. "Quem pos isso
+                                                 aqui?" e a primeira pergunta quando uma
+                                                 etiqueta parece errada. --}}
+                                            title="{{ $posta
+                                                        ? ($origens[$etiqueta->id] ?? '').' · Clique para remover'
+                                                        : 'Clique para aplicar' }}">
                                         {{-- A COR so aparece quando a etiqueta esta no contato. Ponto
                                              colorido em etiqueta nao aplicada fazia as duas parecerem
                                              iguais, e ai a tela nao respondia "qual esta valendo?". --}}

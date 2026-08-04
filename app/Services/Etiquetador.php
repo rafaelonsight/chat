@@ -26,6 +26,39 @@ class Etiquetador
 
     public const CAMPANHA = 'campanha';
 
+    /** Como cada origem se le numa frase. */
+    public const ROTULOS = [
+        self::MANUAL     => 'à mão',
+        self::CHATBOT    => 'pelo chatbot',
+        self::AGENTE     => 'por um funcionário digital',
+        self::IMPORTACAO => 'na importação',
+        self::CAMPANHA   => 'por uma campanha',
+    ];
+
+    /**
+     * Frase pronta de como a etiqueta chegou no contato.
+     *
+     * A origem e gravada desde o inicio e nunca sobrescrita, justamente para dar esta
+     * resposta — "quem pos isso aqui?". Sem mostrar em algum lugar, o cuidado de
+     * gravar nao serve para nada.
+     */
+    public static function comoFoi(?string $origem, ?string $quem, mixed $quando): string
+    {
+        // Origem desconhecida e dito, nao escondido: linha antiga sem origem existe, e
+        // inventar "a mao" seria afirmar algo que ninguem verificou.
+        $partes = ['Aplicada '.(self::ROTULOS[$origem] ?? 'sem origem registrada')];
+
+        if ($quem) {
+            $partes[] = 'por '.$quem;
+        }
+
+        if ($quando) {
+            $partes[] = 'em '.\Illuminate\Support\Carbon::parse($quando)->format('d/m/Y H:i');
+        }
+
+        return implode(' ', $partes);
+    }
+
     /**
      * @param  array<int, int>  $tagIds
      */

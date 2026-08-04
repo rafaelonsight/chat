@@ -3,6 +3,7 @@
 namespace App\Livewire\Inbox;
 
 use App\Models\Contact;
+use App\Models\Tag;
 use App\Models\Team;
 use App\Models\Conversation;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,6 +40,12 @@ class ConversationList extends Component
 
     // null = padrao do balde. A escolha no menu sobrepoe e continua valendo.
     public ?string $ordem = null;
+
+    /**
+     * Etiqueta do recorte. Texto porque vem do menu como texto, e '' num int
+     * tipado explode antes de chegar aqui.
+     */
+    public ?string $etiqueta = null;
 
     public ?int $selecionada = null;
 
@@ -90,6 +97,26 @@ class ConversationList extends Component
 
     // Fila se atende por ordem de chegada: em Novos, quem espera mais aparece
     // primeiro. Nos outros baldes o que importa e a conversa que se moveu agora.
+    public function filtrarEtiqueta(?string $id): void
+    {
+        $n = (int) $id;
+
+        // Etiqueta apagada noutra aba volta para "todas": lista vazia sem explicacao
+        // parece defeito, nao filtro sem resultado.
+        $this->etiqueta = $n > 0 && Tag::whereKey($n)->exists() ? (string) $n : null;
+
+        // Trocar de recorte comeca outra lista: manter a pagina 3 mostraria um pedaco
+        // do meio de algo que o atendente nunca viu do comeco.
+        $this->limite = self::PAGINA;
+    }
+
+    private function etiquetaId(): ?int
+    {
+        $n = (int) $this->etiqueta;
+
+        return $n > 0 ? $n : null;
+    }
+
     public function carregarMais(): void
     {
         $this->limite += self::PAGINA;
@@ -186,9 +213,27 @@ class ConversationList extends Component
         };
     }
 
-    private function aplicarRecortes(Builder $query): Builder
+    /**
+     * Recortes PERSISTENTES: equipe e etiqueta.
+     *
+     * Os badges usam este, e nao o aplicarRecortes, porque busca e "apenas nao lidas"
+     * sao transitorios — mas badge que conta conversa fora do recorte manda o
+     * atendente procurar o que a lista nem mostra.
+     */
+    private function aplicarEscopo(Builder $query): Builder
     {
         $query = $this->aplicarEquipe($query);
+
+        if ($id = $this->etiquetaId()) {
+            $query->whereHas('contact.tags', fn ($t) => $t->whereKey($id));
+        }
+
+        return $query;
+    }
+
+    private function aplicarRecortes(Builder $query): Builder
+    {
+        $query = $this->aplicarEscopo($query);
 
         if ($this->somenteNaoLidas) {
             $query->where('nao_lidas', '>', 0);
@@ -227,10 +272,10 @@ class ConversationList extends Component
         // os badges tambem respeitam a equipe escolhida, senao contariam
         // conversa que a lista nem mostra
         $badges = [
-            'novos'      => $this->aplicarEquipe($this->doBalde('novos'))->count(),
-            'meus'       => $this->aplicarEquipe($this->doBalde('meus'))->where('nao_lidas', '>', 0)->count(),
-            'outros'     => $this->aplicarEquipe($this->doBalde('outros'))->where('nao_lidas', '>', 0)->count(),
-            'grupos'     => $this->aplicarEquipe($this->doBalde('grupos'))->where('nao_lidas', '>', 0)->count(),
+            'novos'      => $this->aplicarEscopo($this->doBalde('novos'))->count(),
+            'meus'       => $this->aplicarEscopo($this->doBalde('meus'))->where('nao_lidas', '>', 0)->count(),
+            'outros'     => $this->aplicarEscopo($this->doBalde('outros'))->where('nao_lidas', '>', 0)->count(),
+            'grupos'     => $this->aplicarEscopo($this->doBalde('grupos'))->where('nao_lidas', '>', 0)->count(),
             'arquivadas' => null,
         ];
 
@@ -252,6 +297,8 @@ class ConversationList extends Component
             'total'         => $total,
             'restantes'     => max(0, $total - $conversas->count()),
             'equipes'       => Team::ativas()->orderBy('nome')->get(),
+            'etiquetas'     => Tag::orderBy('nome')->get(),
+            'etiquetaAtiva' => $this->etiquetaId() ? Tag::find($this->etiquetaId()) : null,
             'badges'        => $badges,
             'baldes'        => self::BALDES,
             'ordens'        => self::ORDENS,

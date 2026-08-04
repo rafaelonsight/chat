@@ -152,6 +152,7 @@ class ContactDetails extends Component
         // olhando o telefone seria trabalho jogado fora a cada atualizacao.
         $etiquetas = collect();
         $doContato = [];
+        $origens = [];
         $notas = collect();
         $camposPreenchidos = [];
         $arquivos = collect();
@@ -161,7 +162,22 @@ class ContactDetails extends Component
             // Todas as etiquetas da conta para o atendente escolher, as que este
             // contato ja tem, e as notas internas — que NUNCA vao para o cliente.
             $etiquetas = \App\Models\Tag::orderBy('nome')->get();
-            $doContato = $conversa->contact->tags->pluck('id')->all();
+
+            $postas = $conversa->contact->tags;
+            $doContato = $postas->pluck('id')->all();
+
+            // Quem aplicou, resolvido de uma vez: uma consulta para todos os nomes em
+            // vez de uma por etiqueta.
+            $nomes = \App\Models\User::whereIn('id', $postas->pluck('pivot.aplicado_por')->filter()->unique())
+                ->pluck('name', 'id');
+
+            foreach ($postas as $posta) {
+                $origens[$posta->id] = \App\Services\Etiquetador::comoFoi(
+                    $posta->pivot->origem,
+                    $nomes[$posta->pivot->aplicado_por] ?? null,
+                    $posta->pivot->created_at,
+                );
+            }
 
             $notas = \App\Models\ConversationEvent::where('conversation_id', $conversa->id)
                 ->where('tipo', \App\Models\ConversationEvent::NOTA)
@@ -194,7 +210,7 @@ class ContactDetails extends Component
 
         return view('livewire.inbox.contact-details', compact(
             'conversa', 'resumo', 'outrasConversas', 'etiquetas', 'doContato', 'notas',
-            'camposPreenchidos', 'arquivos', 'conversas',
+            'camposPreenchidos', 'arquivos', 'conversas', 'origens',
         ));
     }
 

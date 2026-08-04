@@ -103,7 +103,8 @@ class Contact extends Model
     public function tags(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Tag::class)
-            ->withPivot(['origem', 'aplicado_por'])
+            // created_at no pivot para a tela poder dizer QUANDO a etiqueta foi posta.
+            ->withPivot(['origem', 'aplicado_por', 'created_at'])
             ->orderBy('tags.nome');
     }
 
