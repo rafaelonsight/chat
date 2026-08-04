@@ -14,8 +14,31 @@
                 </button>
 
                 <div class="min-w-0">
-                <div class="truncate font-semibold text-gray-800 dark:text-gray-100">
-                    {{ $conversa->contact->nomeExibicao() }}
+                <div class="flex min-w-0 items-center gap-2">
+                    <span class="truncate font-semibold text-gray-800 dark:text-gray-100">
+                        {{ $conversa->contact->nomeExibicao() }}
+                    </span>
+
+                    {{-- Etiqueta COM nome aqui, e nao so a bolinha da lista: no cabecalho
+                         e onde se trabalha, e quem esta escrevendo a resposta precisa ver
+                         "Financeiro" sem passar o mouse nem abrir o painel. Tres no
+                         maximo — o cabecalho tem os botoes de acao a disputar espaco. --}}
+                    @if ($conversa->contact->tags->isNotEmpty())
+                        <span class="flex shrink-0 items-center gap-1"
+                              title="{{ $conversa->contact->tags->pluck('nome')->join(', ') }}">
+                            @foreach ($conversa->contact->tags->take(3) as $etiqueta)
+                                <span wire:key="cab-et-{{ $etiqueta->id }}"
+                                      class="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium ring-1 {{ $etiqueta->classes() }}">
+                                    <span class="h-1.5 w-1.5 rounded-full {{ $etiqueta->pontinho() }}"></span>
+                                    {{ $etiqueta->nome }}
+                                </span>
+                            @endforeach
+
+                            @if ($conversa->contact->tags->count() > 3)
+                                <span class="text-[10px] text-gray-400">+{{ $conversa->contact->tags->count() - 3 }}</span>
+                            @endif
+                        </span>
+                    @endif
                 </div>
                 <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                     <span>{{ $conversa->contact->telefone_e164 }}</span>

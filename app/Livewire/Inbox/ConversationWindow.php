@@ -24,7 +24,17 @@ class ConversationWindow extends Component
 
     public function getListeners(): array
     {
-        $listeners = ['abrir-conversa' => 'abrir'];
+        $listeners = [
+            'abrir-conversa' => 'abrir',
+            // O cabecalho mostra nome e etiquetas do contato. Sem escutar isso, trocar
+            // a etiqueta no painel deixaria o cabecalho mostrando o estado anterior —
+            // duas partes da mesma tela discordando.
+            //
+            // Evento proprio, e nao o 'conversa-atualizada': este componente TAMBEM
+            // dispara aquele (assumir, transferir, finalizar), e escutar o que se
+            // dispara custa um ida-e-volta extra a cada acao.
+            'contato-atualizado' => '$refresh',
+        ];
 
         if ($this->conversationId) {
             $listeners['echo-private:conversation.'.$this->conversationId.',.message.stored'] = '$refresh';
@@ -41,7 +51,7 @@ class ConversationWindow extends Component
     public function render()
     {
         $conversa = $this->conversationId
-            ? Conversation::with('contact')->find($this->conversationId)
+            ? Conversation::with(['contact.tags'])->find($this->conversationId)
             : null;
 
         $mensagens = $conversa

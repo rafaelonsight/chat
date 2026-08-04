@@ -112,6 +112,9 @@ class ContactDetails extends Component
 
         // a lista mostra o nome na previa: precisa saber que mudou
         $this->dispatch('conversa-atualizada');
+
+        // o cabecalho da janela tambem mostra o nome
+        $this->dispatch('contato-atualizado');
     }
 
     public function render()
@@ -255,8 +258,9 @@ class ContactDetails extends Component
             $etiquetador->aplicar($contato, [$tagId], \App\Services\Etiquetador::MANUAL, auth()->id());
         }
 
-        // A lista de conversas mostra as bolinhas; sem avisar, ela ficaria
-        // mostrando o estado anterior.
+        // A lista mostra as bolinhas e o cabecalho da janela mostra as etiquetas com
+        // nome; sem avisar, os dois ficariam mostrando o estado anterior.
         $this->dispatch('conversa-atualizada');
+        $this->dispatch('contato-atualizado');
     }
 }

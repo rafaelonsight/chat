@@ -345,3 +345,56 @@ it('a bolinha da etiqueta aparece na frente do nome na lista de conversas', func
         ->test(\App\Livewire\Inbox\ConversationList::class)
         ->assertSee('bg-green-500', escape: false);
 });
+
+it('o cabecalho da janela mostra a etiqueta com nome, ao lado do contato', function () {
+    // Na lista basta a bolinha, para nao roubar espaco do nome. No cabecalho vai o
+    // nome da etiqueta: e ali que a pessoa escreve a resposta, e ela precisa saber
+    // que este atendimento e do Financeiro sem abrir o painel.
+    [, $u, , $ct, $cv] = cenarioDet('cab1');
+
+    $tag = \App\Models\Tag::create(['nome' => 'Financeiro', 'cor' => 'verde']);
+    $ct->tags()->attach($tag->id, ['origem' => 'chatbot']);
+
+    Livewire::actingAs($u)
+        ->test(ConversationWindow::class, ['conversationId' => $cv->id])
+        ->assertSee('Financeiro')
+        ->assertSee('bg-green-100', escape: false);
+});
+
+it('trocar a etiqueta no painel avisa a janela, senao o cabecalho mentiria', function () {
+    // Sem esse aviso, o painel mostraria a etiqueta posta e o cabecalho continuaria
+    // sem ela — duas partes da mesma tela discordando.
+    [, $u, , , $cv] = cenarioDet('cab2');
+
+    $tag = \App\Models\Tag::create(['nome' => 'Financeiro', 'cor' => 'verde']);
+
+    Livewire::actingAs($u)
+        ->test(ContactDetails::class, ['conversationId' => $cv->id])
+        ->call('alternar')
+        ->call('alternarEtiqueta', $tag->id)
+        ->assertDispatched('contato-atualizado');
+});
+
+it('renomear o contato tambem avisa a janela', function () {
+    [, $u, , , $cv] = cenarioDet('cab3');
+
+    Livewire::actingAs($u)
+        ->test(ContactDetails::class, ['conversationId' => $cv->id])
+        ->call('alternar')
+        ->set('nome', 'Rafael Paulino')
+        ->call('salvarNome')
+        ->assertDispatched('contato-atualizado');
+});
+
+it('a janela escuta contato-atualizado', function () {
+    // Afirma o contrato, nao so o disparo: evento disparado que ninguem ouve nao
+    // atualiza nada, e o teste acima passaria igual.
+    [, $u, , , $cv] = cenarioDet('cab4');
+
+    $ouvintes = Livewire::actingAs($u)
+        ->test(ConversationWindow::class, ['conversationId' => $cv->id])
+        ->instance()
+        ->getListeners();
+
+    expect($ouvintes)->toHaveKey('contato-atualizado');
+});
