@@ -44,6 +44,34 @@
             </div>
         @endif
 
+        @if ($acao->tipo === $T::MENU)
+            {{-- Menu tambem preenche cadastro: "1) Plano 300MB" e uma resposta, nao so
+                 um caminho no fluxo. --}}
+            <div>
+                <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-200">
+                    Guardar a escolha no campo do contato
+                </label>
+                <select wire:model="form.campo_contato"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
+                    <option value="">Não guardar no cadastro</option>
+                    @foreach ($this->camposDoContato as $grupo => $opcoes)
+                        @if (! empty($opcoes))
+                            <optgroup label="{{ $grupo }}">
+                                @foreach ($opcoes as $chave => $rotulo)
+                                    <option value="{{ $chave }}">{{ $rotulo }}</option>
+                                @endforeach
+                            </optgroup>
+                        @endif
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    Guarda o <strong>texto da opção</strong> escolhida. Se o rótulo não
+                    servir para o campo, publicar avisa — o cliente escolheu de uma lista
+                    nossa, então o erro seria de configuração, não dele.
+                </p>
+            </div>
+        @endif
+
         @if ($acao->tipo === $T::PERGUNTA)
             {{-- O que o cliente responder cai no cadastro dele. E o motivo de existir
                  uma pergunta: perguntar o CPF e nao guardar em lugar nenhum obriga a

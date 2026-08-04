@@ -204,8 +204,34 @@ class ChatbotMotor
             return $this->entregar($bot, $conversa, null, 'Opção sem destino no fluxo', self::ESCAPOU);
         }
 
+        $rotulo = $this->rotuloOpcao($acao, $escolha) ?? $escolha;
+
+        // A escolha do menu tambem preenche o cadastro: "1) Plano 300MB" deve virar o
+        // campo Plano, e nao so um caminho no fluxo.
+        $campoDoMenu = trim((string) $acao->cfg('campo_contato'));
+
+        if ($campoDoMenu !== '' && $conversa->contact) {
+            $gravou = app(CampoDoContato::class)->gravar($conversa->contact, $campoDoMenu, $rotulo);
+
+            if ($gravou['ok']) {
+                $marcador = CampoDoContato::marcador($campoDoMenu);
+
+                if ($marcador !== '') {
+                    $respostas = $conversa->chatbot_respostas ?? [];
+                    $respostas[$marcador] = $rotulo;
+                    $conversa->update(['chatbot_respostas' => $respostas]);
+                }
+            } else {
+                // Aqui NAO se pede de novo, ao contrario da pergunta: o cliente
+                // escolheu de uma lista NOSSA. Rotulo que nao cabe no campo e erro de
+                // configuracao — e publicar ja avisa. Cobrar do cliente seria trocar
+                // o culpado, e ele nao tem outra opcao para dar.
+                $this->registrar($conversa, 'Não gravei a escolha no cadastro: o rótulo não serve para o campo.');
+            }
+        }
+
         $conversa->update(['chatbot_tentativas' => 0, 'chatbot_aguardando' => null]);
-        $this->registrar($conversa, 'Cliente escolheu: '.($this->rotuloOpcao($acao, $escolha) ?? $escolha));
+        $this->registrar($conversa, 'Cliente escolheu: '.$rotulo);
 
         $this->executar($bot, $conversa, $destino, 0);
 

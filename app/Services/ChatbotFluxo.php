@@ -213,6 +213,25 @@ class ChatbotFluxo
                         $problemas[] = "{$onde}: a opção \"{$rotulo}\" não leva a nenhum grupo.";
                     }
                 }
+
+                // Menu que preenche campo do cadastro.
+                $campoDoMenu = trim((string) $acao->cfg('campo_contato'));
+
+                if ($campoDoMenu !== '') {
+                    if (! \App\Services\CampoDoContato::existe($campoDoMenu)) {
+                        $problemas[] = "{$onde}: o campo escolhido para guardar a escolha não existe mais.";
+                    } else {
+                        // Rotulo que nao cabe no campo seria descartado em silencio em
+                        // producao — e a escolha do cliente e valida, ele nao tem como
+                        // saber nem consertar.
+                        $ruins = app(\App\Services\CampoDoContato::class)
+                            ->naoCabem($campoDoMenu, $opcoes->pluck('rotulo')->all());
+
+                        foreach ($ruins as $ruim) {
+                            $problemas[] = "{$onde}: a opção \"{$ruim}\" não serve para o campo escolhido.";
+                        }
+                    }
+                }
                 break;
 
             case ChatbotAction::CONDICIONAL:

@@ -299,7 +299,7 @@ class EditarFluxo extends Page
     {
         return match ($tipo) {
             ChatbotAction::MENSAGEM    => ['texto' => ''],
-            ChatbotAction::MENU        => ['texto' => '', 'opcoes' => [['gatilho' => '1', 'rotulo' => '']]],
+            ChatbotAction::MENU        => ['texto' => '', 'opcoes' => [['gatilho' => '1', 'rotulo' => '']], 'campo_contato' => ''],
             ChatbotAction::PERGUNTA    => ['texto' => '', 'guardar_em' => '', 'campo_contato' => ''],
             ChatbotAction::ESPERAR     => ['segundos' => 5],
             ChatbotAction::CONDICIONAL => ['campo' => '', 'operador' => 'contem', 'valor' => ''],

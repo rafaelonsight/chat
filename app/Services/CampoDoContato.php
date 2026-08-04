@@ -165,48 +165,16 @@ class CampoDoContato
             return self::nossaCulpa();
         }
 
+        $erro = $this->criticarColuna($coluna, $valor);
+
+        if ($erro !== null) {
+            return self::pedirDeNovo($erro);
+        }
+
+        $valor = $this->arrumarColuna($coluna, $valor);
+
         if ($coluna === 'cep') {
             return $this->gravarCep($contato, $valor);
-        }
-
-        switch ($coluna) {
-            case 'nome':
-                // Duas letras: "Ana" passa, "a" nao. Nome de uma letra e quase
-                // sempre o cliente testando o robo.
-                if (mb_strlen($valor) < 2) {
-                    return self::pedirDeNovo('Preciso do seu nome completo, por favor.');
-                }
-                break;
-
-            case 'email':
-                if (! filter_var($valor, FILTER_VALIDATE_EMAIL)) {
-                    return self::pedirDeNovo('Esse e-mail não parece certo. Pode conferir e mandar de novo?');
-                }
-
-                // Minusculo sempre: e-mail nao diferencia caixa, e guardar
-                // "Joao@X.com" e "joao@x.com" como dois cadastros e duplicata.
-                $valor = mb_strtolower($valor);
-                break;
-
-            case 'instagram':
-                $valor = ltrim($valor, '@');
-
-                if ($valor === '') {
-                    return self::pedirDeNovo('Qual é o seu @ no Instagram?');
-                }
-                break;
-
-            case 'uf':
-                $valor = mb_strtoupper($valor);
-
-                if (! preg_match('/^[A-Z]{2}$/', $valor)) {
-                    return self::pedirDeNovo('A UF tem duas letras, como RN ou SP.');
-                }
-                break;
-        }
-
-        if ($valor === '') {
-            return self::pedirDeNovo('Não entendi. Pode escrever de novo?');
         }
 
         $contato->update([$coluna => $valor]);
@@ -214,14 +182,99 @@ class CampoDoContato
         return self::gravou();
     }
 
-    /** @return array{ok: bool, erro: ?string} */
-    private function gravarCep(Contact $contato, string $valor): array
+    /** Mensagem para o cliente, ou null quando o valor serve para a coluna. */
+    private function criticarColuna(string $coluna, string $valor): ?string
     {
-        if (! ConsultaCep::valido($valor)) {
-            return self::pedirDeNovo('O CEP tem 8 dígitos. Pode mandar de novo?');
+        $valor = $this->arrumarColuna($coluna, $valor);
+
+        return match ($coluna) {
+            // Duas letras: "Ana" passa, "a" nao. Nome de uma letra e quase sempre o
+            // cliente testando o robo.
+            'nome' => mb_strlen($valor) < 2
+                ? 'Preciso do seu nome completo, por favor.'
+                : null,
+
+            'email' => filter_var($valor, FILTER_VALIDATE_EMAIL) !== false
+                ? null
+                : 'Esse e-mail não parece certo. Pode conferir e mandar de novo?',
+
+            'instagram' => $valor === ''
+                ? 'Qual é o seu @ no Instagram?'
+                : null,
+
+            'uf' => preg_match('/^[A-Z]{2}$/', $valor) === 1
+                ? null
+                : 'A UF tem duas letras, como RN ou SP.',
+
+            'cep' => ConsultaCep::valido($valor)
+                ? null
+                : 'O CEP tem 8 dígitos. Pode mandar de novo?',
+
+            default => $valor === ''
+                ? 'Não entendi. Pode escrever de novo?'
+                : null,
+        };
+    }
+
+    /** O valor no formato que a coluna guarda. */
+    private function arrumarColuna(string $coluna, string $valor): string
+    {
+        $valor = trim($valor);
+
+        return match ($coluna) {
+            // Minusculo sempre: e-mail nao diferencia caixa, e guardar "Joao@X.com"
+            // e "joao@x.com" como dois cadastros e duplicata.
+            'email'     => mb_strtolower($valor),
+            'instagram' => ltrim($valor, '@'),
+            'uf'        => mb_strtoupper($valor),
+            'cep'       => ConsultaCep::digitos($valor),
+            default     => $valor,
+        };
+    }
+
+    /**
+     * Rotulos que NAO cabem no campo escolhido.
+     *
+     * Roda a MESMA critica da gravacao. Serve para o publicar avisar antes: menu com
+     * opcao "Plano 300MB" gravando num campo lista que so tem "Basico" e "Premium"
+     * descartaria a escolha do cliente em silencio.
+     *
+     * @param  array<int, string>  $rotulos
+     * @return array<int, string>
+     */
+    public function naoCabem(string $chave, array $rotulos): array
+    {
+        [$grupo, $id] = self::partes($chave);
+        $campo = $grupo === self::PERSONALIZADO ? ContactField::find((int) $id) : null;
+
+        $ruins = [];
+
+        foreach ($rotulos as $rotulo) {
+            $rotulo = trim((string) $rotulo);
+
+            if ($rotulo === '') {
+                continue;
+            }
+
+            $erro = match (true) {
+                $grupo === self::CONTATO       => $this->criticarColuna($id, $rotulo),
+                $campo instanceof ContactField => $this->criticar($campo, $rotulo),
+                default                        => null,
+            };
+
+            if ($erro !== null) {
+                $ruins[] = $rotulo;
+            }
         }
 
-        $digitos = ConsultaCep::digitos($valor);
+        return $ruins;
+    }
+
+    /** @return array{ok: bool, erro: ?string} */
+    private function gravarCep(Contact $contato, string $digitos): array
+    {
+        // Chega ja validado e so com digitos: criticarColuna e arrumarColuna
+        // rodaram antes.
         $contato->update(['cep' => $digitos]);
 
         // Endereco de graca: o cliente ja deu os 8 digitos, nao ha razao para

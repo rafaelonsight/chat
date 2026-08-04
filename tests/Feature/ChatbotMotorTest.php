@@ -826,3 +826,155 @@ it('publicar barra pergunta cujo campo foi apagado', function () {
     // Sem isso, em producao a resposta do cliente seria descartada em silencio.
     expect(implode(' ', $this->fluxo->validar($this->bot)))->toContain('não existe mais');
 });
+
+// ============== A ESCOLHA DO MENU TAMBEM PREENCHE O CAMPO DO CADASTRO =======
+//
+// "1) Plano 300MB" e uma resposta do cliente, nao so um caminho no fluxo. Sem
+// isso, saber qual plano ele disse exigiria reler a conversa.
+
+/** Menu com duas opcoes que grava a escolha no campo indicado. */
+function menuQueGrava(string $chaveDoCampo, array $rotulos = ['Básico', 'Premium']): array
+{
+    $passo = test()->fluxo->criarPasso(test()->bot, 0, 0, 'Qual plano');
+    test()->fluxo->adicionarAcao($passo, ChatbotAction::MENU, [
+        'texto'         => 'Qual o seu plano?',
+        'campo_contato' => $chaveDoCampo,
+        'opcoes'        => [
+            ['gatilho' => '1', 'rotulo' => $rotulos[0]],
+            ['gatilho' => '2', 'rotulo' => $rotulos[1]],
+        ],
+    ]);
+    test()->fluxo->ligar(test()->inicio, $passo);
+
+    $destinos = [];
+
+    foreach (['1', '2'] as $i => $gatilho) {
+        $destino = test()->fluxo->criarPasso(test()->bot, 300, $i * 200, 'Depois da '.$gatilho);
+        test()->fluxo->adicionarAcao($destino, ChatbotAction::MENSAGEM, ['texto' => 'Anotado.']);
+        test()->fluxo->ligar($passo, $destino, ChatbotEdge::opcao($gatilho));
+        $destinos[$gatilho] = $destino;
+    }
+
+    publicar();
+
+    return [$passo, $destinos];
+}
+
+it('a escolha do menu vira valor do campo personalizado', function () {
+    $plano = ContactField::create([
+        'nome' => 'Plano', 'tipo' => ContactField::LISTA, 'ordem' => 1,
+        'opcoes' => ['Básico', 'Premium'],
+    ]);
+
+    menuQueGrava('personalizado.'.$plano->id);
+
+    recebe('oi');
+    recebe('2');
+
+    // Guarda o TEXTO da opcao, nao o numero: "2" nao diz nada no cadastro daqui a
+    // seis meses.
+    expect(ContactFieldValue::where('contact_field_id', $plano->id)->value('valor'))->toBe('Premium');
+});
+
+it('depois do menu da para citar a escolha por marcador', function () {
+    $plano = ContactField::create([
+        'nome' => 'Plano', 'tipo' => ContactField::LISTA, 'ordem' => 1,
+        'opcoes' => ['Básico', 'Premium'],
+    ]);
+
+    [, $destinos] = menuQueGrava('personalizado.'.$plano->id);
+
+    $this->fluxo->adicionarAcao($destinos['1'], ChatbotAction::MENSAGEM, [
+        'texto' => 'Vi aqui que você é {{plano}}.',
+    ]);
+
+    recebe('oi');
+    recebe('1');
+
+    expect(ultimaDita())->toBe('Vi aqui que você é Básico.');
+});
+
+it('a escolha do menu tambem serve para coluna do contato', function () {
+    menuQueGrava('contato.cidade', ['Natal', 'Parnamirim']);
+
+    recebe('oi');
+    recebe('1');
+
+    expect($this->contato->fresh()->cidade)->toBe('Natal');
+});
+
+it('rotulo que nao cabe no campo nao trava o cliente: o fluxo segue', function () {
+    // O cliente escolheu de uma lista NOSSA. Se o rotulo nao serve para o campo, o
+    // erro e de configuracao — cobrar dele seria trocar o culpado, e ele nao tem
+    // outra opcao para dar.
+    $plano = ContactField::create([
+        'nome' => 'Plano', 'tipo' => ContactField::LISTA, 'ordem' => 1,
+        'opcoes' => ['Básico', 'Premium'],
+    ]);
+
+    menuQueGrava('personalizado.'.$plano->id, ['Plano 300MB', 'Plano 600MB']);
+
+    recebe('oi');
+    recebe('1');
+
+    expect(ContactFieldValue::where('contact_field_id', $plano->id)->count())->toBe(0)
+        // seguiu para o destino da opcao
+        ->and(ultimaDita())->toBe('Anotado.')
+        ->and($this->conversa->fresh()->chatbot_estado)->not->toBe(ChatbotMotor::ESCAPOU);
+});
+
+it('publicar avisa quando o rotulo do menu nao serve para o campo', function () {
+    // A validacao existe porque em producao a escolha seria descartada em silencio.
+    $plano = ContactField::create([
+        'nome' => 'Plano', 'tipo' => ContactField::LISTA, 'ordem' => 1,
+        'opcoes' => ['Básico', 'Premium'],
+    ]);
+
+    menuQueGrava('personalizado.'.$plano->id, ['Básico', 'Plano de Ouro']);
+
+    $problemas = implode(' ', $this->fluxo->validar($this->bot));
+
+    expect($problemas)->toContain('Plano de Ouro')
+        ->and($problemas)->toContain('não serve para o campo')
+        // a opcao que CABE nao e reclamada
+        ->and($problemas)->not->toContain('"Básico" não serve');
+});
+
+it('menu com rotulos que cabem publica sem reclamacao', function () {
+    $plano = ContactField::create([
+        'nome' => 'Plano', 'tipo' => ContactField::LISTA, 'ordem' => 1,
+        'opcoes' => ['Básico', 'Premium'],
+    ]);
+
+    menuQueGrava('personalizado.'.$plano->id);
+
+    expect($this->fluxo->validar($this->bot))->toBe([]);
+});
+
+it('publicar avisa quando o campo do menu foi apagado', function () {
+    $plano = ContactField::create([
+        'nome' => 'Plano', 'tipo' => ContactField::TEXTO_CURTO, 'ordem' => 1,
+    ]);
+
+    menuQueGrava('personalizado.'.$plano->id);
+    $plano->delete();
+
+    expect(implode(' ', $this->fluxo->validar($this->bot)))->toContain('não existe mais');
+});
+
+it('menu em campo de texto aceita qualquer rotulo', function () {
+    // Campo de texto nao tem lista fechada: nao ha o que nao caber.
+    $motivo = ContactField::create([
+        'nome' => 'Motivo do contato', 'tipo' => ContactField::TEXTO_CURTO, 'ordem' => 1,
+    ]);
+
+    menuQueGrava('personalizado.'.$motivo->id, ['Financeiro', 'Suporte técnico']);
+
+    expect($this->fluxo->validar($this->bot))->toBe([]);
+
+    recebe('oi');
+    recebe('2');
+
+    expect(ContactFieldValue::where('contact_field_id', $motivo->id)->value('valor'))
+        ->toBe('Suporte técnico');
+});
