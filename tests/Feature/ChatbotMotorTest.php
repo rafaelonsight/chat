@@ -529,3 +529,300 @@ it('sem fluxo publicado a resposta automatica volta a valer', function () {
 
     expect(ditas()[0])->toContain('ESTAMOS FECHADOS');
 });
+
+// ========================= A RESPOSTA DO CLIENTE VIRA CAMPO DO CADASTRO =====
+//
+// O ponto da funcionalidade: perguntar o CPF e nao guardar em lugar nenhum obriga
+// a perguntar de novo no proximo atendimento. E guardar ERRADO e pior que nao
+// guardar — cadastro torto faz o provedor cobrar a pessoa errada.
+
+use App\Models\{ContactField, ContactFieldValue};
+use App\Services\{CampoDoContato, ConsultaCep};
+
+/** Monta um bloco com uma pergunta que grava no campo indicado. */
+function perguntaQueGrava(string $chaveDoCampo, string $texto = 'Qual o seu CPF?'): ChatbotStep
+{
+    $bloco = test()->fluxo->criarPasso(test()->bot, 0, 0, 'Cadastro');
+    test()->fluxo->adicionarAcao($bloco, ChatbotAction::PERGUNTA, [
+        'texto' => $texto, 'campo_contato' => $chaveDoCampo,
+    ]);
+    test()->fluxo->ligar(test()->inicio, $bloco);
+    publicar();
+
+    return $bloco;
+}
+
+it('grava a resposta numa coluna do contato', function () {
+    perguntaQueGrava('contato.email', 'Qual o seu e-mail?');
+
+    recebe('oi');
+    recebe('Rafael@Exemplo.COM.BR');
+
+    // Minusculo: e-mail nao diferencia caixa, e guardar as duas formas seria duplicata.
+    expect($this->contato->fresh()->email)->toBe('rafael@exemplo.com.br');
+});
+
+it('grava a resposta num campo personalizado, so os digitos do CPF', function () {
+    $cpf = ContactField::create([
+        'nome' => 'CPF', 'tipo' => ContactField::CPF_CNPJ, 'ordem' => 1,
+    ]);
+
+    perguntaQueGrava('personalizado.'.$cpf->id);
+
+    recebe('oi');
+    recebe('044.018.549-18');
+
+    $valor = ContactFieldValue::where('contact_id', $this->contato->id)
+        ->where('contact_field_id', $cpf->id)->value('valor');
+
+    // Guardado normalizado: mascara e coisa de exibicao, nao de banco.
+    expect($valor)->toBe('04401854918');
+});
+
+it('CPF invalido NAO e gravado, e o bot diz o que esta errado', function () {
+    // O digito verificador e o que separa "cliente errou" de "cliente inventou".
+    $cpf = ContactField::create([
+        'nome' => 'CPF', 'tipo' => ContactField::CPF_CNPJ, 'ordem' => 1,
+    ]);
+
+    perguntaQueGrava('personalizado.'.$cpf->id);
+
+    recebe('oi');
+    recebe('111.111.111-11');
+
+    expect(ContactFieldValue::where('contact_id', $this->contato->id)->count())->toBe(0)
+        // Mensagem especifica, nao o "Não entendi." genérico: a generica nao ensina
+        // a pessoa a consertar.
+        ->and(ultimaDita())->toContain('não parece válido')
+        // Continua esperando a MESMA pergunta.
+        ->and($this->conversa->fresh()->chatbot_aguardando)->toBe(ChatbotMotor::AGUARDA_PERGUNTA);
+});
+
+it('depois de errar o CPF ate o limite, o cliente vai para uma pessoa', function () {
+    // max_tentativas do cenario e 2. Prender alguem repetindo a mesma pergunta e o
+    // pior resultado possivel.
+    $cpf = ContactField::create([
+        'nome' => 'CPF', 'tipo' => ContactField::CPF_CNPJ, 'ordem' => 1,
+    ]);
+
+    perguntaQueGrava('personalizado.'.$cpf->id);
+
+    recebe('oi');
+    recebe('111.111.111-11');
+    recebe('222.222.222-22');
+
+    expect($this->conversa->fresh()->chatbot_estado)->toBe(ChatbotMotor::ESCAPOU);
+});
+
+it('o marcador sai do proprio campo, sem precisar de apelido', function () {
+    // Quem marcou CPF ja pode escrever {{cpf}} na mensagem seguinte.
+    $cpf = ContactField::create([
+        'nome' => 'CPF', 'tipo' => ContactField::CPF_CNPJ, 'ordem' => 1,
+    ]);
+
+    $bloco = perguntaQueGrava('personalizado.'.$cpf->id);
+    $this->fluxo->adicionarAcao($bloco, ChatbotAction::MENSAGEM, [
+        'texto' => 'Confirmando o CPF {{cpf}}.',
+    ]);
+
+    recebe('oi');
+    recebe('04401854918');
+
+    expect(ultimaDita())->toBe('Confirmando o CPF 04401854918.');
+});
+
+it('o apelido explicito ganha do automatico', function () {
+    $cpf = ContactField::create([
+        'nome' => 'CPF', 'tipo' => ContactField::CPF_CNPJ, 'ordem' => 1,
+    ]);
+
+    $bloco = $this->fluxo->criarPasso($this->bot, 0, 0, 'Cadastro');
+    $this->fluxo->adicionarAcao($bloco, ChatbotAction::PERGUNTA, [
+        'texto' => 'CPF?', 'campo_contato' => 'personalizado.'.$cpf->id, 'guardar_em' => 'documento',
+    ]);
+    $this->fluxo->adicionarAcao($bloco, ChatbotAction::MENSAGEM, ['texto' => 'Anotei {{documento}}.']);
+    $this->fluxo->ligar($this->inicio, $bloco);
+    publicar();
+
+    recebe('oi');
+    recebe('04401854918');
+
+    expect(ultimaDita())->toBe('Anotei 04401854918.');
+});
+
+it('data em formato brasileiro nao vira mes trocado', function () {
+    // 03/12 e 3 de dezembro. O parse solto do PHP leria 12 de marco: nove meses de
+    // diferenca sem erro nenhum aparecendo na tela.
+    $nasc = ContactField::create([
+        'nome' => 'Nascimento', 'tipo' => ContactField::DATA, 'ordem' => 1,
+    ]);
+
+    perguntaQueGrava('personalizado.'.$nasc->id, 'Data de nascimento?');
+
+    recebe('oi');
+    recebe('03/12/1991');
+
+    $valor = ContactFieldValue::where('contact_field_id', $nasc->id)->value('valor');
+
+    expect($valor)->toBe('1991-12-03');
+});
+
+it('data impossivel e recusada em vez de consertada em silencio', function () {
+    $nasc = ContactField::create([
+        'nome' => 'Nascimento', 'tipo' => ContactField::DATA, 'ordem' => 1,
+    ]);
+
+    perguntaQueGrava('personalizado.'.$nasc->id, 'Data de nascimento?');
+
+    recebe('oi');
+    recebe('32/13/2026');
+
+    expect(ContactFieldValue::where('contact_field_id', $nasc->id)->count())->toBe(0)
+        ->and(ultimaDita())->toContain('31/12/2026');
+});
+
+it('opcao de lista casa sem acento e sem caixa, e a invalida lista as validas', function () {
+    $plano = ContactField::create([
+        'nome' => 'Plano', 'tipo' => ContactField::LISTA, 'ordem' => 1,
+        'opcoes' => ['Básico', 'Intermediário', 'Premium'],
+    ]);
+
+    perguntaQueGrava('personalizado.'.$plano->id, 'Qual plano?');
+
+    recebe('oi');
+    recebe('basico');
+
+    // Guarda a opcao OFICIAL, com acento: senao o relatorio teria "basico" e
+    // "Básico" como dois planos diferentes.
+    expect(ContactFieldValue::where('contact_field_id', $plano->id)->value('valor'))->toBe('Básico');
+});
+
+it('opcao de lista que nao existe faz o bot listar as validas', function () {
+    // Cenario proprio: depois de uma resposta ACEITA o fluxo segue e a conversa
+    // deixa de aguardar a pergunta — a mensagem seguinte nao cairia mais aqui.
+    $plano = ContactField::create([
+        'nome' => 'Plano', 'tipo' => ContactField::LISTA, 'ordem' => 1,
+        'opcoes' => ['Básico', 'Intermediário', 'Premium'],
+    ]);
+
+    perguntaQueGrava('personalizado.'.$plano->id, 'Qual plano?');
+
+    recebe('oi');
+    recebe('plano de ouro');
+
+    // Listar as validas: o cliente nao adivinha o que o provedor cadastrou.
+    expect(ContactFieldValue::where('contact_field_id', $plano->id)->count())->toBe(0)
+        ->and(ultimaDita())->toContain('Intermediário');
+});
+
+it('CEP guarda os digitos e completa o endereco que estava vazio', function () {
+    // Troca o SERVICO, nao o HTTP. Http::fake chamado de novo nao substitui o
+    // stub '*' que o beforeEach registrou — os stubs se somam e o primeiro
+    // atende, entao o motor receberia a resposta da Evolution no lugar da ViaCEP.
+    // Alem disso o que esta sob teste aqui e a regra "completa so o que esta
+    // vazio", nao o formato do JSON dos Correios.
+    $this->app->instance(ConsultaCep::class, new class('http://teste', 1, 1) extends ConsultaCep
+    {
+        public function consultar(?string $cep): array
+        {
+            return ['ok' => true, 'erro' => null, 'dados' => [
+                'cep'        => '59000000',
+                'logradouro' => 'Rua das Flores',
+                'bairro'     => 'Centro',
+                'cidade'     => 'Natal',
+                'uf'         => 'RN',
+            ]];
+        }
+    });
+
+    // Bairro digitado por uma pessoa: nao pode ser sobrescrito pelos Correios.
+    $this->contato->update(['bairro' => 'Bairro que o cliente corrigiu']);
+
+    perguntaQueGrava('contato.cep', 'Qual o seu CEP?');
+
+    recebe('oi');
+    recebe('59000-000');
+
+    $c = $this->contato->fresh();
+
+    expect($c->cep)->toBe('59000000')
+        ->and($c->logradouro)->toBe('Rua das Flores')
+        ->and($c->cidade)->toBe('Natal')
+        ->and($c->uf)->toBe('RN')
+        // O que a pessoa digitou fica: ela pode ter posto a referencia que o
+        // entregador usa.
+        ->and($c->bairro)->toBe('Bairro que o cliente corrigiu');
+});
+
+it('CEP com menos de 8 digitos e recusado', function () {
+    perguntaQueGrava('contato.cep', 'Qual o seu CEP?');
+
+    recebe('oi');
+    recebe('5900');
+
+    expect($this->contato->fresh()->cep)->toBeNull()
+        ->and(ultimaDita())->toContain('8 dígitos');
+});
+
+it('campo apagado do cadastro nao trava o atendimento', function () {
+    // O fluxo foi montado quando o campo existia. Travar aqui seria punir o cliente
+    // por configuracao nossa — ele nao tem como consertar.
+    $campo = ContactField::create([
+        'nome' => 'Some', 'tipo' => ContactField::TEXTO_CURTO, 'ordem' => 1,
+    ]);
+    $id = $campo->id;
+
+    $bloco = perguntaQueGrava('personalizado.'.$id, 'Qualquer coisa?');
+    $this->fluxo->adicionarAcao($bloco, ChatbotAction::MENSAGEM, ['texto' => 'Obrigado!']);
+
+    $campo->delete();
+
+    recebe('oi');
+    recebe('resposta qualquer');
+
+    expect(ultimaDita())->toBe('Obrigado!')
+        ->and($this->conversa->fresh()->chatbot_estado)->not->toBe(ChatbotMotor::ESCAPOU);
+});
+
+it('o telefone NAO esta na lista de campos: e por ele que a conversa e achada', function () {
+    // Deixar o cliente reescrever o proprio numero pelo chatbot apontaria a conversa
+    // para outra pessoa — ou para ninguem.
+    expect(CampoDoContato::PADRAO)->not->toHaveKey('telefone_e164')
+        ->and(CampoDoContato::existe('contato.telefone_e164'))->toBeFalse();
+});
+
+it('campo personalizado criado fica disponivel para o chatbot na hora', function () {
+    // "Disponivel para todos": o catalogo sai do banco a cada chamada, sem cache.
+    expect(CampoDoContato::todas())->not->toHaveKey('personalizado.999');
+
+    $novo = ContactField::create([
+        'nome' => 'Código do cliente', 'tipo' => ContactField::TEXTO_CURTO, 'ordem' => 9,
+    ]);
+
+    $catalogo = CampoDoContato::agrupadas();
+
+    expect($catalogo['Campos personalizados'])->toHaveKey('personalizado.'.$novo->id)
+        ->and(CampoDoContato::rotulo('personalizado.'.$novo->id))->toBe('Código do cliente')
+        // O marcador sai do nome, pronto para {{codigo_do_cliente}}.
+        ->and(CampoDoContato::marcador('personalizado.'.$novo->id))->toBe('codigo_do_cliente');
+});
+
+it('publicar barra pergunta cujo campo foi apagado', function () {
+    $campo = ContactField::create([
+        'nome' => 'Vai sumir', 'tipo' => ContactField::TEXTO_CURTO, 'ordem' => 1,
+    ]);
+
+    $bloco = $this->fluxo->criarPasso($this->bot, 0, 0, 'Cadastro');
+    $this->fluxo->adicionarAcao($bloco, ChatbotAction::PERGUNTA, [
+        'texto' => 'Algo?', 'campo_contato' => 'personalizado.'.$campo->id,
+    ]);
+    $this->fluxo->ligar($this->inicio, $bloco);
+
+    // Com o campo vivo, escolher o campo JA basta: nao precisa de apelido.
+    expect($this->fluxo->validar($this->bot))->toBe([]);
+
+    $campo->delete();
+
+    // Sem isso, em producao a resposta do cliente seria descartada em silencio.
+    expect(implode(' ', $this->fluxo->validar($this->bot)))->toContain('não existe mais');
+});

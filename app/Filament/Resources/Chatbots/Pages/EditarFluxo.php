@@ -117,6 +117,17 @@ class EditarFluxo extends Page
         return $this->fluxo()->validar($this->record);
     }
 
+    /**
+     * Catalogo de campos para a pergunta guardar a resposta. Sai do banco a cada
+     * render de proposito: campo personalizado criado agora precisa aparecer no
+     * fluxo agora.
+     */
+    #[Computed]
+    public function camposDoContato(): array
+    {
+        return \App\Services\CampoDoContato::agrupadas();
+    }
+
     #[Computed]
     public function equipes()
     {
@@ -289,7 +300,7 @@ class EditarFluxo extends Page
         return match ($tipo) {
             ChatbotAction::MENSAGEM    => ['texto' => ''],
             ChatbotAction::MENU        => ['texto' => '', 'opcoes' => [['gatilho' => '1', 'rotulo' => '']]],
-            ChatbotAction::PERGUNTA    => ['texto' => '', 'guardar_em' => ''],
+            ChatbotAction::PERGUNTA    => ['texto' => '', 'guardar_em' => '', 'campo_contato' => ''],
             ChatbotAction::ESPERAR     => ['segundos' => 5],
             ChatbotAction::CONDICIONAL => ['campo' => '', 'operador' => 'contem', 'valor' => ''],
             ChatbotAction::TRANSFERIR  => ['team_id' => null, 'aviso' => 'Vou te encaminhar para um atendente.'],

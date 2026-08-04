@@ -45,12 +45,45 @@
         @endif
 
         @if ($acao->tipo === $T::PERGUNTA)
+            {{-- O que o cliente responder cai no cadastro dele. E o motivo de existir
+                 uma pergunta: perguntar o CPF e nao guardar em lugar nenhum obriga a
+                 perguntar de novo no proximo atendimento. --}}
             <div>
-                <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-200">Guardar a resposta como</label>
+                <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-200">
+                    Preencher o campo do contato
+                </label>
+                <select wire:model="form.campo_contato"
+                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
+                    <option value="">Não guardar no cadastro</option>
+                    @foreach ($this->camposDoContato as $grupo => $opcoes)
+                        @if (! empty($opcoes))
+                            <optgroup label="{{ $grupo }}">
+                                @foreach ($opcoes as $chave => $rotulo)
+                                    <option value="{{ $chave }}">{{ $rotulo }}</option>
+                                @endforeach
+                            </optgroup>
+                        @endif
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    A resposta vai direto para o cadastro. Se não servir — CPF com dígito
+                    errado, CEP com menos de 8 números, data impossível — o bot diz o que
+                    está errado e pergunta de novo, em vez de guardar torto.
+                    Campo personalizado novo aparece aqui na hora:
+                    <strong>Configurações &rarr; Campos personalizados</strong>.
+                </p>
+            </div>
+
+            <div>
+                <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-200">
+                    Apelido da resposta <span class="font-normal text-gray-400">(opcional)</span>
+                </label>
                 <input type="text" wire:model="form.guardar_em" placeholder="problema"
                        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
                 <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Um nome só seu. Serve para o condicional e para citar depois.
+                    Para o condicional e para citar depois com <code>@{{apelido}}</code>.
+                    Escolhendo um campo acima, o apelido sai dele sozinho — quem marcou CPF
+                    já pode escrever <code>@{{cpf}}</code>.
                 </p>
             </div>
         @endif

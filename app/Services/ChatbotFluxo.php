@@ -166,8 +166,20 @@ class ChatbotFluxo
                     $problemas[] = "{$onde}: falta o texto.";
                 }
 
-                if ($acao->tipo === ChatbotAction::PERGUNTA && trim((string) $acao->cfg('guardar_em')) === '') {
-                    $problemas[] = "{$onde}: falta dizer onde guardar a resposta.";
+                if ($acao->tipo === ChatbotAction::PERGUNTA) {
+                    $campo = trim((string) $acao->cfg('campo_contato'));
+
+                    // Um dos dois basta: guardar no cadastro ja da destino a
+                    // resposta, e nem toda pergunta precisa de apelido.
+                    if ($campo === '' && trim((string) $acao->cfg('guardar_em')) === '') {
+                        $problemas[] = "{$onde}: falta dizer onde guardar a resposta.";
+                    }
+
+                    // Campo apagado em Configuracoes depois de o fluxo ser montado:
+                    // em producao a resposta seria descartada em silencio.
+                    if ($campo !== '' && ! \App\Services\CampoDoContato::existe($campo)) {
+                        $problemas[] = "{$onde}: o campo escolhido para guardar a resposta não existe mais.";
+                    }
                 }
                 break;
 

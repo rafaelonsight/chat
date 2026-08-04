@@ -223,7 +223,43 @@ class ChatbotMotor
             return $this->naoEntendi($bot, $conversa, $passo, $acao);
         }
 
+        $campo = trim((string) $acao->cfg('campo_contato'));
+        $contato = $conversa->contact;
+
+        // A GRAVACAO VEM PRIMEIRO, antes de limpar a espera: resposta que nao serve
+        // mantem a conversa aguardando a mesma pergunta. Se limpasse antes, o fluxo
+        // seguiria com o campo vazio e ninguem saberia.
+        if ($campo !== '' && $contato) {
+            $r = app(CampoDoContato::class)->gravar($contato, $campo, $texto);
+
+            if (! $r['ok'] && $r['erro'] !== null) {
+                // Nao guarda errado e explica o que esta errado. CPF com digito
+                // trocado no cadastro faz o provedor cobrar a pessoa errada, e a
+                // mensagem generica de "nao entendi" nao ensina nada a quem esta
+                // do outro lado.
+                return $this->respostaInvalida($bot, $conversa, $r['erro']);
+            }
+
+            if ($r['ok']) {
+                $this->registrar(
+                    $conversa,
+                    'Gravado em '.(CampoDoContato::rotulo($campo) ?? $campo).': '.\Illuminate\Support\Str::limit($texto, 40)
+                );
+            } else {
+                // Campo apagado em Configuracoes depois de o fluxo ter sido montado.
+                // Segue o atendimento: o cliente nao tem como consertar isso, e
+                // travar aqui seria punir ele por configuracao nossa.
+                $this->registrar($conversa, 'Não gravei a resposta: o campo escolhido no fluxo não existe mais.');
+            }
+        }
+
         $chave = trim((string) $acao->cfg('guardar_em'));
+
+        // Sem apelido explicito, o marcador sai do proprio campo: quem escolheu
+        // "CPF" pode escrever {{cpf}} na mensagem seguinte sem configurar nada.
+        if ($chave === '' && $campo !== '') {
+            $chave = CampoDoContato::marcador($campo);
+        }
 
         if ($chave !== '') {
             $respostas = $conversa->chatbot_respostas ?? [];
@@ -423,6 +459,30 @@ class ChatbotMotor
 
         $this->registrar($conversa, $trilha.($equipe ? " → {$equipe->nome}" : ''));
 
+        return true;
+    }
+
+    /**
+     * Resposta que nao passou na validacao do campo.
+     *
+     * Diferente do naoEntendi por dizer O QUE esta errado — "esse CPF nao parece
+     * valido" ensina, "nao entendi" nao. Usa a MESMA valvula de escape: depois de
+     * max_tentativas o cliente vai para uma pessoa, porque repetir a mesma pergunta
+     * para sempre e o pior resultado possivel.
+     */
+    private function respostaInvalida(Chatbot $bot, Conversation $conversa, string $motivo): bool
+    {
+        $tentativas = $conversa->chatbot_tentativas + 1;
+        $conversa->update(['chatbot_tentativas' => $tentativas]);
+
+        if ($tentativas >= $bot->max_tentativas) {
+            return $this->entregar($bot, $conversa, null, 'Resposta inválida repetida; encaminhado', self::ESCAPOU);
+        }
+
+        $this->saidas[] = $motivo;
+
+        // chatbot_aguardando fica como esta: a conversa continua esperando a MESMA
+        // pergunta, senao a proxima mensagem do cliente cairia no vazio.
         return true;
     }
 
