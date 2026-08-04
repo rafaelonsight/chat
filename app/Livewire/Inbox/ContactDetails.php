@@ -14,6 +14,43 @@ class ContactDetails extends Component
 
     public string $nome = '';
 
+    /**
+     * Aba visivel. O painel tem 320px: empilhar cadastro, anexos, historico de
+     * conversas e dados do provedor numa coluna unica faria o telefone — que e o
+     * que mais se procura — sair da tela.
+     */
+    public string $aba = 'detalhes';
+
+    public const ABAS = [
+        'detalhes'  => 'Detalhes',
+        'arquivos'  => 'Arquivos',
+        'conversas' => 'Conversas',
+        'paineis'   => 'Painéis',
+    ];
+
+    /**
+     * A aba NAO volta para 'detalhes' ao trocar de conversa: quem esta conferindo
+     * anexos costuma conferir de varios contatos seguidos, e o cabecalho com nome e
+     * avatar continua visivel em qualquer aba, entao nao ha como se perder.
+     */
+    public function irPara(string $aba): void
+    {
+        // Lista fechada: o valor vem do navegador, e uma aba inventada nao casaria
+        // com nenhum ramo do blade — o painel ficaria em branco sem erro nenhum.
+        if (array_key_exists($aba, self::ABAS)) {
+            $this->aba = $aba;
+        }
+    }
+
+    /** Abre outra conversa do mesmo contato a partir da aba Conversas. */
+    public function abrirOutra(int $conversationId): void
+    {
+        // O mesmo evento que a lista usa: a janela, o compositor e o destaque da
+        // lista ja escutam. Trocar so o painel deixaria a tela mentindo — detalhes
+        // de uma conversa, mensagens de outra.
+        $this->dispatch('abrir-conversa', conversationId: $conversationId);
+    }
+
     public function getListeners(): array
     {
         return [
@@ -107,23 +144,92 @@ class ContactDetails extends Component
                 ->count();
         }
 
-        // Todas as etiquetas da conta para o atendente escolher, as que este
-        // contato ja tem, e as notas internas — que NUNCA vao para o cliente.
-        $etiquetas = \App\Models\Tag::orderBy('nome')->get();
-        $doContato = $conversa?->contact?->tags->pluck('id')->all() ?? [];
+        // Cada aba paga so as suas consultas. O painel re-renderiza a cada
+        // mensagem que chega; carregar anexo e historico de conversa para quem esta
+        // olhando o telefone seria trabalho jogado fora a cada atualizacao.
+        $etiquetas = collect();
+        $doContato = [];
+        $notas = collect();
+        $camposPreenchidos = [];
+        $arquivos = collect();
+        $conversas = collect();
 
-        $notas = $conversa
-            ? \App\Models\ConversationEvent::where('conversation_id', $conversa->id)
+        if ($conversa && $this->aba === 'detalhes') {
+            // Todas as etiquetas da conta para o atendente escolher, as que este
+            // contato ja tem, e as notas internas — que NUNCA vao para o cliente.
+            $etiquetas = \App\Models\Tag::orderBy('nome')->get();
+            $doContato = $conversa->contact->tags->pluck('id')->all();
+
+            $notas = \App\Models\ConversationEvent::where('conversation_id', $conversa->id)
                 ->where('tipo', \App\Models\ConversationEvent::NOTA)
                 ->with('user')
                 ->latest('id')
                 ->limit(20)
-                ->get()
-            : collect();
+                ->get();
+
+            $camposPreenchidos = $this->camposPreenchidos($conversa->contact);
+        }
+
+        if ($conversa && $this->aba === 'arquivos') {
+            $arquivos = Message::where('conversation_id', $conversa->id)
+                ->whereNotNull('media_path')
+                ->latest('id')
+                ->limit(60)
+                ->get();
+        }
+
+        if ($conversa && $this->aba === 'conversas') {
+            $conversas = Conversation::with(['channel', 'atendente'])
+                ->where('contact_id', $conversa->contact_id)
+                ->whereKeyNot($conversa->id)
+                // nulls last de proposito: no Postgres, DESC joga NULL para o topo,
+                // e conversa sem mensagem nenhuma lideraria a lista.
+                ->orderByRaw('ultima_msg_em desc nulls last')
+                ->limit(20)
+                ->get();
+        }
 
         return view('livewire.inbox.contact-details', compact(
             'conversa', 'resumo', 'outrasConversas', 'etiquetas', 'doContato', 'notas',
+            'camposPreenchidos', 'arquivos', 'conversas',
         ));
+    }
+
+    /**
+     * Campos personalizados que TEM valor, prontos para exibir: rotulo => texto.
+     *
+     * So os preenchidos. Este painel e de leitura, e mostrar campo vazio aqui
+     * convidaria a preencher algo que nao da para editar nesta tela — o cadastro
+     * completo e que edita.
+     *
+     * @return array<string, string>
+     */
+    private function camposPreenchidos(\App\Models\Contact $contato): array
+    {
+        $valores = $contato->camposPersonalizados();
+
+        if ($valores === []) {
+            return [];
+        }
+
+        $saida = [];
+
+        foreach (\App\Models\ContactField::orderBy('ordem')->orderBy('nome')->get() as $campo) {
+            $bruto = $valores[$campo->id] ?? null;
+
+            // Filtra pelo valor BRUTO, nunca pelo formatado: exibir() devolve '—'
+            // para vazio, e '—' nao e string vazia — checar o formatado deixava
+            // passar TODO campo definido, preenchido ou nao. Foi assim que este
+            // metodo nasceu errado e o teste pegou.
+            if ($bruto === null || trim((string) $bruto) === '') {
+                continue;
+            }
+
+            // '0' fica: booleano falso e resposta, nao ausencia de resposta.
+            $saida[$campo->nome] = $campo->exibir((string) $bruto);
+        }
+
+        return $saida;
     }
 
     /**
