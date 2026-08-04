@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Tags\Tables;
 use App\Models\Tag;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
+use Filament\Support\Enums\Width;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\HtmlString;
@@ -28,9 +29,16 @@ class TagsTable
                     ->searchable()
                     ->sortable(),
 
+                // Ponto antes do nome: quem procura "aquela azul" acha pela cor.
                 TextColumn::make('cor')
                     ->label('Cor')
-                    ->formatStateUsing(fn (?string $state) => Tag::CORES[$state] ?? $state)
+                    ->html()
+                    ->formatStateUsing(fn ($state, Tag $record) => new HtmlString(
+                        '<span class="inline-flex items-center gap-1.5">'
+                        .'<span class="size-3 rounded-full ring-1 ring-black/10 dark:ring-white/20 '
+                        .$record->pontinho().'"></span>'
+                        .e($record->corLabel()).'</span>'
+                    ))
                     ->toggleable(),
 
                 TextColumn::make('contacts_count')
@@ -40,7 +48,13 @@ class TagsTable
                     ->sortable(),
             ])
             ->defaultSort('nome')
-            ->recordActions([EditAction::make(), DeleteAction::make()])
+            // Mesma largura da criacao: a grade de 24 cores tem 12 colunas.
+            ->recordActions([
+                EditAction::make()
+                    ->modalHeading('Editar etiqueta')
+                    ->modalWidth(Width::Large),
+                DeleteAction::make(),
+            ])
             ->emptyStateHeading('Nenhuma etiqueta ainda')
             ->emptyStateDescription('Etiqueta serve para separar contatos: quem é cliente, quem está inadimplente, quem veio de anúncio. O chatbot também pode colocá-las.');
     }

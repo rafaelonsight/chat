@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\Tags;
 
-use App\Filament\Resources\Tags\Pages\CreateTag;
 use App\Filament\Resources\Tags\Pages\EditTag;
 use App\Filament\Resources\Tags\Pages\ListTags;
 use App\Filament\Resources\Tags\Schemas\TagForm;
@@ -48,12 +47,15 @@ class TagResource extends Resource
         return TagsTable::configure($table);
     }
 
+    /**
+     * Sem rota 'create': e a ausencia dela que faz o CreateAction da lista abrir
+     * em modal em vez de navegar. Registrar a pagina de volta desfaz o modal.
+     */
     public static function getPages(): array
     {
         return [
-            'index'  => ListTags::route('/'),
-            'create' => CreateTag::route('/create'),
-            'edit'   => EditTag::route('/{record}/edit'),
+            'index' => ListTags::route('/'),
+            'edit'  => EditTag::route('/{record}/edit'),
         ];
     }
 }

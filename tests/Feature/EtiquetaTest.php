@@ -108,8 +108,22 @@ it('o chatbot aplica e remove etiqueta pelo mesmo caminho, com origem chatbot', 
         ->where('automatica', true)->pluck('corpo')->all())->toBe(['Pronto!']);
 });
 
+it('a paleta tem 24 cores e nenhuma repete pilula ou ponto', function () {
+    $chaves = array_keys(Tag::PALETA);
+
+    expect($chaves)->toHaveCount(24);
+
+    $pilulas = array_map(fn ($c) => Tag::pilula($c), $chaves);
+    $pontos = array_map(fn ($c) => Tag::ponto($c), $chaves);
+
+    // Duas cores com o mesmo visual seriam duas opcoes que o usuario nao
+    // consegue distinguir na grade — pior que ter menos cores.
+    expect(array_unique($pilulas))->toHaveCount(24)
+        ->and(array_unique($pontos))->toHaveCount(24);
+});
+
 it('toda cor da paleta tem classe e ponto proprios', function () {
-    foreach (array_keys(Tag::CORES) as $cor) {
+    foreach (array_keys(Tag::PALETA) as $cor) {
         $t = new Tag(['nome' => 'x', 'cor' => $cor]);
 
         expect($t->classes())->toBeString()->not->toBeEmpty();
@@ -119,4 +133,110 @@ it('toda cor da paleta tem classe e ponto proprios', function () {
             expect($t->pontinho())->not->toBe('bg-gray-400', "a cor {$cor} caiu no cinza");
         }
     }
+});
+
+it('as 12 cores antigas continuam na paleta', function () {
+    // Etiqueta ja salva com uma dessas nao pode virar cinza porque a paleta cresceu.
+    $antigas = ['cinza', 'vermelho', 'laranja', 'ambar', 'verde', 'esmeralda',
+        'ciano', 'azul', 'indigo', 'violeta', 'rosa', 'marrom'];
+
+    foreach ($antigas as $cor) {
+        expect(Tag::PALETA)->toHaveKey($cor);
+
+        // Cinza e o proprio default: so as outras onze provam que nao caiu nele.
+        if ($cor !== 'cinza') {
+            expect(Tag::ponto($cor))->not->toBe('bg-gray-400', "{$cor} perdeu a cor");
+        }
+    }
+});
+
+it('cor desconhecida cai no cinza em vez de quebrar a tela', function () {
+    $t = new Tag(['nome' => 'x', 'cor' => 'arco-iris']);
+
+    expect($t->pontinho())->toBe('bg-gray-400')
+        ->and($t->corLabel())->toBe('arco-iris');
+});
+
+/** Admin logado num tenant proprio, com o painel resolvido para teste Livewire. */
+function adminEtiqueta(string $slug): User
+{
+    $t = Tenant::create(['nome' => 'T', 'slug' => $slug]);
+    TenantContext::set($t->id);
+
+    $u = User::create([
+        'tenant_id' => $t->id, 'name' => 'U', 'email' => "{$slug}@t.test",
+        'password' => 'segredo123', 'admin' => true,
+    ]);
+
+    \Filament\Facades\Filament::setCurrentPanel('admin');
+
+    return $u;
+}
+
+it('criar etiqueta abre modal em vez de trocar de pagina', function () {
+    // E a ausencia da rota que faz o CreateAction virar modal: se alguem
+    // registrar a pagina de volta, o modal desaparece sem aviso.
+    expect(fn () => \App\Filament\Resources\Tags\TagResource::getUrl('create'))
+        ->toThrow(Exception::class);
+
+    expect(array_keys(\App\Filament\Resources\Tags\TagResource::getPages()))
+        ->toBe(['index', 'edit']);
+});
+
+it('o seletor mostra as cores, nao o nome delas num select', function () {
+    $u = adminEtiqueta('tcor');
+    $tag = Tag::create(['nome' => 'Teste Cor', 'cor' => 'azul']);
+
+    // O modal do Filament so monta no navegador, entao o HTML do seletor e
+    // conferido na pagina de edicao — mesmo TagForm, mesma blade.
+    $html = $this->actingAs($u)
+        ->get("/admin/tags/{$tag->id}/edit")
+        ->assertSuccessful()
+        ->getContent();
+
+    // Uma bolinha por cor da paleta, com o rotulo no title para quem passa o mouse.
+    foreach (Tag::PALETA as $chave => $dados) {
+        expect($html)->toContain(Tag::ponto($chave));
+        expect($html)->toContain('title="'.$dados['label'].'"');
+    }
+
+    expect(substr_count($html, 'role="radio"'))->toBe(24);
+
+    // A previa le o nome do campo irmao, cujo caminho e derivado de 'data.cor'.
+    // Se o Filament trocar esse prefixo, a previa para de atualizar e isso so
+    // apareceria no navegador — aqui quebra o teste.
+    $plano = html_entity_decode($html, ENT_QUOTES);
+
+    preg_match_all('/entangle\(\s*[\'"]([^\'"]+)[\'"]\s*\)/', $plano, $m);
+
+    expect($m[1])->toContain('data.cor')
+        ->and($m[1])->toContain('data.nome');
+});
+
+it('o modal salva a etiqueta com a cor escolhida', function () {
+    $u = adminEtiqueta('tsalva');
+
+    \Livewire\Livewire::actingAs($u)
+        ->test(\App\Filament\Resources\Tags\Pages\ListTags::class)
+        ->mountAction('create')
+        ->setActionData(['nome' => 'VIP', 'cor' => 'turquesa'])
+        ->callMountedAction()
+        ->assertHasNoActionErrors();
+
+    expect(Tag::where('nome', 'VIP')->first()?->cor)->toBe('turquesa');
+});
+
+it('o modal recusa cor que nao esta na paleta', function () {
+    $u = adminEtiqueta('tinvalida');
+
+    // A grade so oferece as 24, mas o valor chega do navegador: sem a regra no
+    // servidor uma cor inventada entraria no banco e sairia cinza na tela.
+    \Livewire\Livewire::actingAs($u)
+        ->test(\App\Filament\Resources\Tags\Pages\ListTags::class)
+        ->mountAction('create')
+        ->setActionData(['nome' => 'Arco', 'cor' => 'arco-iris'])
+        ->callMountedAction()
+        ->assertHasActionErrors(['cor']);
+
+    expect(Tag::where('nome', 'Arco')->exists())->toBeFalse();
 });
