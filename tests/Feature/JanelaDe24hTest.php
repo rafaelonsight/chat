@@ -30,7 +30,15 @@ afterEach(function () {
 /** Canal do tipo pedido, com uma conversa e a ultima entrada no instante dado. */
 function cenarioJanela(string $tipo, ?Carbon $ultimaEntrada = null): Conversation
 {
-    $canal = Channel::create(['nome' => 'Canal', 'tipo' => $tipo])->refresh();
+    // Canal oficial sem Phone Number ID nao envia — e o enviador esta certo em
+    // recusar, porque a URL da Meta se monta com esse id. O cenario tem de refletir
+    // um canal configuravel de verdade.
+    $canal = Channel::create(array_filter([
+        'nome' => 'Canal',
+        'tipo' => $tipo,
+        'meta_phone_number_id' => $tipo === Channel::META_CLOUD ? '1235849066282498' : null,
+        'meta_waba_id'         => $tipo === Channel::META_CLOUD ? '3620023178150458' : null,
+    ]))->refresh();
 
     return Conversation::create([
         'channel_id'        => $canal->id,
@@ -111,7 +119,7 @@ it('o job de envio recusa texto livre com a janela fechada, e nao tenta de novo'
     $c = cenarioJanela(Channel::META_CLOUD, now()->subHours(25));
     $m = msgDaJanela($c);
 
-    (new SendTextMessage($m->id))->handle(app(\App\Services\EvolutionService::class));
+    (new SendTextMessage($m->id))->handle(app(\App\Services\Canais\Enviadores::class));
 
     $m->refresh();
 
@@ -127,7 +135,7 @@ it('com a janela aberta, o envio segue normal', function () {
     $c = cenarioJanela(Channel::META_CLOUD, now()->subHours(2));
     $m = msgDaJanela($c);
 
-    (new SendTextMessage($m->id))->handle(app(\App\Services\EvolutionService::class));
+    (new SendTextMessage($m->id))->handle(app(\App\Services\Canais\Enviadores::class));
 
     expect($m->refresh()->status)->toBe(Message::STATUS_SENT);
 });
@@ -136,7 +144,7 @@ it('no canal Evolution o envio nunca e barrado por janela', function () {
     $c = cenarioJanela(Channel::EVOLUTION, now()->subYear());
     $m = msgDaJanela($c);
 
-    (new SendTextMessage($m->id))->handle(app(\App\Services\EvolutionService::class));
+    (new SendTextMessage($m->id))->handle(app(\App\Services\Canais\Enviadores::class));
 
     expect($m->refresh()->status)->toBe(Message::STATUS_SENT);
 });
@@ -188,4 +196,43 @@ it('tipo de canal invalido nao chega a ser gravado', function () {
     // meses depois.
     expect(fn () => Channel::create(['nome' => 'X', 'tipo' => 'telegram']))
         ->toThrow(\Illuminate\Database\QueryException::class);
+});
+
+it('canal oficial sem Phone Number ID recusa em vez de montar URL torta', function () {
+    // Este teste nasceu de uma falha real: o cenario criava canal oficial sem o id e o
+    // envio ia tentar POST numa URL com o lugar do numero vazio. Erro de configuracao
+    // tem de aparecer como erro de configuracao, e nao como 404 da Meta.
+    $canal = Channel::create(['nome' => 'Oficial sem id', 'tipo' => Channel::META_CLOUD])->refresh();
+
+    $conversa = Conversation::create([
+        'channel_id'        => $canal->id,
+        'contact_id'        => $this->contato->id,
+        'ultima_msg_em'     => now(),
+        'ultima_entrada_em' => now()->subHour(),
+    ]);
+
+    $m = msgDaJanela($conversa);
+
+    expect(fn () => (new SendTextMessage($m->id))->handle(app(\App\Services\Canais\Enviadores::class)))
+        ->toThrow(\RuntimeException::class, 'nao tem Phone Number ID');
+
+    Http::assertNothingSent();
+});
+
+it('cada tipo de canal resolve para o enviador dele', function () {
+    // O ponto do refactor: quem envia e o canal. Um lugar so faz a escolha.
+    $enviadores = app(\App\Services\Canais\Enviadores::class);
+
+    $evolution = Channel::create(['nome' => 'Nao oficial', 'tipo' => Channel::EVOLUTION]);
+    $meta = Channel::create(['nome' => 'Oficial', 'tipo' => Channel::META_CLOUD]);
+
+    expect($enviadores->para($evolution)->nome())->toBe('evolution')
+        ->and($enviadores->para($meta)->nome())->toBe('meta_cloud');
+});
+
+it('a Meta recebe o destino SEM o sinal de mais', function () {
+    // A Meta recusa "+5584..." com erro de parametro, e a mensagem de erro nao diz que
+    // o problema e o sinal. Isso custa um dia de caca se nao estiver travado por teste.
+    expect(\App\Services\Canais\MetaCloudEnviador::soDigitos('+55 (84) 99614-3373'))
+        ->toBe('5584996143373');
 });

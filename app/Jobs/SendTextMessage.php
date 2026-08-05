@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Events\MessageStored;
 use App\Models\Message;
-use App\Services\EvolutionService;
 use App\Support\TenantContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -30,7 +29,7 @@ class SendTextMessage implements ShouldQueue
         return [(new WithoutOverlapping('conversa:'.($m?->conversation_id ?? 0)))->releaseAfter(5)];
     }
 
-    public function handle(EvolutionService $evolution): void
+    public function handle(\App\Services\Canais\Enviadores $enviadores): void
     {
         $mensagem = Message::withoutGlobalScope('tenant')->find($this->messageId);
 
@@ -38,7 +37,7 @@ class SendTextMessage implements ShouldQueue
             return;
         }
 
-        TenantContext::runAs($mensagem->tenant_id, function () use ($mensagem, $evolution) {
+        TenantContext::runAs($mensagem->tenant_id, function () use ($mensagem, $enviadores) {
             $canal = $mensagem->conversation->channel;
 
             // Fora da janela de 24h a API oficial RECUSA texto livre. Barrar aqui e
@@ -59,10 +58,12 @@ class SendTextMessage implements ShouldQueue
             $destino = $mensagem->conversation->contact->destinoWhatsApp();
 
             try {
-                $r = $evolution->sendText($canal->instance_name, $destino, (string) $mensagem->corpo);
+                // Quem envia e o canal, nao o job. Trocar de provedor deixou de ser
+                // mexer aqui dentro.
+                $r = $enviadores->para($canal)->texto($canal, $destino, (string) $mensagem->corpo);
 
                 $mensagem->update([
-                    'external_id' => Arr::get($r, 'key.id'),
+                    'external_id' => Arr::get($r, 'external_id'),
                     'status'      => Message::STATUS_SENT,
                     'enviada_em'  => now(),
                     'erro'        => null,

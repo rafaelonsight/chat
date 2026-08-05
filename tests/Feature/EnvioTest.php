@@ -34,7 +34,7 @@ it('envia e marca como sent guardando o external_id', function () {
     Http::fake(['*/message/sendText/*' => Http::response(['key' => ['id' => 'OUT1']], 201)]);
 
     $m = mensagemNaFila();
-    (new SendTextMessage($m->id))->handle(app(EvolutionService::class));
+    (new SendTextMessage($m->id))->handle(app(\App\Services\Canais\Enviadores::class));
 
     $m->refresh();
     expect($m->status)->toBe(Message::STATUS_SENT)
@@ -49,7 +49,7 @@ it('usa a instancia do canal da conversa', function () {
     Http::fake(['*' => Http::response(['key' => ['id' => 'X']], 201)]);
 
     $m = mensagemNaFila();
-    (new SendTextMessage($m->id))->handle(app(EvolutionService::class));
+    (new SendTextMessage($m->id))->handle(app(\App\Services\Canais\Enviadores::class));
 
     Http::assertSent(fn ($r) => str_contains($r->url(), '/message/sendText/'.$this->channel->instance_name));
 });
@@ -60,7 +60,7 @@ it('marca como failed quando a Evolution devolve erro', function () {
     $m = mensagemNaFila();
 
     try {
-        (new SendTextMessage($m->id))->handle(app(EvolutionService::class));
+        (new SendTextMessage($m->id))->handle(app(\App\Services\Canais\Enviadores::class));
     } catch (\Throwable) {
         // relanca de proposito para o Horizon registrar e tentar de novo
     }
@@ -75,7 +75,7 @@ it('nao reenvia mensagem que ja saiu', function () {
     $m = mensagemNaFila();
     $m->update(['status' => Message::STATUS_SENT, 'external_id' => 'JA-FOI']);
 
-    (new SendTextMessage($m->id))->handle(app(EvolutionService::class));
+    (new SendTextMessage($m->id))->handle(app(\App\Services\Canais\Enviadores::class));
 
     Http::assertNothingSent();
     expect($m->refresh()->external_id)->toBe('JA-FOI');

@@ -155,7 +155,7 @@ it('envio para grupo usa o JID do grupo, nao telefone', function () {
         'status' => Message::STATUS_QUEUED,
     ]);
 
-    (new SendTextMessage($m->id))->handle(app(EvolutionService::class));
+    (new SendTextMessage($m->id))->handle(app(\App\Services\Canais\Enviadores::class));
 
     Http::assertSent(fn ($r) => str_contains($r->url(), '/message/sendText/')
         && $r['number'] === '120363012345678901@g.us');
@@ -177,7 +177,7 @@ it('envio para pessoa continua usando o telefone', function () {
         'status' => Message::STATUS_QUEUED,
     ]);
 
-    (new SendTextMessage($m->id))->handle(app(EvolutionService::class));
+    (new SendTextMessage($m->id))->handle(app(\App\Services\Canais\Enviadores::class));
 
     Http::assertSent(fn ($r) => $r['number'] === '+5584996143373');
 });

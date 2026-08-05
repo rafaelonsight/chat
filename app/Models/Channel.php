@@ -25,6 +25,7 @@ class Channel extends Model
     protected $fillable = [
         'tenant_id', 'tipo', 'nome', 'instance_name',
         'webhook_secret', 'telefone_e164', 'status', 'conectado_em', 'ultimo_erro',
+        'meta_phone_number_id', 'meta_waba_id',
     ];
 
     protected $casts = ['conectado_em' => 'datetime'];

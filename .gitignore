@@ -31,3 +31,11 @@ Thumbs.db
 /public/storage
 .phpunit.cache
 _*.php
+
+# Backup de .env NUNCA entra no repositorio. O .gitignore cobria ".env" mas nao
+# ".env.bak-*", e um "git add -A" tentou commitar um deles com a chave secreta e o
+# token da Meta dentro — sO nao foi porque o arquivo era de root e o git nao conseguiu
+# ler. Backup de .env vive em /var/backups/onchat/env, fora daqui.
+.env.bak*
+.env.*.bak
+.env.backup*

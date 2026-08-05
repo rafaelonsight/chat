@@ -17,6 +17,12 @@ class AppServiceProvider extends ServiceProvider
             (int) config('services.transcricao.max_segundos'),
             (string) config('services.transcricao.vocabulario'),
         ));
+        $this->app->singleton(\App\Services\Canais\MetaCloudEnviador::class, fn () => new \App\Services\Canais\MetaCloudEnviador(
+            (string) config('services.meta.token'),
+            (string) config('services.meta.versao'),
+            (int) config('services.meta.timeout'),
+        ));
+
         $this->app->singleton(\App\Services\EvolutionService::class, fn () => new \App\Services\EvolutionService(
             (string) config('services.evolution.url'),
             (string) config('services.evolution.key'),

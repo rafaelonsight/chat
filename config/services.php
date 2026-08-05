@@ -54,6 +54,7 @@ return [
         // proposito: jargao de um setio so puxaria a transcricao para o lado errado em
         // todos os outros — numa clinica, "olho" viraria "OLT". Quem tem jargao
         // proprio ajusta pelo .env, que e o lugar de conhecimento de UM cliente.
+        // marcador do bloco da transcricao — o da Meta esta logo abaixo deste array
         'vocabulario'  => env('TRANSCRICAO_VOCABULARIO', 'Atendimento ao cliente no Brasil. Boleto, Pix, nota fiscal, CPF, CNPJ, orcamento, pedido, entrega, agendamento, garantia, cancelamento, segunda via, parcelamento, vencimento.'),
     ],
 
@@ -77,6 +78,22 @@ return [
         'timeout'     => (int) env('CEP_API_TIMEOUT', 8),
         // Rua nao muda de bairro: cache longo, ao contrario do CNPJ.
         'cache_horas' => (int) env('CEP_CACHE_HORAS', 720),
+    ],
+
+
+    /*
+     * WhatsApp oficial (Cloud API). O token e do APP por enquanto; com o Cadastro
+     * Incorporado passa a existir um por WABA conectada, e ai sai daqui.
+     */
+    'meta' => [
+        'app_id'       => env('META_APP_ID'),
+        'app_secret'   => env('META_APP_SECRET'),
+        'token'        => env('META_TOKEN'),
+        'verify_token' => env('META_VERIFY_TOKEN'),
+        // Versao fixada de proposito: a Meta muda comportamento entre versoes, e
+        // "ultima versao" significa o sistema mudar sozinho num sabado.
+        'versao'       => env('META_API_VERSION', 'v23.0'),
+        'timeout'      => (int) env('META_TIMEOUT', 20),
     ],
 
 ];
