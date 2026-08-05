@@ -115,7 +115,13 @@ class ProcessEvolutionWebhook implements ShouldQueue
 
             if ($mensagem->wasRecentlyCreated) {
                 $conversa->increment('nao_lidas');
-                $conversa->update(['ultima_msg_em' => now()]);
+                // ultima_entrada_em junto: e a mensagem do CLIENTE que reabre a
+                // janela de 24h, e so ela. Resposta nossa nao reabre nada — na regra
+                // da Meta, a janela pertence a quem procurou.
+                $conversa->update([
+                    'ultima_msg_em'     => now(),
+                    'ultima_entrada_em' => now(),
+                ]);
             }
 
             return $mensagem;

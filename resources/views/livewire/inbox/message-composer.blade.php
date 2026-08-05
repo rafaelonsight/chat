@@ -1,5 +1,25 @@
 <div class="border-t border-slate-200 p-3">
     @if ($conversationId)
+        {{-- Janela de 24h. So aparece em canal que TEM janela: avisar de um limite
+             onde ele nao vale ensina o atendente a ignorar o aviso, inclusive quando
+             for verdade. --}}
+        @if ($exigeJanela)
+            @if ($janelaAberta)
+                <div class="mb-2 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                    Janela de atendimento aberta — fecha em <strong>{{ $janelaRestante }}</strong>.
+                </div>
+            @else
+                <div class="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+                    <p class="font-semibold">Janela de 24 horas fechada.</p>
+                    <p class="mt-0.5">
+                        Neste canal, passadas 24h da última mensagem do cliente, só um
+                        <strong>template aprovado</strong> pode sair — texto livre é recusado pela Meta.
+                        Enviar agora vai falhar.
+                    </p>
+                </div>
+            @endif
+        @endif
         {{-- previa do anexo antes de enviar --}}
         @if ($anexo)
             <div class="mb-2 flex items-center gap-3 rounded border border-slate-200 bg-slate-50 p-2">

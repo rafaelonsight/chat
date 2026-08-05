@@ -40,6 +40,22 @@ class SendTextMessage implements ShouldQueue
 
         TenantContext::runAs($mensagem->tenant_id, function () use ($mensagem, $evolution) {
             $canal = $mensagem->conversation->channel;
+
+            // Fora da janela de 24h a API oficial RECUSA texto livre. Barrar aqui e
+            // nao so na tela porque a mensagem pode ter sido enfileirada com a janela
+            // aberta e chegar a vez dela depois de fechada — fila nao anda instantanea.
+            if (! $mensagem->conversation->podeEnviarLivre()) {
+                $mensagem->update([
+                    'status' => Message::STATUS_FAILED,
+                    'erro'   => 'Janela de 24 horas fechada: neste canal, fora dela só sai template aprovado.',
+                ]);
+
+                broadcast(new MessageStored($mensagem->refresh()));
+
+                // Sem relancar de proposito: nao e falha transitoria. Retentar tres
+                // vezes uma janela fechada so enche o Horizon de erro repetido.
+                return;
+            }
             $destino = $mensagem->conversation->contact->destinoWhatsApp();
 
             try {

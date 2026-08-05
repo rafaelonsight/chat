@@ -11,6 +11,17 @@ class Channel extends Model
 {
     use BelongsToTenant;
 
+    /** Baileys pela Evolution: numero comum, sem regra de janela e COM grupo. */
+    public const EVOLUTION = 'evolution';
+
+    /** API oficial da Meta: janela de 24h, template aprovado, e SEM grupo. */
+    public const META_CLOUD = 'meta_cloud';
+
+    public const TIPOS = [
+        self::EVOLUTION  => 'WhatsApp via Evolution (não oficial)',
+        self::META_CLOUD => 'WhatsApp oficial (Meta Cloud API)',
+    ];
+
     protected $fillable = [
         'tenant_id', 'tipo', 'nome', 'instance_name',
         'webhook_secret', 'telefone_e164', 'status', 'conectado_em', 'ultimo_erro',
@@ -41,6 +52,34 @@ class Channel extends Model
     public function webhookUrl(): string
     {
         return url("/webhooks/evolution/{$this->id}/{$this->webhook_secret}");
+    }
+
+    /**
+     * Este canal e limitado pela janela de 24 horas?
+     *
+     * Pergunta ao TIPO e nao ao sistema: no Baileys a regra nao existe, e avisar o
+     * atendente de um limite que nao vale ali seria inventar restricao — ele
+     * aprenderia a ignorar o aviso, inclusive quando fosse verdade.
+     */
+    public function exigeJanela(): bool
+    {
+        return $this->tipo === self::META_CLOUD;
+    }
+
+    /**
+     * Grupo de WhatsApp NAO existe na API oficial.
+     *
+     * E o motivo de o hibrido continuar necessario: quem usa grupo de bairro vai
+     * manter os dois canais lado a lado.
+     */
+    public function permiteGrupo(): bool
+    {
+        return $this->tipo === self::EVOLUTION;
+    }
+
+    public function rotuloTipo(): string
+    {
+        return self::TIPOS[$this->tipo] ?? (string) $this->tipo;
     }
 
     public function conectado(): bool

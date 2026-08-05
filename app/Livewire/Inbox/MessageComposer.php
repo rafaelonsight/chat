@@ -184,10 +184,20 @@ class MessageComposer extends Component
 
     public function render()
     {
+        $conversa = $this->conversationId
+            ? \App\Models\Conversation::with('channel')->find($this->conversationId)
+            : null;
+
         return view('livewire.inbox.message-composer', [
             'modelos' => $this->conversationId
                 ? MessageTemplate::ativos()->orderBy('titulo')->limit(30)->get()
                 : collect(),
+
+            // Estado da janela de 24h. Null quando a pergunta nao se aplica — canal
+            // sem janela nao deve mostrar aviso de janela.
+            'exigeJanela'    => (bool) $conversa?->channel?->exigeJanela(),
+            'janelaAberta'   => (bool) $conversa?->janelaAberta(),
+            'janelaRestante' => $conversa?->janelaRestante(),
         ]);
     }
 

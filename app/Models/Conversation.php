@@ -24,7 +24,7 @@ class Conversation extends Model
 
     protected $fillable = [
         'tenant_id', 'channel_id', 'contact_id', 'status', 'atendente_id', 'team_id',
-        'ultima_msg_em', 'nao_lidas',
+        'ultima_msg_em', 'ultima_entrada_em', 'nao_lidas',
         'chatbot_id', 'chatbot_node_id', 'chatbot_tentativas', 'chatbot_estado',
         'chatbot_step_id', 'chatbot_aguardando', 'chatbot_acao_ordem', 'chatbot_respostas',
         'chatbot_visto_msg_id', 'chatbot_marca',
@@ -32,6 +32,7 @@ class Conversation extends Model
 
     protected $casts = [
         'ultima_msg_em'      => 'datetime',
+        'ultima_entrada_em'  => 'datetime',
         'chatbot_respostas'  => 'array',
         'chatbot_acao_ordem' => 'integer',
         'chatbot_marca'      => 'integer',
@@ -166,6 +167,68 @@ class Conversation extends Model
     public function rotuloStatus(): string
     {
         return self::ROTULOS[$this->status] ?? $this->status;
+    }
+
+    /** Horas da janela de atendimento da Meta. Nao e configuravel: e regra deles. */
+    public const JANELA_HORAS = 24;
+
+    /**
+     * Quando a janela de 24 horas fecha — ou null quando a pergunta nao se aplica.
+     *
+     * Null tem dois motivos diferentes, e os dois significam "nao ha limite a
+     * mostrar": o canal nao usa janela, ou o cliente ainda nao falou nada.
+     */
+    public function janelaAte(): ?\Illuminate\Support\Carbon
+    {
+        if (! $this->channel?->exigeJanela() || ! $this->ultima_entrada_em) {
+            return null;
+        }
+
+        return $this->ultima_entrada_em->copy()->addHours(self::JANELA_HORAS);
+    }
+
+    public function janelaAberta(): bool
+    {
+        $ate = $this->janelaAte();
+
+        return $ate !== null && $ate->isFuture();
+    }
+
+    /**
+     * Da para enviar texto livre agora?
+     *
+     * Canal sem janela: sempre. Canal com janela: so dentro dela. Fora dela a API
+     * oficial recusa, e template aprovado e outra coisa — passa por analise da Meta e
+     * e cobrado por envio.
+     */
+    public function podeEnviarLivre(): bool
+    {
+        if (! $this->channel?->exigeJanela()) {
+            return true;
+        }
+
+        return $this->janelaAberta();
+    }
+
+    /** "3h 20min" do que resta, ou null quando nao se aplica. */
+    public function janelaRestante(): ?string
+    {
+        $ate = $this->janelaAte();
+
+        if ($ate === null || $ate->isPast()) {
+            return null;
+        }
+
+        $minutos = (int) ceil(now()->diffInMinutes($ate, absolute: true));
+
+        if ($minutos < 60) {
+            return $minutos.'min';
+        }
+
+        $horas = intdiv($minutos, 60);
+        $resto = $minutos % 60;
+
+        return $resto === 0 ? $horas.'h' : $horas.'h '.$resto.'min';
     }
 
     public function chatbot(): BelongsTo
