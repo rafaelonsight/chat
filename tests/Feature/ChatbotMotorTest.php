@@ -24,6 +24,11 @@ beforeEach(function () {
         'mensagem_boas_vindas' => 'nao usado no grafo',
         'mensagem_nao_entendi' => 'Não entendi.',
         'max_tentativas' => 2, 'palavra_escape' => 'atendente',
+        // Tolerancia DESLIGADA no cenario base de proposito. Em producao o padrao e 8
+        // segundos, mas aqui o que esta sob teste e a logica do fluxo: com tolerancia
+        // ligada, cada recebe() viraria um job atrasado e os testes passariam a medir
+        // agendamento em vez de comportamento. A tolerancia tem os testes dela.
+        'tolerancia_segundos' => 0,
     ]);
 
     $this->fluxo = app(ChatbotFluxo::class);
@@ -1083,4 +1088,308 @@ it('publicar acusa acao depois do encerrador quando ela existe', function () {
     $this->fluxo->ligar($this->inicio, $bloco);
 
     expect(implode(' ', $this->fluxo->validar($this->bot)))->toContain('nunca vai rodar');
+});
+
+// ======================================== TOLERANCIA E TEMPO LIMITE DE ESPERA ==
+//
+// Cliente escrevendo rapido demais x cliente que nao responde. Sao problemas opostos
+// e por isso dois mecanismos, mas os dois vivem no mesmo ponto do motor.
+
+use App\Jobs\{AgruparMensagens, EncerrarEspera};
+
+/**
+ * Falsifica SO os jobs atrasados.
+ *
+ * A fila em teste e sincrona, e o driver sincrono ignora ->delay(): o job da
+ * tolerancia rodaria no mesmo instante em que fosse agendado, e o do tempo limite
+ * estouraria junto com o envio do menu. Falsificar a fila INTEIRA nao serve — o
+ * ProcessEvolutionWebhook tambem e job, e sem ele o motor nem roda. Daí a lista
+ * explicita.
+ */
+function semTemporizadores(): void
+{
+    Queue::fake([AgruparMensagens::class, EncerrarEspera::class]);
+}
+
+/** Liga a tolerancia no bot do cenario. */
+function comTolerancia(int $segundos = 8): void
+{
+    test()->bot->forceFill(['tolerancia_segundos' => $segundos])->save();
+}
+
+/** Menu simples, publicado, esperando escolha. */
+function menuEsperando(): ChatbotStep
+{
+    $passo = test()->fluxo->criarPasso(test()->bot, 0, 0, 'Recepção');
+    test()->fluxo->adicionarAcao($passo, ChatbotAction::MENU, [
+        'texto'  => 'Como podemos ajudar?',
+        'opcoes' => [
+            ['gatilho' => '1', 'rotulo' => 'Financeiro'],
+            ['gatilho' => '2', 'rotulo' => 'Suporte'],
+        ],
+    ]);
+    test()->fluxo->ligar(test()->inicio, $passo);
+
+    foreach (['1', '2'] as $i => $g) {
+        $destino = test()->fluxo->criarPasso(test()->bot, 300, $i * 200, 'Destino '.$g);
+        test()->fluxo->adicionarAcao($destino, ChatbotAction::MENSAGEM, ['texto' => 'Escolheu '.$g]);
+        test()->fluxo->ligar($passo, $destino, ChatbotEdge::opcao($g));
+    }
+
+    publicar();
+
+    return $passo;
+}
+
+// ----------------------------------------------------------------- tolerancia
+
+it('com tolerancia, a mensagem seguinte NAO e respondida na hora', function () {
+    comTolerancia();
+    menuEsperando();
+    semTemporizadores();
+
+    recebe('oi');                      // dispara o fluxo: instantaneo
+    $antes = count(ditas());
+
+    recebe('bom dia');
+
+    // Nada novo foi dito: ficou para o job da janela.
+    expect(count(ditas()))->toBe($antes);
+
+    Queue::assertPushed(AgruparMensagens::class, function ($job) {
+        // Agendado, e nao para agora: sem o atraso nao ha janela para agrupar.
+        return $job->conversationId === test()->conversa->id && $job->delay !== null;
+    });
+});
+
+it('comecar o fluxo continua instantaneo, sem esperar a tolerancia', function () {
+    // Atrasar a saudacao faria o bot parecer quebrado, e ali nao ha o que agrupar.
+    comTolerancia();
+    menuEsperando();
+
+    recebe('oi');
+
+    expect(ditas())->not->toBeEmpty();
+});
+
+it('a rajada e lida JUNTA e uma opcao em linha propria continua valendo', function () {
+    // O caso do Rafael: "bom dia" e depois "1". Antes, cada uma virava uma rodada e
+    // o "bom dia" gastava tentativa.
+    comTolerancia();
+    menuEsperando();
+    semTemporizadores();
+
+    recebe('oi');
+    recebe('bom dia');
+    recebe('1');
+
+    // A janela fecha: o motor le as duas juntas.
+    app(ChatbotMotor::class)->atenderAgrupado(
+        $this->conversa->fresh(),
+        (int) $this->conversa->fresh()->chatbot_marca,
+    );
+
+    expect(ultimaDita())->toBe('Escolheu 1')
+        // e nao gastou tentativa com o "bom dia"
+        ->and($this->conversa->fresh()->chatbot_tentativas)->toBe(0);
+});
+
+it('sem tolerancia, o mesmo par gasta tentativa e joga o cliente para um humano', function () {
+    // Este teste guarda o motivo de a tolerancia existir. max_tentativas do cenario e
+    // 2: duas mensagens que nao casam esgotam e a conversa escapa — sem o cliente ter
+    // escolhido nada.
+    menuEsperando();      // tolerancia 0 no cenario base
+
+    recebe('oi');
+    recebe('bom dia');
+    recebe('boa tarde');
+
+    expect($this->conversa->fresh()->chatbot_estado)->toBe(ChatbotMotor::ESCAPOU);
+});
+
+it('a rajada de pergunta aberta vira um texto de varias linhas', function () {
+    comTolerancia();
+    semTemporizadores();
+
+    $bloco = $this->fluxo->criarPasso($this->bot, 0, 0, 'Suporte');
+    $this->fluxo->adicionarAcao($bloco, ChatbotAction::PERGUNTA, [
+        'texto' => 'O que houve?', 'guardar_em' => 'problema',
+    ]);
+    $this->fluxo->adicionarAcao($bloco, ChatbotAction::MENSAGEM, ['texto' => 'Anotei: {{problema}}']);
+    $this->fluxo->ligar($this->inicio, $bloco);
+    publicar();
+
+    recebe('oi');
+    recebe('minha internet caiu');
+    recebe('desde ontem de noite');
+
+    app(ChatbotMotor::class)->atenderAgrupado(
+        $this->conversa->fresh(),
+        (int) $this->conversa->fresh()->chatbot_marca,
+    );
+
+    expect(ultimaDita())->toBe("Anotei: minha internet caiu\ndesde ontem de noite");
+});
+
+it('a palavra de escape NAO espera a tolerancia', function () {
+    // Fazer quem pediu uma pessoa aguardar oito segundos e o oposto do que a
+    // tolerancia existe para resolver.
+    comTolerancia();
+    menuEsperando();
+    semTemporizadores();
+
+    recebe('oi');
+    recebe('atendente');
+
+    expect($this->conversa->fresh()->chatbot_estado)->toBe(ChatbotMotor::ESCAPOU);
+});
+
+it('job de agrupamento com marca velha sai calado', function () {
+    // Duas rajadas: o job da primeira nao pode responder depois da segunda.
+    comTolerancia();
+    menuEsperando();
+    semTemporizadores();
+
+    recebe('oi');
+    recebe('bom dia');
+
+    $marcaVelha = (int) $this->conversa->fresh()->chatbot_marca;
+
+    recebe('1');   // reagenda: marca nova
+
+    $antes = count(ditas());
+    app(ChatbotMotor::class)->atenderAgrupado($this->conversa->fresh(), $marcaVelha);
+
+    expect(count(ditas()))->toBe($antes);
+});
+
+it('o agrupamento nao rele mensagem que o bot ja tinha lido', function () {
+    comTolerancia();
+    menuEsperando();
+    semTemporizadores();
+
+    recebe('oi');
+    recebe('1');
+
+    app(ChatbotMotor::class)->atenderAgrupado(
+        $this->conversa->fresh(),
+        (int) $this->conversa->fresh()->chatbot_marca,
+    );
+
+    $depoisDaPrimeira = count(ditas());
+
+    // Roda de novo com a marca atual: nao ha mensagem nova, nao pode falar de novo.
+    app(ChatbotMotor::class)->atenderAgrupado(
+        $this->conversa->fresh(),
+        (int) $this->conversa->fresh()->chatbot_marca,
+    );
+
+    expect(count(ditas()))->toBe($depoisDaPrimeira);
+});
+
+// --------------------------------------------------------- tempo limite
+
+it('sem tempo limite configurado, nada e agendado', function () {
+    // 0 e o padrao de proposito: encerrar por inatividade e politica de atendimento,
+    // nao detalhe tecnico.
+    expect((int) $this->bot->espera_segundos)->toBe(0);
+
+    menuEsperando();
+    semTemporizadores();
+
+    recebe('oi');
+
+    Queue::assertNotPushed(EncerrarEspera::class);
+});
+
+it('com tempo limite, o menu agenda o estouro', function () {
+    $this->bot->forceFill(['espera_segundos' => 600])->save();
+    menuEsperando();
+    semTemporizadores();
+
+    recebe('oi');
+
+    Queue::assertPushed(EncerrarEspera::class, fn ($job) => $job->delay !== null);
+});
+
+it('estourado o tempo, o padrao e mandar para uma pessoa', function () {
+    // Abandonar quem parou de responder e o pior desfecho: pode ter ficado sem sinal,
+    // nao sem interesse.
+    $this->bot->forceFill([
+        'espera_segundos' => 600,
+        'mensagem_sem_resposta' => 'Não recebi sua resposta.',
+    ])->save();
+
+    menuEsperando();
+    semTemporizadores();
+    recebe('oi');
+
+    app(ChatbotMotor::class)->encerrarEspera(
+        $this->conversa->fresh(),
+        (int) $this->conversa->fresh()->chatbot_marca,
+    );
+
+    $c = $this->conversa->fresh();
+
+    expect($c->chatbot_estado)->toBe(ChatbotMotor::ESCAPOU)
+        ->and($c->chatbot_aguardando)->toBeNull()
+        ->and(ditas())->toContain('Não recebi sua resposta.');
+});
+
+it('configurado para concluir, encerra em vez de encaminhar', function () {
+    $this->bot->forceFill([
+        'espera_segundos' => 600,
+        'espera_acao' => 'concluir',
+        'mensagem_sem_resposta' => 'Encerrei por falta de resposta.',
+    ])->save();
+
+    menuEsperando();
+    semTemporizadores();
+    recebe('oi');
+
+    app(ChatbotMotor::class)->encerrarEspera(
+        $this->conversa->fresh(),
+        (int) $this->conversa->fresh()->chatbot_marca,
+    );
+
+    expect($this->conversa->fresh()->chatbot_estado)->toBe(ChatbotMotor::CONCLUIDO);
+});
+
+it('se o cliente respondeu, o estouro nao faz nada', function () {
+    // A marca mudou quando o fluxo avancou: o temporizador velho morre.
+    $this->bot->forceFill(['espera_segundos' => 600])->save();
+
+    menuEsperando();
+    semTemporizadores();
+    recebe('oi');
+
+    $marcaDoMenu = (int) $this->conversa->fresh()->chatbot_marca;
+
+    recebe('1');   // responde
+
+    $antes = count(ditas());
+    app(ChatbotMotor::class)->encerrarEspera($this->conversa->fresh(), $marcaDoMenu);
+
+    expect(count(ditas()))->toBe($antes)
+        ->and($this->conversa->fresh()->chatbot_estado)->not->toBe(ChatbotMotor::ESCAPOU);
+});
+
+it('se um humano assumiu, o estouro nao fala', function () {
+    $this->bot->forceFill(['espera_segundos' => 600])->save();
+
+    menuEsperando();
+    semTemporizadores();
+    recebe('oi');
+
+    $marca = (int) $this->conversa->fresh()->chatbot_marca;
+    $u = User::create([
+        'tenant_id' => $this->tenant->id, 'name' => 'Atendente',
+        'email' => 'at@tol.test', 'password' => 'segredo123',
+    ]);
+    $this->conversa->update(['atendente_id' => $u->id]);
+
+    $antes = count(ditas());
+    app(ChatbotMotor::class)->encerrarEspera($this->conversa->fresh(), $marca);
+
+    expect(count(ditas()))->toBe($antes);
 });

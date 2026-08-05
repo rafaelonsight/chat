@@ -17,9 +17,12 @@ class Chatbot extends Model
         'mensagem_fora_horario', 'mensagem_transferindo',
         'max_tentativas', 'palavra_escape',
         'status', 'versao', 'publicado_em', 'team_id',
+        'tolerancia_segundos', 'espera_segundos', 'espera_acao', 'mensagem_sem_resposta',
     ];
 
     protected $casts = [
+        'tolerancia_segundos' => 'integer',
+        'espera_segundos'     => 'integer',
         'ativo'          => 'boolean',
         'max_tentativas' => 'integer',
         'publicado_em' => 'datetime',

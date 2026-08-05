@@ -27,12 +27,14 @@ class Conversation extends Model
         'ultima_msg_em', 'nao_lidas',
         'chatbot_id', 'chatbot_node_id', 'chatbot_tentativas', 'chatbot_estado',
         'chatbot_step_id', 'chatbot_aguardando', 'chatbot_acao_ordem', 'chatbot_respostas',
+        'chatbot_visto_msg_id', 'chatbot_marca',
     ];
 
     protected $casts = [
         'ultima_msg_em'      => 'datetime',
         'chatbot_respostas'  => 'array',
         'chatbot_acao_ordem' => 'integer',
+        'chatbot_marca'      => 'integer',
     ];
 
     // O default tambem em PHP: sem isto uma conversa recem-criada reporta status

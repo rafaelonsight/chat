@@ -82,6 +82,47 @@ class ChatbotForm
                 ])
                 ->columns(2),
 
+            Section::make('Ritmo da conversa')
+                ->description('Como o bot lida com quem escreve rápido demais, e com quem não responde.')
+                ->schema([
+                    TextInput::make('tolerancia_segundos')
+                        ->label('Tolerância (segundos)')
+                        ->numeric()
+                        ->minValue(0)
+                        ->maxValue(60)
+                        ->default(8)
+                        ->required()
+                        ->helperText('Tempo de espera para juntar mensagens seguidas do cliente. Quem escreve "oi", "bom dia" e o problema em três mensagens é lido de uma vez, em vez de levar "não entendi" e gastar as tentativas. 0 desliga. Vale só enquanto o bot aguarda resposta — a saudação continua imediata.'),
+
+                    TextInput::make('espera_segundos')
+                        ->label('Tempo limite de espera (segundos)')
+                        ->numeric()
+                        ->minValue(0)
+                        ->maxValue(86400)
+                        ->default(0)
+                        ->required()
+                        ->helperText('Quanto esperar por uma resposta que não vem. 0 desliga, e é o padrão: passar a encerrar conversa por inatividade é decisão de atendimento, não ajuste técnico. Referência: 600 = 10 minutos.'),
+
+                    Select::make('espera_acao')
+                        ->label('Quando o tempo limite estourar')
+                        ->options([
+                            'atendente' => 'Encaminhar para um atendente',
+                            'concluir'  => 'Encerrar a conversa',
+                        ])
+                        ->default('atendente')
+                        ->native(false)
+                        ->required()
+                        ->helperText('Encaminhar é o padrão: quem parou de responder pode ter ficado sem sinal, não sem interesse.'),
+
+                    Textarea::make('mensagem_sem_resposta')
+                        ->label('Aviso antes de encerrar a espera')
+                        ->rows(2)
+                        ->maxLength(500)
+                        ->helperText('Opcional. Em branco, o bot age sem avisar — o que é aceitável para encerrar, mas ruim para encaminhar: o cliente veria a conversa mudar de mão sem entender.')
+                        ->columnSpanFull(),
+                ])
+                ->columns(3),
+
             Section::make('Prévia')
                 ->schema([
                     Placeholder::make('previa')

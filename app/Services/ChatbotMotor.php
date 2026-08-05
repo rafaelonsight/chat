@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Jobs\AgruparMensagens;
 use App\Jobs\ContinuarFluxo;
+use App\Jobs\EncerrarEspera;
 use App\Jobs\SendTextMessage;
 use App\Models\Channel;
 use App\Models\Chatbot;
@@ -63,6 +65,25 @@ class ChatbotMotor
             return false;
         }
 
+        // TOLERANCIA. Cliente escrevendo em rajada mandava o motor rodar uma vez por
+        // mensagem: "oi", "bom dia", "minha internet caiu" davam tres rodadas, duas
+        // delas "nao entendi" — e com max_tentativas 2 ele era jogado para um humano
+        // sem ter escolhido nada. Agora a rajada e lida junta.
+        //
+        // Vale SO quando o bot esta aguardando resposta. Comecar o fluxo continua
+        // instantaneo: atrasar a saudacao em 8 segundos faria o bot parecer quebrado, e
+        // ali nao ha o que agrupar — a primeira mensagem so serve de gatilho.
+        if ($conversa->chatbot_aguardando !== null && ! $this->pediuAtendente($bot, $mensagem)) {
+            $segundos = (int) $bot->tolerancia_segundos;
+
+            if ($segundos > 0) {
+                AgruparMensagens::dispatch($conversa->id, $this->marcarDeNovo($conversa))
+                    ->delay(now()->addSeconds($segundos));
+
+                return true;
+            }
+        }
+
         $this->saidas = [];
         $this->canal = $canal;
 
@@ -71,10 +92,153 @@ class ChatbotMotor
             : $this->retomar($bot, $conversa, $mensagem);
 
         if ($agiu) {
+            $this->visto($conversa, $mensagem->id);
             $this->despachar($conversa);
         }
 
         return $agiu;
+    }
+
+    /**
+     * A palavra de escape NAO espera a tolerancia.
+     *
+     * Fazer alguem que acabou de pedir uma pessoa aguardar oito segundos e o oposto do
+     * que a tolerancia existe para resolver.
+     */
+    private function pediuAtendente(Chatbot $bot, Message $mensagem): bool
+    {
+        $texto = trim((string) $mensagem->corpo);
+
+        return $texto !== '' && $this->normalizar($texto) === $this->normalizar($bot->palavra_escape);
+    }
+
+    /**
+     * Le de uma vez tudo o que o cliente escreveu na janela de tolerancia.
+     *
+     * @see AgruparMensagens
+     */
+    public function atenderAgrupado(Conversation $conversa, int $marca): void
+    {
+        // Marca diferente: outra mensagem chegou depois desta e reagendou. Quem
+        // reagendou e que vai atender — este job nao faz nada.
+        if ((int) $conversa->chatbot_marca !== $marca) {
+            return;
+        }
+
+        $canal = $conversa->channel;
+        $bot = $canal ? Chatbot::publicadoPara($canal) : null;
+
+        if (! $canal || ! $bot) {
+            return;
+        }
+
+        $novas = $conversa->messages()
+            ->where('direcao', 'in')
+            ->where('automatica', false)
+            ->when($conversa->chatbot_visto_msg_id, fn ($q, $id) => $q->where('id', '>', $id))
+            ->orderBy('id')
+            ->get();
+
+        if ($novas->isEmpty()) {
+            return;
+        }
+
+        // A ultima mensagem carrega as travas de podeAtender (humano assumiu, contato
+        // bloqueado, conversa concluida). Se ela nao passa, nenhuma passa.
+        if (! $this->podeAtender($conversa, $novas->last())) {
+            return;
+        }
+
+        // Uma linha por mensagem, e nao tudo colado: para pergunta aberta o texto sai
+        // legivel, e para menu cada linha continua podendo casar sozinha.
+        $texto = $novas->pluck('corpo')
+            ->map(fn ($c) => trim((string) $c))
+            ->filter()
+            ->implode("\n");
+
+        $this->saidas = [];
+        $this->canal = $canal;
+
+        $this->visto($conversa, (int) $novas->last()->id);
+
+        if ($novas->count() > 1) {
+            $this->registrar($conversa, 'Li '.$novas->count().' mensagens juntas (tolerância)');
+        }
+
+        if ($this->retomarComTexto($bot, $conversa, $texto)) {
+            $this->despachar($conversa);
+        }
+    }
+
+    /**
+     * Estourou o tempo limite: o bot perguntou e ninguem respondeu.
+     *
+     * @see EncerrarEspera
+     */
+    public function encerrarEspera(Conversation $conversa, int $marca): void
+    {
+        if ((int) $conversa->chatbot_marca !== $marca) {
+            return;
+        }
+
+        // Respondeu, ou um humano assumiu, ou o fluxo ja acabou: nada a fazer.
+        if ($conversa->chatbot_aguardando === null || $conversa->chatbot_estado !== self::ATIVO) {
+            return;
+        }
+
+        if ($conversa->atendente_id) {
+            return;
+        }
+
+        $bot = $conversa->chatbot;
+
+        if (! $bot) {
+            return;
+        }
+
+        $this->saidas = [];
+        $this->canal = $conversa->channel;
+
+        $aviso = trim((string) $bot->mensagem_sem_resposta);
+
+        if ($aviso !== '') {
+            $this->saidas[] = $aviso;
+        }
+
+        if ($bot->espera_acao === 'concluir') {
+            $conversa->update([
+                'chatbot_estado'     => self::CONCLUIDO,
+                'chatbot_aguardando' => null,
+                'chatbot_tentativas' => 0,
+            ]);
+            $this->registrar($conversa, 'Encerrado por falta de resposta');
+        } else {
+            // Padrao: manda para uma pessoa. Abandonar quem parou de responder e o
+            // pior desfecho — pode ser que ele tenha ficado sem sinal, nao sem
+            // interesse.
+            $this->entregar($bot, $conversa, null, 'Sem resposta do cliente; encaminhado', self::ESCAPOU);
+        }
+
+        $this->despachar($conversa);
+    }
+
+    /** Ate onde o bot ja leu, para o agrupamento nao reler mensagem antiga. */
+    private function visto(Conversation $conversa, int $mensagemId): void
+    {
+        $conversa->update(['chatbot_visto_msg_id' => $mensagemId]);
+    }
+
+    /**
+     * Invalida os temporizadores pendentes e devolve a marca nova.
+     *
+     * Um contador so serve para os dois (tolerancia e tempo limite) de proposito:
+     * qualquer mudanca de estado deve matar qualquer temporizador antigo.
+     */
+    private function marcarDeNovo(Conversation $conversa): int
+    {
+        $conversa->increment('chatbot_marca');
+
+        return (int) $conversa->refresh()->chatbot_marca;
     }
 
     // ------------------------------------------------------------------- travas
@@ -158,7 +322,17 @@ class ChatbotMotor
 
     private function retomar(Chatbot $bot, Conversation $conversa, Message $mensagem): bool
     {
-        $texto = trim((string) $mensagem->corpo);
+        return $this->retomarComTexto($bot, $conversa, trim((string) $mensagem->corpo));
+    }
+
+    /**
+     * Retomada a partir do TEXTO e nao da mensagem.
+     *
+     * Existe porque o agrupamento da tolerancia entrega varias mensagens juntas: o
+     * fluxo daqui para baixo nunca precisou do objeto Message, so do que foi dito.
+     */
+    private function retomarComTexto(Chatbot $bot, Conversation $conversa, string $texto): bool
+    {
         $passo = $conversa->chatbotStep;
 
         if (! $passo) {
@@ -347,21 +521,13 @@ class ChatbotMotor
 
                     case ChatbotAction::MENU:
                         $this->saidas[] = $this->textoDoMenu($bot, $acao, $conversa);
-                        $conversa->update([
-                            'chatbot_step_id'    => $passo->id,
-                            'chatbot_acao_ordem' => $acao->ordem,
-                            'chatbot_aguardando' => self::AGUARDA_MENU,
-                        ]);
+                        $this->passarAAguardar($bot, $conversa, $passo, $acao, self::AGUARDA_MENU);
 
                         return;
 
                     case ChatbotAction::PERGUNTA:
                         $this->saidas[] = $this->comMarcadores($conversa, (string) $acao->cfg('texto'));
-                        $conversa->update([
-                            'chatbot_step_id'    => $passo->id,
-                            'chatbot_acao_ordem' => $acao->ordem,
-                            'chatbot_aguardando' => self::AGUARDA_PERGUNTA,
-                        ]);
+                        $this->passarAAguardar($bot, $conversa, $passo, $acao, self::AGUARDA_PERGUNTA);
 
                         return;
 
@@ -453,6 +619,35 @@ class ChatbotMotor
     }
 
     // ----------------------------------------------------------------- apoio
+
+    /**
+     * Coloca a conversa em espera de resposta.
+     *
+     * Um lugar so para os tres efeitos que sempre andam juntos: guardar onde o fluxo
+     * parou, invalidar temporizador antigo, e agendar o novo tempo limite. Espalhado
+     * pelos casos do switch, um deles ia ficar de fora.
+     */
+    private function passarAAguardar(
+        Chatbot $bot,
+        Conversation $conversa,
+        ChatbotStep $passo,
+        ChatbotAction $acao,
+        string $aguardando,
+    ): void {
+        $conversa->update([
+            'chatbot_step_id'    => $passo->id,
+            'chatbot_acao_ordem' => $acao->ordem,
+            'chatbot_aguardando' => $aguardando,
+        ]);
+
+        $marca = $this->marcarDeNovo($conversa);
+
+        $segundos = (int) $bot->espera_segundos;
+
+        if ($segundos > 0) {
+            EncerrarEspera::dispatch($conversa->id, $marca)->delay(now()->addSeconds($segundos));
+        }
+    }
 
     private function entregar(
         Chatbot $bot,
@@ -558,18 +753,29 @@ class ChatbotMotor
 
     private function acharOpcao(ChatbotAction $acao, string $texto): ?string
     {
-        $alvo = $this->normalizar($texto);
+        // O texto inteiro primeiro. Depois cada LINHA, da mais recente para a mais
+        // antiga: com a tolerancia, "bom dia" e "1" chegam juntos em duas linhas, e o
+        // casamento e exato — sem isto, juntar as mensagens quebraria justamente o
+        // menu que a tolerancia deveria consertar.
+        $candidatos = array_merge(
+            [$texto],
+            array_reverse(preg_split('/\R/', $texto) ?: []),
+        );
 
-        if ($alvo === '') {
-            return null;
-        }
+        foreach ($candidatos as $candidato) {
+            $alvo = $this->normalizar(trim($candidato));
 
-        foreach ($acao->cfg('opcoes', []) as $opcao) {
-            $gatilho = trim((string) ($opcao['gatilho'] ?? ''));
+            if ($alvo === '') {
+                continue;
+            }
 
-            if ($this->normalizar($gatilho) === $alvo
-                || $this->normalizar((string) ($opcao['rotulo'] ?? '')) === $alvo) {
-                return $gatilho;
+            foreach ($acao->cfg('opcoes', []) as $opcao) {
+                $gatilho = trim((string) ($opcao['gatilho'] ?? ''));
+
+                if ($this->normalizar($gatilho) === $alvo
+                    || $this->normalizar((string) ($opcao['rotulo'] ?? '')) === $alvo) {
+                    return $gatilho;
+                }
             }
         }
 
