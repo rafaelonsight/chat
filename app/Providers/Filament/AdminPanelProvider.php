@@ -8,6 +8,7 @@ use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use App\Filament\Pages\Atendimento;
 use Filament\Navigation\NavigationGroup;
+use Filament\Navigation\MenuItem;
 use Filament\Navigation\NavigationItem;
 use Filament\Support\Icons\Heroicon;
 use Filament\Panel;
@@ -81,6 +82,23 @@ class AdminPanelProvider extends PanelProvider
                     ->icon(Heroicon::OutlinedBuildingOffice2)
                     ->sort(3),
             ])
+            // O menu do perfil vinha so com tema e Sair. Estes dois sao os que uma
+            // operacao de atendimento usa de verdade.
+            ->userMenuItems([
+                MenuItem::make()
+                    ->label('Bloquear sessão')
+                    ->icon(Heroicon::OutlinedLockClosed)
+                    // postAction e nao url: bloquear muda estado, e o Filament manda
+                    // por POST com o token, em vez de virar link clicavel por engano.
+                    ->postAction(fn (): string => route('sessao.bloquear'))
+                    ->sort(10),
+
+                MenuItem::make()
+                    ->label('Limpar dados deste navegador')
+                    ->icon(Heroicon::OutlinedTrash)
+                    ->url(fn (): string => route('sessao.limpar-navegador'))
+                    ->sort(20),
+            ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\Filament\Widgets')
             ->middleware([
                 EncryptCookies::class,
@@ -92,6 +110,9 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                // Depois do StartSession e do Authenticate: a trava e por sessao, e
+                // precisa da sessao carregada e do usuario conhecido.
+                \App\Http\Middleware\SessaoBloqueada::class,
             ])
             ->authMiddleware([
                 Authenticate::class,

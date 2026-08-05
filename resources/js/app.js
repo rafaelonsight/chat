@@ -212,3 +212,52 @@ if (conexao) {
         }
     });
 }
+
+// ============================================ cortina do bloqueio entre abas ==
+
+/**
+ * Bloquear a sessao numa aba tem de escurecer as OUTRAS abas na hora.
+ *
+ * O middleware do servidor segura a proxima navegacao, mas nao apaga o que ja esta
+ * desenhado: a aba do lado continuaria mostrando o atendimento inteiro para quem
+ * passasse na frente do balcao. localStorage e o canal certo aqui — o evento
+ * 'storage' chega em todas as abas da mesma origem, sem servidor no meio.
+ */
+const TRAVA = 'onchat.bloqueada';
+
+function cortina(mostrar) {
+    let capa = document.getElementById('onchat-cortina');
+
+    if (! mostrar) {
+        capa?.remove();
+
+        return;
+    }
+
+    if (capa) return;
+
+    capa = document.createElement('div');
+    capa.id = 'onchat-cortina';
+    capa.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172af2;backdrop-filter:blur(6px);display:grid;place-items:center;color:#e2e8f0;font:500 15px/1.5 system-ui,sans-serif;text-align:center;padding:2rem';
+    capa.innerHTML = `
+        <div>
+            <p style="font-weight:700;font-size:1.1rem;margin:0 0 .4rem">Sessão bloqueada</p>
+            <p style="color:#94a3b8;margin:0 0 1.2rem;font-size:.9rem">Esta tela foi bloqueada em outra aba.</p>
+            <a href="/sessao/travada" style="display:inline-block;background:#059669;color:#fff;padding:.55rem 1.1rem;border-radius:.5rem;text-decoration:none;font-weight:600;font-size:.9rem">Destravar</a>
+        </div>`;
+
+    document.body.appendChild(capa);
+}
+
+// Esta pagina carregou, logo a sessao NAO esta travada: limpa a marca para as outras
+// abas saberem que voltou. E o unico sinal confiavel de destravamento — quem destrava
+// e redirecionado para o painel.
+try {
+    localStorage.removeItem(TRAVA);
+} catch (e) {}
+
+window.addEventListener('storage', (e) => {
+    if (e.key !== TRAVA) return;
+
+    cortina(e.newValue === '1');
+});
