@@ -7,6 +7,19 @@ use App\Http\Controllers\EvolutionWebhookController;
 Route::post('/webhooks/evolution/{channel}/{secret}', EvolutionWebhookController::class)
     ->name('webhooks.evolution');
 
+/*
+ * WhatsApp oficial. URL UNICA para todos os canais: a Meta chama sempre o mesmo endereco
+ * e diz de qual numero se trata no corpo, entao o canal e descoberto do payload.
+ *
+ * A autenticidade vem da ASSINATURA do corpo (X-Hub-Signature-256), nao de segredo na
+ * URL — segredo em URL aparece em log de servidor, em proxy e em print de tela.
+ */
+Route::get('/webhooks/meta/whatsapp', [\App\Http\Controllers\MetaWebhookController::class, 'verificar'])
+    ->name('webhooks.meta.verificar');
+
+Route::post('/webhooks/meta/whatsapp', [\App\Http\Controllers\MetaWebhookController::class, 'receber'])
+    ->name('webhooks.meta');
+
 // O login do OnChat e o do painel Filament: mesma sessao web. Este alias existe
 // porque o middleware 'auth' redireciona para a rota chamada 'login'.
 Route::get('/login', fn () => redirect('/admin/login'))->name('login');
