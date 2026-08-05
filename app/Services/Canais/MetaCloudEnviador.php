@@ -51,6 +51,26 @@ class MetaCloudEnviador implements Enviador
         return ['external_id' => data_get($r, 'messages.0.id')];
     }
 
+    public function marcarLida(Channel $canal, string $jid, array $externalIds): void
+    {
+        // SO A MAIS NOVA. No WhatsApp, marcar uma mensagem como lida marca as anteriores
+        // da conversa junto — e a semantica do proprio aplicativo, nao um atalho nosso.
+        // Uma chamada por mensagem daria o mesmo resultado gastando 50 vezes mais cota.
+        $ids = array_values(array_filter($externalIds));
+
+        if ($ids === []) {
+            return;
+        }
+
+        $this->cliente()
+            ->post($this->url($canal).'/messages', [
+                'messaging_product' => 'whatsapp',
+                'status'            => 'read',
+                'message_id'        => $ids[count($ids) - 1],
+            ])
+            ->throw();
+    }
+
     /**
      * O numero na URL e o Phone Number ID, nao o telefone.
      *

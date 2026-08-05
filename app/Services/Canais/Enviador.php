@@ -27,6 +27,21 @@ interface Enviador
      */
     public function texto(Channel $canal, string $destino, string $texto): array;
 
+    /**
+     * Avisa o provedor de que o atendente leu as mensagens do cliente.
+     *
+     * Mora aqui, e nao no job, pela mesma razao do envio: era um "if" de driver
+     * esperando para nascer. E nasceu — o job checava instance_name como se isso
+     * quisesse dizer "e Evolution", e quando o canal oficial apareceu com um
+     * instance_name gerado automaticamente ele foi chamar a Evolution e tomou 404.
+     *
+     * @param  array<int, string>  $externalIds  ids das mensagens do cliente, da mais
+     *                                           antiga para a mais nova
+     *
+     * @throws \Throwable quando o provedor recusa — quem chama decide se retenta
+     */
+    public function marcarLida(Channel $canal, string $jid, array $externalIds): void;
+
     /** Nome curto para aparecer em log e em erro, sem revelar credencial. */
     public function nome(): string;
 }

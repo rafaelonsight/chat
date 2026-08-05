@@ -22,8 +22,37 @@ class EvolutionEnviador implements Enviador
 
     public function texto(Channel $canal, string $destino, string $texto): array
     {
-        $r = $this->evolution->sendText($canal->instance_name, $destino, $texto);
+        $r = $this->evolution->sendText($this->instancia($canal), $destino, $texto);
 
         return ['external_id' => data_get($r, 'key.id')];
+    }
+
+    public function marcarLida(Channel $canal, string $jid, array $externalIds): void
+    {
+        // A Evolution marca uma lista de uma vez, e cada item precisa do jid junto: no
+        // Baileys o recibo de leitura e por conversa, nao por id solto.
+        $this->evolution->marcarComoLida($this->instancia($canal), array_map(
+            fn (string $id) => ['remoteJid' => $jid, 'fromMe' => false, 'id' => $id],
+            array_values($externalIds),
+        ));
+    }
+
+    /**
+     * Falta de instancia ESTOURA em vez de virar chamada para uma URL torta.
+     *
+     * Simetrico ao Phone Number ID no driver da Meta: erro de configuracao tem de
+     * aparecer como erro de configuracao, e nao como 404 do provedor.
+     */
+    private function instancia(Channel $canal): string
+    {
+        $nome = trim((string) $canal->instance_name);
+
+        if ($nome === '') {
+            throw new \RuntimeException(
+                "O canal \"{$canal->nome}\" e da Evolution mas nao tem instancia."
+            );
+        }
+
+        return $nome;
     }
 }

@@ -4,7 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Conversation;
 use App\Models\Message;
-use App\Services\EvolutionService;
+use App\Services\Canais\Enviadores;
 use App\Support\TenantContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -25,7 +25,7 @@ class MarcarLidaNoWhatsapp implements ShouldQueue
         return [10, 60];
     }
 
-    public function handle(EvolutionService $evolution): void
+    public function handle(Enviadores $enviadores): void
     {
         // Job roda fora de requisicao: sem contexto de tenant o escopo global
         // nao acha nada. Mesmo padrao dos outros jobs.
@@ -35,10 +35,14 @@ class MarcarLidaNoWhatsapp implements ShouldQueue
             return;
         }
 
-        TenantContext::runAs($conversa->tenant_id, function () use ($conversa, $evolution) {
+        TenantContext::runAs($conversa->tenant_id, function () use ($conversa, $enviadores) {
             $canal = $conversa->channel;
 
-            if (! $canal || ! $canal->instance_name) {
+            // instance_name NAO serve mais de guarda: o canal oficial tambem nasce com
+            // um, gerado automaticamente, e o guarda antigo deixou passar — o job foi
+            // falar com a Evolution sobre uma conversa da Meta e tomou 404 a cada
+            // abertura de conversa. Quem sabe marcar e o driver do canal.
+            if (! $canal) {
                 return;
             }
 
@@ -62,14 +66,12 @@ class MarcarLidaNoWhatsapp implements ShouldQueue
                 return;
             }
 
-            $payload = $pendentes->map(fn (Message $m) => [
-                'remoteJid' => $jid,
-                'fromMe'    => false,
-                'id'        => $m->external_id,
-            ])->all();
-
             try {
-                $evolution->marcarComoLida($canal->instance_name, $payload);
+                $enviadores->para($canal)->marcarLida(
+                    $canal,
+                    $jid,
+                    $pendentes->pluck('external_id')->all(),
+                );
             } catch (\Throwable $e) {
                 // Deixa lida_em nulo de proposito: na proxima tentativa ele
                 // remarca. Marcar antes de confirmar mentiria para o relatorio.
