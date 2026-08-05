@@ -82,7 +82,7 @@ Enquanto o cliente mantiver o contrato e conforme a política de retenção que 
 definir. Encerrado o contrato: [[decidir: prazo de exclusão após o encerramento —
 sugestão de 90 dias, tempo de o cliente extrair o que precisa]].
 
-Backups são mantidos por [[decidir: prazo dos backups]] e depois descartados.
+Backups: sao mantidas as 14 copias mais recentes de cada tipo (RETENCAO=14 no onchat-backup.sh, podadas por contagem e nao por data), o que com a rotina diaria da cerca de duas semanas. VERIFICADO no script em 05/08/2026 — eu havia publicado 30 dias sem conferir, e estava errado.
 
 ## 8. Direitos do titular
 
