@@ -75,7 +75,16 @@ class MetaWebhookController extends Controller
         if ($canal) {
             ProcessMetaWebhook::dispatch($evento->id);
         } else {
-            $evento->update(['erro' => 'nenhum canal com este phone_number_id']);
+            $evento->update([
+                'erro' => 'nenhum canal com este phone_number_id',
+                // processado_em junto, mesmo sem ter processado nada: nao existe job
+                // pendente para este evento e nunca vai existir. Sem isto o diagnostico
+                // conta "processado_em nulo" como webhook parado e grita CRITICO a cada
+                // 5 minutos por algo que esta certo — e monitor que chora falso ensina
+                // todo mundo a ignorar monitor. O motivo fica gravado em erro; o que muda
+                // e so deixar de se passar por pendente.
+                'processado_em' => now(),
+            ]);
         }
 
         // 200 sempre, inclusive quando nao achamos o canal: a Meta reentrega em erro, e

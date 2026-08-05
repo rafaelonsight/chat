@@ -275,7 +275,28 @@ it('numero desconhecido fica registrado com o motivo, sem derrubar nada', functi
 
     expect($e->erro)->toContain('nenhum canal')
         ->and($e->channel_id)->toBeNull()
-        ->and(Message::count())->toBe(0);
+        ->and(Message::count())->toBe(0)
+        // processado_em preenchido: ver mais abaixo o teste do alarme falso.
+        ->and($e->processado_em)->not->toBeNull();
+});
+
+it('evento sem canal nao se passa por webhook parado', function () {
+    // Esta e a condicao EXATA que o Diagnostico usa (app/Services/Diagnostico.php,
+    // webhookParado): processado_em nulo e recebido ha mais de X minutos. Deixar esses
+    // eventos nulos fazia o diagnostico gritar CRITICO a cada 5 minutos por algo certo,
+    // e alarme falso repetido e pior que alarme nenhum — treina a ignorar.
+    $p = metaTexto();
+    data_set($p, 'entry.0.changes.0.value.metadata.phone_number_id', '999999999999999');
+
+    metaPost($p)->assertOk();
+
+    $this->travel(30)->minutes();
+
+    $parados = WebhookEvent::whereNull('processado_em')
+        ->where('recebido_em', '<', now()->subMinutes(10))
+        ->count();
+
+    expect($parados)->toBe(0);
 });
 
 it('tipo ainda nao tratado nao cria mensagem pela metade', function () {
