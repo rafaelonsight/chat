@@ -377,9 +377,12 @@ class ProcessEvolutionWebhook implements ShouldQueue
             return null;
         }
 
-        $contato = Contact::firstOrCreate(
-            ['tenant_id' => $canal->tenant_id, 'jid' => $jid],
-            ['tipo' => Contact::PESSOA, 'telefone_e164' => $telefone, 'nome' => Arr::get($data, 'pushName')],
+        // O jid vem explicito porque e o que a Evolution conhece: reconstruir a partir do
+        // telefone perderia formato que o provedor use no futuro.
+        $contato = Contact::acharOuCriarPorTelefone(
+            $telefone,
+            ['tenant_id' => $canal->tenant_id, 'nome' => Arr::get($data, 'pushName')],
+            $jid,
         );
 
         return ['contato' => $contato, 'remetente_nome' => null, 'remetente_jid' => null];

@@ -102,10 +102,9 @@ class NewConversation extends Component
 
         $canonico = PhoneNumber::toE164($checagem['e164']) ?: $e164;
 
-        $contato = Contact::firstOrCreate(
-            ['jid' => Contact::jidDoTelefone($canonico)],
-            ['tipo' => Contact::PESSOA, 'telefone_e164' => $canonico],
-        );
+        // Pelas duas grafias: digitar o numero com o nono digito nao pode criar um segundo
+        // contato de quem ja escreveu pelo canal oficial sem ele.
+        $contato = Contact::acharOuCriarPorTelefone($canonico);
 
         $this->abrir($canal, $contato);
     }
@@ -225,9 +224,11 @@ class NewConversation extends Component
                 ->where(function ($q) use ($termo, $digitos) {
                     $q->where('nome', 'ilike', '%'.$termo.'%');
 
-                    if ($digitos !== '') {
-                        $q->orWhere('telefone_e164', 'ilike', '%'.$digitos.'%')
-                            ->orWhere('jid', 'ilike', '%'.$digitos.'%');
+                    // As duas grafias do trecho digitado: quem procura "98491-9939" tem de
+                    // achar tambem o contato que chegou pela Meta como 554184919939.
+                    foreach (PhoneNumber::variantesDeBusca($digitos) as $forma) {
+                        $q->orWhere('telefone_e164', 'ilike', '%'.$forma.'%')
+                            ->orWhere('jid', 'ilike', '%'.$forma.'%');
                     }
                 })
                 ->orderByRaw('nome is null')

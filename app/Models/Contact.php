@@ -206,6 +206,63 @@ class Contact extends Model
             : (string) ($this->telefone_e164 ?: $this->jid);
     }
 
+    /**
+     * Acha o contato por qualquer uma das grafias do telefone.
+     *
+     * Procura pelas DUAS pontas — jid e telefone — porque as duas podem ter nascido de
+     * provedores diferentes: o mesmo cliente e 554184919939 quando chega pela Meta e
+     * 5541984919939 quando chega pela Evolution ou por planilha. Comparar so uma grafia
+     * criava dois contatos da mesma pessoa, cada um com metade do historico.
+     */
+    public static function acharPorTelefone(?string $telefone): ?self
+    {
+        $formas = \App\Support\PhoneNumber::variantes($telefone);
+
+        if ($formas === []) {
+            return null;
+        }
+
+        $jids = array_map(fn (string $e164) => self::jidDoTelefone($e164), $formas);
+
+        return self::query()
+            ->where(fn ($q) => $q->whereIn('jid', $jids)->orWhereIn('telefone_e164', $formas))
+            ->first();
+    }
+
+    /**
+     * Acha por qualquer grafia, e cria se nao existir.
+     *
+     * @param  array<string, mixed>  $extra
+     */
+    public static function acharOuCriarPorTelefone(string $e164, array $extra = [], ?string $jid = null): self
+    {
+        $achado = self::acharPorTelefone($e164);
+
+        if ($achado) {
+            return $achado;
+        }
+
+        // createOrFirst e nao create: duas mensagens do mesmo contato no mesmo instante
+        // batem no indice unico, e a corrida tem de terminar com quem venceu — nao com
+        // erro na fila.
+        return self::createOrFirst(
+            ['jid' => $jid ?: self::jidDoTelefone($e164)],
+            array_merge(['tipo' => self::PESSOA, 'telefone_e164' => $e164], $extra),
+        );
+    }
+
+    /**
+     * O telefone como um brasileiro disca, para mostrar e copiar.
+     *
+     * O valor GRAVADO continua sendo o que o provedor conhece: trocar o que esta no banco
+     * mexeria no caminho de envio, e isso e uma decisao separada. Aqui e so exibicao — e
+     * numero que o atendente nao consegue discar nao serve para exibir.
+     */
+    public function telefoneDiscavel(): ?string
+    {
+        return \App\Support\PhoneNumber::discavel($this->telefone_e164) ?: $this->telefone_e164;
+    }
+
     public static function jidDoTelefone(string $e164): string
     {
         return Jid::dePessoa($e164);

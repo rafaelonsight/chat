@@ -7,7 +7,9 @@
             $contato = $conversa->contact;
             // wa.me quer so digitos. Grupo nao tem numero pessoal: o botao nao
             // apareceria para algo que nao da para abrir.
-            $waDigitos = $contato->eGrupo() ? '' : preg_replace('/\D+/', '', (string) $contato->telefone_e164);
+            // Forma discavel: numero sem o nono digito nao serve para ligar nem para abrir
+            // no WhatsApp a partir da agenda de quem atende.
+            $waDigitos = $contato->eGrupo() ? '' : preg_replace('/\D+/', '', (string) $contato->telefoneDiscavel());
         @endphp
 
         {{-- Cabecalho fixo: quem e o contato fica visivel em qualquer aba, senao
@@ -89,10 +91,10 @@
                     <div>
                         <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Telefone</dt>
                         <dd class="flex items-center gap-1.5 text-gray-800 dark:text-gray-100">
-                            <span class="min-w-0 truncate">{{ $contato->telefone_e164 }}</span>
+                            <span class="min-w-0 truncate">{{ $contato->telefoneDiscavel() }}</span>
 
                             @if ($contato->telefone_e164)
-                                <x-inbox.copiar :valor="$contato->telefone_e164" titulo="Copiar telefone" />
+                                <x-inbox.copiar :valor="$contato->telefoneDiscavel()" titulo="Copiar telefone" />
                             @endif
 
                             @if ($waDigitos)

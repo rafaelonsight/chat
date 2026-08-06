@@ -103,16 +103,15 @@ class ProcessMetaWebhook implements ShouldQueue
         $nome = (string) data_get($valor, 'contacts.0.profile.name', '');
 
         $mensagem = DB::transaction(function () use ($canal, $e164, $nome, $wamid, $conteudo) {
-            $contato = Contact::firstOrCreate(
-                ['jid' => Jid::dePessoa($e164)],
-                [
-                    'tenant_id'     => $canal->tenant_id,
-                    'telefone_e164' => $e164,
-                    // Nome do perfil so no cadastro NOVO: se o atendente corrigiu o
-                    // nome, o WhatsApp nao pode desfazer isso a cada mensagem.
-                    'nome'          => $nome !== '' ? $nome : null,
-                ],
-            );
+            // Procura pelas duas grafias do numero antes de criar: a Meta identifica
+            // celular brasileiro antigo SEM o nono digito, e o mesmo cliente pode ja
+            // existir com a grafia longa, vindo da Evolution ou de uma planilha.
+            $contato = Contact::acharOuCriarPorTelefone($e164, [
+                'tenant_id' => $canal->tenant_id,
+                // Nome do perfil so no cadastro NOVO: se o atendente corrigiu o nome, o
+                // WhatsApp nao pode desfazer isso a cada mensagem.
+                'nome'      => $nome !== '' ? $nome : null,
+            ]);
 
             $conversa = Conversation::abertaOuNova($canal->id, $contato->id, $canal->tenant_id);
 

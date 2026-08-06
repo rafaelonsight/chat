@@ -162,7 +162,9 @@ class ContactImporter extends Importer
 
         $this->data['telefone_e164'] = $e164;
 
-        $existente = Contact::where('telefone_e164', $e164)->first();
+        // Pelas duas grafias: planilha com o nono digito e contato que chegou pelo canal
+        // oficial sem ele sao a MESMA pessoa, e comparar so uma grafia duplicava o cadastro.
+        $existente = Contact::acharPorTelefone($e164);
 
         if ($existente && ($this->options['duplicados'] ?? 'atualizar') === 'ignorar') {
             throw new RowImportFailedException('Já existe contato com este telefone.');
