@@ -3,6 +3,7 @@
 namespace App\Services\Canais;
 
 use App\Models\Channel;
+use App\Models\MetaTemplate;
 use Illuminate\Support\Facades\Http;
 
 /**
@@ -89,6 +90,86 @@ class MetaCloudEnviador implements Enviador
         }
 
         return "https://graph.facebook.com/{$this->versao}/{$id}";
+    }
+
+    /**
+     * Envia um template aprovado.
+     *
+     * E o unico caminho depois de a janela de 24h fechar — e por isso este metodo NAO
+     * checa a janela: checar aqui negaria justamente o uso que ele existe para atender.
+     *
+     * O que vai para a Meta e o NOME do template mais os parametros posicionais. O texto
+     * montado nunca e enviado: quem monta o texto final e o WhatsApp, a partir do template
+     * que ele mesmo aprovou. Mandar o texto seria mandar mensagem livre com outro nome — e
+     * a Meta recusaria, com razao.
+     *
+     * @param  array<int, string>  $valores  na ordem de {{1}}, {{2}}, ...
+     * @return array{external_id: ?string}
+     */
+    public function template(Channel $canal, string $destino, MetaTemplate $modelo, array $valores = []): array
+    {
+        $motivo = $modelo->porQueNaoPodeEnviar();
+
+        if ($motivo !== null) {
+            throw new \RuntimeException("O template \"{$modelo->nome}\" nao pode ser enviado: {$motivo}.");
+        }
+
+        $valores = array_values($valores);
+
+        if (count($valores) !== (int) $modelo->variaveis) {
+            throw new \RuntimeException(
+                "O template \"{$modelo->nome}\" precisa de {$modelo->variaveis} valor(es) e recebeu ".count($valores).'.'
+            );
+        }
+
+        foreach ($valores as $i => $valor) {
+            $valor = (string) $valor;
+            $posicao = $i + 1;
+
+            // A Meta recusa parametro vazio, com quebra de linha, com tabulacao ou com
+            // quatro espacos seguidos. Recusar aqui devolve uma frase que o atendente
+            // entende e diz QUAL valor esta errado; deixar passar devolve o erro 132000
+            // da Meta, que nao diz qual e.
+            if (trim($valor) === '') {
+                throw new \RuntimeException("O valor {$posicao} do template \"{$modelo->nome}\" esta vazio.");
+            }
+
+            if (preg_match('/[\r\n\t]|\s{4,}/', $valor)) {
+                throw new \RuntimeException(
+                    "O valor {$posicao} do template \"{$modelo->nome}\" tem quebra de linha, tabulacao ou espacos demais: a Meta recusa."
+                );
+            }
+        }
+
+        $corpo = [
+            'messaging_product' => 'whatsapp',
+            'recipient_type'    => 'individual',
+            'to'                => self::soDigitos($destino),
+            'type'              => 'template',
+            'template'          => [
+                'name'     => $modelo->nome,
+                // O idioma faz parte da identidade: o mesmo nome existe em varios idiomas
+                // e sao templates diferentes. Errar aqui devolve "template does not exist".
+                'language' => ['code' => $modelo->idioma],
+            ],
+        ];
+
+        if ($valores !== []) {
+            $corpo['template']['components'] = [[
+                'type'       => 'body',
+                'parameters' => array_map(
+                    fn ($valor) => ['type' => 'text', 'text' => (string) $valor],
+                    $valores,
+                ),
+            ]];
+        }
+
+        $r = $this->cliente($canal)
+            ->post($this->url($canal).'/messages', $corpo)
+            ->throw()
+            ->json();
+
+        return ['external_id' => data_get($r, 'messages.0.id')];
     }
 
     /**
