@@ -92,6 +92,69 @@ class MetaCloudEnviador implements Enviador
     }
 
     /**
+     * Lista os templates da WABA deste canal.
+     *
+     * Pagina por CURSOR, e nao seguindo o link "next" que a Meta devolve: aquele link vem
+     * com o access_token embutido na propria URL, e passear com token dentro de string de
+     * URL e como esse segredo acaba em log de servidor.
+     *
+     * @return array{ok: bool, erro?: string, templates?: array<int, array<string, mixed>>}
+     */
+    public function templates(Channel $canal, int $paginas = 10): array
+    {
+        $todos = [];
+        $depois = null;
+
+        try {
+            for ($i = 0; $i < $paginas; $i++) {
+                $r = $this->cliente($canal)
+                    ->get($this->urlWaba($canal).'/message_templates', array_filter([
+                        'limit'  => 100,
+                        'after'  => $depois,
+                        'fields' => 'id,name,language,category,status,components',
+                    ]))
+                    ->throw()
+                    ->json();
+
+                foreach ((array) data_get($r, 'data', []) as $template) {
+                    $todos[] = $template;
+                }
+
+                $depois = data_get($r, 'paging.cursors.after');
+
+                // Sem cursor ou sem "next": acabou. O limite de paginas e trava contra
+                // resposta torta que devolvesse cursor para sempre.
+                if (! $depois || ! data_get($r, 'paging.next')) {
+                    break;
+                }
+            }
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'erro' => mb_substr($e->getMessage(), 0, 300)];
+        }
+
+        return ['ok' => true, 'templates' => $todos];
+    }
+
+    /**
+     * Template vive na CONTA (WABA), nao no numero.
+     *
+     * Dois numeros da mesma conta compartilham os mesmos templates — por isso esta URL usa
+     * o WABA ID e nao o Phone Number ID.
+     */
+    private function urlWaba(Channel $canal): string
+    {
+        $id = trim((string) $canal->meta_waba_id);
+
+        if ($id === '') {
+            throw new \RuntimeException(
+                "O canal \"{$canal->nome}\" nao tem WABA ID, e template vive na conta e nao no numero."
+            );
+        }
+
+        return "https://graph.facebook.com/{$this->versao}/{$id}";
+    }
+
+    /**
      * Confere a configuracao contra a Meta, SEM enviar mensagem.
      *
      * Nao entra na interface Enviador de proposito: e pergunta do caminho oficial. A
