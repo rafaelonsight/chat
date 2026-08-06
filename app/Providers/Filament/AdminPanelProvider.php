@@ -60,7 +60,10 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
-            ->brandName('OnChat')
+            // Le do APP_NAME em vez de fixar aqui: o nome do produto ainda nao esta
+            // decidido, e no dia da decisao ele tem de mudar num lugar so. Um nome escrito
+            // em dois lugares vira dois nomes diferentes na primeira troca.
+            ->brandName(config('app.name'))
             // Recolhida por padrao: so os icones. Clicar no icone de um grupo abre
             // a lista com o nome dos itens — comportamento nativo do Filament,
             // habilitado pela combinacao "colapsavel + grupo com icone".
