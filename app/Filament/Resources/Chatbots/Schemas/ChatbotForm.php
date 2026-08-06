@@ -3,15 +3,12 @@
 namespace App\Filament\Resources\Chatbots\Schemas;
 
 use App\Models\Channel;
-use App\Services\ChatbotEngine;
-use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
-use Illuminate\Support\HtmlString;
 
 class ChatbotForm
 {
@@ -123,20 +120,6 @@ class ChatbotForm
                 ])
                 ->columns(3),
 
-            Section::make('Prévia')
-                ->schema([
-                    Placeholder::make('previa')
-                        ->label('Exatamente o que o cliente recebe')
-                        ->content(fn ($record) => $record
-                            ? new HtmlString(
-                                '<div style="white-space:pre-wrap;font-size:0.875rem;line-height:1.5">'
-                                .e(app(ChatbotEngine::class)->previa($record))
-                                .'</div>'
-                            )
-                            : '—'),
-                ])
-                ->visible(fn ($record) => $record !== null)
-                ->description('Salve para atualizar a prévia depois de mexer nas opções.'),
         ]);
     }
 }

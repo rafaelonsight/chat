@@ -73,61 +73,6 @@ class Chatbot extends Model
             ->first();
     }
 
-    /**
-     * Fluxo inicial de exemplo, pronto para editar. Comecar de uma arvore vazia e
-     * a parte mais dificil de configurar um bot; comecar de uma arvore plausivel e
-     * questao de trocar os textos.
-     */
-    public static function criarExemplo(): self
-    {
-        $bot = static::create([
-            'nome'                  => 'Recepção',
-            'ativo'                 => false,
-            'mensagem_boas_vindas'  => "Olá! Sou o atendimento automático. Como podemos ajudar?",
-            'mensagem_nao_entendi'  => 'Não entendi. Escolha uma das opções abaixo:',
-            'mensagem_transferindo' => 'Um momento, já vou te encaminhar para um atendente.',
-            'max_tentativas'        => 2,
-            'palavra_escape'        => 'atendente',
-        ]);
-
-        $suporte = Team::where('nome', 'ilike', 'suporte%')->first();
-        $financeiro = Team::where('nome', 'ilike', 'financ%')->first();
-
-        $no = fn (array $attr) => ChatbotNode::create(array_merge(['chatbot_id' => $bot->id], $attr));
-
-        $no([
-            'gatilho' => '1', 'rotulo' => 'Financeiro', 'ordem' => 1,
-            'tipo' => ChatbotNode::EQUIPE, 'team_id' => $financeiro?->id,
-            'mensagem' => 'Vou te encaminhar para o Financeiro.',
-        ]);
-
-        $tecnico = $no([
-            'gatilho' => '2', 'rotulo' => 'Suporte técnico', 'ordem' => 2,
-            'tipo' => ChatbotNode::MENU, 'mensagem' => 'Qual o problema?',
-        ]);
-
-        $no([
-            'parent_id' => $tecnico->id,
-            'gatilho' => '1', 'rotulo' => 'Falar com o Suporte', 'ordem' => 1,
-            'tipo' => ChatbotNode::EQUIPE, 'team_id' => $suporte?->id,
-            'mensagem' => 'Vou te encaminhar para o Suporte.',
-        ]);
-
-        $no([
-            'parent_id' => $tecnico->id,
-            'gatilho' => '2', 'rotulo' => 'Ver dúvidas frequentes', 'ordem' => 2,
-            'tipo' => ChatbotNode::MENSAGEM,
-            'mensagem' => "Boa parte das dúvidas já está respondida na nossa página de ajuda.\n\nSe não resolver, escolha 1 para falar com o Suporte.",
-        ]);
-
-        $no([
-            'gatilho' => '3', 'rotulo' => 'Horário de atendimento', 'ordem' => 3,
-            'tipo' => ChatbotNode::MENSAGEM,
-            'mensagem' => 'Atendemos de segunda a sexta, das 8h às 18h.',
-        ]);
-
-        return $bot;
-    }
 
     public function channel(): BelongsTo
     {
@@ -166,17 +111,6 @@ class Chatbot extends Model
     public function publicado(): bool
     {
         return $this->status === self::PUBLICADO;
-    }
-
-    public function nodes(): HasMany
-    {
-        return $this->hasMany(ChatbotNode::class);
-    }
-
-    /** Opcoes do menu raiz. */
-    public function raiz(): HasMany
-    {
-        return $this->hasMany(ChatbotNode::class)->whereNull('parent_id')->orderBy('ordem');
     }
 
     // Bot do canal tem prioridade sobre o bot geral da conta: conta com um

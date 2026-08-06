@@ -15,7 +15,7 @@ class ChatbotsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->withCount('nodes'))
+            ->modifyQueryUsing(fn ($query) => $query->withCount('steps'))
             ->columns([
                 TextColumn::make('nome')->label('Fluxo')->searchable()->sortable(),
 
@@ -23,8 +23,11 @@ class ChatbotsTable
                     ->label('Canal')
                     ->placeholder('Todos'),
 
-                TextColumn::make('nodes_count')
-                    ->label('Opções')
+                // Passos do fluxo, e nao "opcoes" da arvore antiga. A coluna antiga
+                // contava nodes, que estavam sempre em zero: a lista mostrava "Opções: 0"
+                // para um fluxo com quatro passos funcionando.
+                TextColumn::make('steps_count')
+                    ->label('Passos')
                     ->badge()
                     ->sortable(),
 

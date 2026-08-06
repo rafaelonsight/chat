@@ -6,7 +6,6 @@ use App\Filament\Resources\Chatbots\Pages\CreateChatbot;
 use App\Filament\Resources\Chatbots\Pages\EditChatbot;
 use App\Filament\Resources\Chatbots\Pages\EditarFluxo;
 use App\Filament\Resources\Chatbots\Pages\ListChatbots;
-use App\Filament\Resources\Chatbots\RelationManagers\NodesRelationManager;
 use App\Filament\Resources\Chatbots\Schemas\ChatbotForm;
 use App\Filament\Resources\Chatbots\Tables\ChatbotsTable;
 use App\Models\Chatbot;
@@ -54,7 +53,7 @@ class ChatbotResource extends Resource
 
     public static function getRelations(): array
     {
-        return [NodesRelationManager::class];
+        return [];
     }
 
     public static function getPages(): array

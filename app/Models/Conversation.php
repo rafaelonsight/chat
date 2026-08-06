@@ -26,7 +26,7 @@ class Conversation extends Model
         'tenant_id', 'channel_id', 'contact_id', 'status', 'atendente_id', 'team_id',
         'ultima_msg_em', 'ultima_entrada_em', 'nao_lidas',
         'origem_tipo', 'origem_id', 'origem',
-        'chatbot_id', 'chatbot_node_id', 'chatbot_tentativas', 'chatbot_estado',
+        'chatbot_id', 'chatbot_tentativas', 'chatbot_estado',
         'chatbot_step_id', 'chatbot_aguardando', 'chatbot_acao_ordem', 'chatbot_respostas',
         'chatbot_visto_msg_id', 'chatbot_marca',
     ];
@@ -272,11 +272,6 @@ class Conversation extends Model
     public function chatbotStep(): BelongsTo
     {
         return $this->belongsTo(ChatbotStep::class, 'chatbot_step_id');
-    }
-
-    public function chatbotNode(): BelongsTo
-    {
-        return $this->belongsTo(ChatbotNode::class, 'chatbot_node_id');
     }
 
     public function team(): BelongsTo
