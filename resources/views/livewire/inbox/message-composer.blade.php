@@ -15,7 +15,7 @@
                     <p class="mt-0.5">
                         Neste canal, passadas 24h da última mensagem do cliente, só um
                         <strong>template aprovado</strong> pode sair — texto livre é recusado pela Meta.
-                        Enviar agora vai falhar.
+                        Escolha um template abaixo.
                     </p>
                 </div>
             @endif
@@ -61,6 +61,79 @@
             </div>
         @endif
 
+        @php
+            // Canal com janela, janela fechada e nao e nota: texto livre nao sai daqui.
+            // A tela troca de modo em vez de aceitar algo que a Meta vai recusar.
+            $modoTemplate = $exigeJanela && ! $janelaAberta && ! $nota;
+        @endphp
+
+        @if ($modoTemplate)
+            <div class="rounded-xl border border-slate-200 p-3 dark:border-white/10">
+                @if ($templatesDisponiveis->isEmpty())
+                    <p class="text-xs text-slate-500 dark:text-gray-400">
+                        Nenhum template disponível neste canal. Eles são criados no painel da Meta
+                        e trazidos em <strong>Configurações &rarr; Templates da Meta</strong>.
+                    </p>
+                @elseif (! $templateEscolhido)
+                    <p class="mb-2 text-xs font-medium text-slate-600 dark:text-gray-300">
+                        Escolha um template aprovado — cada envio é cobrado pela Meta.
+                    </p>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach ($templatesDisponiveis as $disponivel)
+                            <button type="button" wire:key="tpl-{{ $disponivel->id }}"
+                                    wire:click="escolherTemplate({{ $disponivel->id }})"
+                                    class="rounded-lg border border-slate-300 px-3 py-1.5 text-left text-xs hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/5">
+                                <span class="block font-medium text-slate-800 dark:text-gray-100">{{ $disponivel->nome }}</span>
+                                <span class="block text-slate-500 dark:text-gray-400">
+                                    {{ $disponivel->idioma }}
+                                    @if ($disponivel->variaveis)
+                                        &middot; {{ $disponivel->variaveis }} campo(s) a preencher
+                                    @endif
+                                </span>
+                            </button>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="mb-2 flex items-center justify-between gap-2">
+                        <span class="text-xs font-medium text-slate-700 dark:text-gray-200">
+                            {{ $templateEscolhido->nome }} &middot; {{ $templateEscolhido->idioma }}
+                        </span>
+                        <button type="button" wire:click="limparTemplate"
+                                class="text-xs text-slate-500 underline hover:text-slate-700 dark:text-gray-400">
+                            trocar
+                        </button>
+                    </div>
+
+                    @if ($templateEscolhido->variaveis)
+                        <div class="mb-2 space-y-2">
+                            @for ($i = 0; $i < $templateEscolhido->variaveis; $i++)
+                                <input type="text" wire:model.live.debounce.400ms="valoresTemplate.{{ $i }}"
+                                       placeholder="valor {{ $i + 1 }}"
+                                       class="w-full rounded border border-slate-300 px-3 py-1.5 text-sm dark:border-white/10 dark:bg-gray-800 dark:text-gray-100">
+                            @endfor
+                        </div>
+                    @endif
+
+                    {{-- Previa: o atendente le o que o cliente vai ler ANTES de gastar um
+                         envio cobrado. Sem isso, conferir o texto exigiria enviar. --}}
+                    <div class="mb-2 whitespace-pre-line rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700 dark:bg-white/5 dark:text-gray-200">{{ $templateEscolhido->renderizar($valoresTemplate) }}</div>
+
+                    <div class="flex items-center gap-3">
+                        <button type="button" wire:click="enviarTemplate"
+                                wire:loading.attr="disabled" wire:target="enviarTemplate"
+                                class="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60">
+                            Enviar template
+                        </button>
+                        <button type="button" wire:click="alternarNota"
+                                class="text-xs text-slate-500 underline hover:text-slate-700 dark:text-gray-400">
+                            escrever nota interna
+                        </button>
+                    </div>
+                @endif
+
+                @error('template') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+            </div>
+        @else
         <form wire:submit="enviar" class="flex items-end gap-2 {{ $nota ? 'rounded-lg bg-amber-50/60 p-1.5 ring-1 ring-amber-200' : '' }}">
             {{-- anexar: escondido em nota interna, o arquivo iria para o cliente --}}
             @unless ($nota)
@@ -127,6 +200,7 @@
                 {{ $nota ? 'Salvar nota' : 'Enviar' }}
             </button>
         </form>
+        @endif
 
         @error('corpo') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         @error('anexo') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror

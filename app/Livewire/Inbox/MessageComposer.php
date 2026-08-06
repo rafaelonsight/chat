@@ -4,10 +4,12 @@ namespace App\Livewire\Inbox;
 
 use App\Jobs\SendMediaMessage;
 use App\Jobs\SendTextMessage;
+use App\Jobs\SendTemplateMessage;
 use App\Models\Conversation;
 use App\Models\ConversationEvent;
 use App\Models\Message;
 use App\Models\MessageTemplate;
+use App\Models\MetaTemplate;
 use App\Services\MediaService;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
@@ -28,6 +30,12 @@ class MessageComposer extends Component
     // cor propria na tela e se desliga sozinho ao trocar de conversa.
     public bool $nota = false;
 
+    /** Template escolhido quando a janela de 24h esta fechada: la, texto livre nao sai. */
+    public ?int $templateId = null;
+
+    /** Um valor por variavel, na ordem de {{1}}, {{2}}: a Meta recebe parametros posicionais. */
+    public array $valoresTemplate = [];
+
     public function mount(?int $conversationId = null): void
     {
         $this->conversationId = $conversationId;
@@ -41,7 +49,7 @@ class MessageComposer extends Component
     public function abrir(int $conversationId): void
     {
         $this->conversationId = $conversationId;
-        $this->reset(['corpo', 'anexo', 'nota']);
+        $this->reset(['corpo', 'anexo', 'nota', 'templateId', 'valoresTemplate']);
     }
 
     public function alternarNota(): void
@@ -198,7 +206,106 @@ class MessageComposer extends Component
             'exigeJanela'    => (bool) $conversa?->channel?->exigeJanela(),
             'janelaAberta'   => (bool) $conversa?->janelaAberta(),
             'janelaRestante' => $conversa?->janelaRestante(),
+
+            // Fora da janela, a tela troca de modo: em vez de deixar escrever algo que vai
+            // falhar, oferece o unico caminho que funciona.
+            'templatesDisponiveis' => $this->templatesDisponiveis($conversa),
+            'templateEscolhido'    => $this->templateId
+                ? MetaTemplate::enviaveis()->find($this->templateId)
+                : null,
         ]);
+    }
+
+    public function escolherTemplate(int $id): void
+    {
+        $modelo = MetaTemplate::enviaveis()->find($id);
+
+        // enviaveis() e nao find() puro: template em analise ou de formato que nao sabemos
+        // montar nao pode nem ser escolhido. Barrar na escolha, e nao no envio, poupa o
+        // atendente de preencher campos para receber erro no fim.
+        if (! $modelo) {
+            return;
+        }
+
+        $this->templateId = $modelo->id;
+        $this->valoresTemplate = array_fill(0, (int) $modelo->variaveis, '');
+        $this->resetErrorBag();
+    }
+
+    public function limparTemplate(): void
+    {
+        $this->reset(['templateId', 'valoresTemplate']);
+        $this->resetErrorBag();
+    }
+
+    public function enviarTemplate(): void
+    {
+        $this->resetErrorBag();
+
+        $conversa = Conversation::findOrFail($this->conversationId);
+        $modelo = MetaTemplate::enviaveis()->find($this->templateId);
+
+        if (! $modelo) {
+            $this->addError('template', 'Escolha um template disponível.');
+
+            return;
+        }
+
+        $valores = array_map(
+            fn ($valor) => trim((string) $valor),
+            array_values($this->valoresTemplate),
+        );
+
+        foreach ($valores as $i => $valor) {
+            // A Meta recusa parametro vazio. Dizer aqui QUAL falta e melhor do que a
+            // mensagem sair, falhar e o atendente ter de descobrir na bolha vermelha.
+            if ($valor === '') {
+                $this->addError('template', 'Preencha o valor '.($i + 1).'.');
+
+                return;
+            }
+        }
+
+        $mensagem = Message::create([
+            'conversation_id' => $conversa->id,
+            'channel_id'      => $conversa->channel_id,
+            'direcao'         => 'out',
+            'tipo'            => 'template',
+            // O corpo guarda o texto MONTADO, para o historico mostrar o que o cliente
+            // leu. O que sai para a Meta e o nome do template mais os parametros — nunca
+            // este texto.
+            'corpo'           => $modelo->renderizar($valores),
+            'status'          => Message::STATUS_QUEUED,
+        ]);
+
+        SendTemplateMessage::dispatch($mensagem->id, $modelo->id, $valores);
+
+        $conversa->update(['ultima_msg_em' => now()]);
+
+        $this->limparTemplate();
+        $this->dispatch('abrir-conversa', conversationId: $conversa->id);
+    }
+
+    /**
+     * Templates que este canal pode enviar agora.
+     *
+     * Vazio quando a janela esta ABERTA de proposito: ali o atendente manda texto livre,
+     * que e melhor para o cliente e nao e cobrado. Oferecer template com a janela aberta
+     * seria oferecer o caminho caro sem motivo.
+     */
+    private function templatesDisponiveis(?Conversation $conversa): \Illuminate\Support\Collection
+    {
+        $canal = $conversa?->channel;
+
+        if (! $canal || ! $canal->exigeJanela() || $conversa->janelaAberta()) {
+            return collect();
+        }
+
+        return MetaTemplate::enviaveis()
+            ->where('meta_waba_id', (string) $canal->meta_waba_id)
+            ->orderBy('nome')
+            ->limit(30)
+            ->get();
     }
 
     // Modelo resolvido na hora de usar: o mesmo texto serve para qualquer
