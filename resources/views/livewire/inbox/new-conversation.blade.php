@@ -6,6 +6,21 @@
         </button>
     @else
         <div class="space-y-2">
+            {{-- Por qual numero. Aparece so quando ha escolha a fazer: com um canal so, o
+                 seletor seria pergunta com uma resposta possivel. --}}
+            @if ($canais->count() > 1)
+                <select wire:model="canalId"
+                        class="w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
+                    <option value="">Enviar por qual numero?</option>
+                    @foreach ($canais as $canalOpcao)
+                        <option value="{{ $canalOpcao->id }}">
+                            {{ $canalOpcao->nome }}@if ($canalOpcao->telefone_e164) &middot; {{ $canalOpcao->telefone_e164 }}@endif @if ($canalOpcao->exigeJanela()) (oficial) @endif
+                        </option>
+                    @endforeach
+                </select>
+                @error('canalId') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+            @endif
+
             <input type="text" wire:model.live.debounce.300ms="termo" autocomplete="off" autofocus
                    placeholder="Nome do contato ou telefone"
                    class="w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
@@ -60,6 +75,7 @@
                       placeholder="Primeira mensagem (opcional)"
                       class="w-full rounded border border-gray-300 px-3 py-2 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100"></textarea>
 
+            @error('primeiraMensagem') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
             @error('termo') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
 
             <button type="button" wire:click="alternar"

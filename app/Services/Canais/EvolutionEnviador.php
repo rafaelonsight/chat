@@ -50,6 +50,22 @@ class EvolutionEnviador implements Enviador
         return ['external_id' => data_get($r, 'key.id')];
     }
 
+    public function verificarNumero(Channel $canal, string $e164): array
+    {
+        $resposta = $this->evolution->checkNumbers($this->instancia($canal), [ltrim($e164, '+')]);
+
+        $info = collect($resposta)->first();
+
+        if (! is_array($info)) {
+            return ['existe' => null, 'e164' => null];
+        }
+
+        return [
+            'existe' => (bool) ($info['exists'] ?? false),
+            'e164'   => $info['jid'] ?? $info['number'] ?? null,
+        ];
+    }
+
     public function marcarLida(Channel $canal, string $jid, array $externalIds): void
     {
         // A Evolution marca uma lista de uma vez, e cada item precisa do jid junto: no

@@ -235,6 +235,19 @@ class MetaCloudEnviador implements Enviador
     }
 
     /**
+     * A API oficial NAO tem como perguntar se um numero tem WhatsApp.
+     *
+     * Devolver null e a resposta honesta. A tentacao seria mandar uma mensagem de teste para
+     * descobrir — o que gastaria dinheiro, apareceria no aparelho de quem talvez nem seja
+     * cliente, e contaria como iniciativa da empresa. Quando o numero nao existe, a Meta
+     * responde 131026 no envio, e o atendente ve a falha na propria bolha.
+     */
+    public function verificarNumero(Channel $canal, string $e164): array
+    {
+        return ['existe' => null, 'e164' => null];
+    }
+
+    /**
      * Baixa uma midia recebida.
      *
      * SAO DUAS CHAMADAS, e nao uma. A primeira pergunta a Meta onde esta o arquivo; a

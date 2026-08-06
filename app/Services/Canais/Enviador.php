@@ -55,6 +55,21 @@ interface Enviador
      */
     public function marcarLida(Channel $canal, string $jid, array $externalIds): void;
 
+    /**
+     * Este numero tem WhatsApp?
+     *
+     * Devolve existe = null quando o provedor NAO SABE responder — e o caso da API oficial,
+     * que nao tem consulta equivalente. null nao significa "nao tem": significa "nao da para
+     * perguntar". Quem chama tem de tratar diferente, porque barrar o atendente por uma
+     * pergunta que ninguem respondeu seria inventar impedimento.
+     *
+     * O e164 devolvido e a forma canonica que o provedor conhece, quando ele informa: e nela
+     * que o contato deve ser gravado, para nao nascer duplicado.
+     *
+     * @return array{existe: ?bool, e164: ?string}
+     */
+    public function verificarNumero(Channel $canal, string $e164): array;
+
     /** Nome curto para aparecer em log e em erro, sem revelar credencial. */
     public function nome(): string;
 }
