@@ -150,6 +150,10 @@ class ProcessMetaWebhook implements ShouldQueue
             return; // reentrega: nao apita nem chama o bot de novo
         }
 
+        // De onde a pessoa veio. Antes do broadcast para o atendente ja abrir a conversa
+        // vendo a origem.
+        $this->guardarOrigem($mensagem->conversation, (array) data_get($bruta, 'referral', []));
+
         // Antes de avisar a tela: sem isso o atendente ve a bolha de audio chegar e
         // clicar em play num arquivo que ainda nao existe.
         if (! empty($conteudo['media_id'])) {
@@ -160,6 +164,49 @@ class ProcessMetaWebhook implements ShouldQueue
 
         // O bot tem a primeira palavra, igual ao canal nao oficial.
         app(ChatbotMotor::class)->talvezAtender($canal, $mensagem);
+    }
+
+    /**
+     * De onde veio esta conversa.
+     *
+     * A Meta manda o bloco "referral" junto da PRIMEIRA mensagem de quem chegou por um
+     * anuncio Click-to-WhatsApp — e somente junto dela. Nao ha consulta depois que devolva
+     * isso: nao guardar aqui e perder.
+     *
+     * NAO SOBRESCREVE, e essa e a decisao que importa. Se o cliente clicar em outro anuncio
+     * dentro da mesma conversa aberta, a Meta manda referral de novo. Trocar faria o
+     * relatorio de "conversas por anuncio" mudar de atribuicao retroativamente — e numero
+     * que muda sozinho no passado nao serve para decidir orcamento.
+     *
+     * O segundo anuncio nao se perde: conversa encerrada e depois reaberta vira conversa
+     * NOVA pelo abertaOuNova, com origem propria. Entao a segunda campanha aparece, e no
+     * lugar certo.
+     *
+     * As chaves sao traduzidas aqui, na borda. O bruto da Meta fica no webhook_events para
+     * quem precisar investigar; o resto do sistema nao deveria aprender ingles de API.
+     */
+    private function guardarOrigem(Conversation $conversa, array $referral): void
+    {
+        if ($referral === [] || $conversa->origem_tipo !== null) {
+            return;
+        }
+
+        $conversa->update([
+            'origem_tipo' => (string) (data_get($referral, 'source_type') ?: 'ad'),
+            'origem_id'   => data_get($referral, 'source_id'),
+            'origem'      => array_filter([
+                'titulo' => data_get($referral, 'headline'),
+                'texto'  => data_get($referral, 'body'),
+                'url'    => data_get($referral, 'source_url'),
+                // ctwa_clid e o identificador do CLIQUE. E o que permite casar esta conversa
+                // com o gasto do anuncio no relatorio da Meta depois. Sem ele, "veio de
+                // anuncio" nao liga a dinheiro nenhum, e a conta de custo por conversa nao
+                // fecha.
+                'clique' => data_get($referral, 'ctwa_clid'),
+                'midia'  => data_get($referral, 'media_type'),
+                'imagem' => data_get($referral, 'image_url') ?: data_get($referral, 'thumbnail_url'),
+            ]),
+        ]);
     }
 
     /**

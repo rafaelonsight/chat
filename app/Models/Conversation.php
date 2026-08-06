@@ -25,6 +25,7 @@ class Conversation extends Model
     protected $fillable = [
         'tenant_id', 'channel_id', 'contact_id', 'status', 'atendente_id', 'team_id',
         'ultima_msg_em', 'ultima_entrada_em', 'nao_lidas',
+        'origem_tipo', 'origem_id', 'origem',
         'chatbot_id', 'chatbot_node_id', 'chatbot_tentativas', 'chatbot_estado',
         'chatbot_step_id', 'chatbot_aguardando', 'chatbot_acao_ordem', 'chatbot_respostas',
         'chatbot_visto_msg_id', 'chatbot_marca',
@@ -34,6 +35,7 @@ class Conversation extends Model
         'ultima_msg_em'      => 'datetime',
         'ultima_entrada_em'  => 'datetime',
         'chatbot_respostas'  => 'array',
+        'origem'             => 'array',
         'chatbot_acao_ordem' => 'integer',
         'chatbot_marca'      => 'integer',
     ];
@@ -44,6 +46,37 @@ class Conversation extends Model
         'status'    => self::NOVA,
         'nao_lidas' => 0,
     ];
+
+    public function veioDeAnuncio(): bool
+    {
+        return $this->origem_tipo !== null;
+    }
+
+    /**
+     * Uma linha para a tela do atendente.
+     *
+     * Existe para ele saber de onde a pessoa veio ANTES de responder, em vez de comecar o
+     * atendimento perguntando "como voce nos conheceu?" — pergunta que o proprio sistema
+     * ja sabe responder.
+     */
+    public function origemResumo(): ?string
+    {
+        if (! $this->veioDeAnuncio()) {
+            return null;
+        }
+
+        $rotulo = match ($this->origem_tipo) {
+            'ad'    => 'Anúncio',
+            'post'  => 'Publicação',
+            default => 'Origem',
+        };
+
+        $titulo = data_get($this->origem, 'titulo') ?: data_get($this->origem, 'texto');
+
+        return $titulo
+            ? $rotulo.': '.mb_substr((string) $titulo, 0, 80)
+            : $rotulo;
+    }
 
     public function contact(): BelongsTo
     {

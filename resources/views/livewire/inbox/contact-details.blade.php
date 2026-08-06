@@ -154,6 +154,22 @@
                         </dd>
                     </div>
 
+                    @if ($conversa->veioDeAnuncio())
+                        <div>
+                            <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Veio de</dt>
+                            <dd class="text-gray-800 dark:text-gray-100">
+                                {{ $conversa->origemResumo() }}
+                                @if (data_get($conversa->origem, 'url'))
+                                    <a href="{{ data_get($conversa->origem, 'url') }}"
+                                       target="_blank" rel="noopener noreferrer"
+                                       class="ml-1 text-xs text-emerald-700 hover:underline dark:text-emerald-400">
+                                        abrir
+                                    </a>
+                                @endif
+                            </dd>
+                        </div>
+                    @endif
+
                     <div>
                         <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Atendimento</dt>
                         <dd class="text-gray-800 dark:text-gray-100">
