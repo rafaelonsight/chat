@@ -8,6 +8,7 @@ use App\Models\Tag;
 use App\Models\Tenant;
 use App\Services\BusinessHours;
 use BackedEnum;
+use Filament\Actions\Action;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use UnitEnum;
@@ -95,6 +96,82 @@ class Relatorios extends Page
         }
 
         return $q;
+    }
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Action::make('exportar')
+                ->label('Exportar CSV')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->action(fn () => $this->exportar()),
+        ];
+    }
+
+    /**
+     * Planilha das conversas do recorte que esta na tela.
+     *
+     * COM O MESMO RECORTE, e nao a base inteira: exportar tudo quando a tela mostra o
+     * Financeiro dos ultimos 7 dias faria o gestor comparar planilha com tela e concluir que
+     * um dos dois esta errado.
+     */
+    public function exportar(): \Symfony\Component\HttpFoundation\StreamedResponse
+    {
+        $desde = now()->subDays($this->dias);
+
+        // O recorte vai no NOME do arquivo. Planilha baixada como "relatorio.csv" vira um
+        // arquivo na pasta de downloads que ninguem sabe de que periodo era.
+        $nome = sprintf(
+            'conversas-%dd%s-%s.csv',
+            $this->dias,
+            $this->etiquetaId() ? '-etiqueta'.$this->etiquetaId() : '',
+            now()->format('Y-m-d'),
+        );
+
+        $consulta = $this->conversas()
+            ->where('conversations.created_at', '>=', $desde)
+            ->withCount('messages')
+            ->with(['contact', 'channel', 'atendente', 'team'])
+            ->orderBy('conversations.created_at');
+
+        return response()->streamDownload(function () use ($consulta) {
+            $saida = fopen('php://output', 'w');
+
+            // BOM: sem ele o Excel em portugues abre acento como caractere estranho, e a
+            // primeira conclusao de quem recebe e "o sistema exportou errado".
+            fwrite($saida, "\xEF\xBB\xBF");
+
+            // Ponto e virgula: Excel em portugues nao separa por virgula, e a planilha
+            // chegaria com tudo numa coluna so.
+            $ponto = fn (array $linha) => fputcsv($saida, $linha, ';');
+
+            $ponto([
+                'ID', 'Aberta em', 'Contato', 'Telefone', 'Canal', 'Situação',
+                'Atendente', 'Equipe', 'Mensagens', 'Não lidas', 'Veio de', 'ID do anúncio',
+            ]);
+
+            // chunk: relatorio de 90 dias nao pode carregar tudo na memoria de uma vez.
+            $consulta->chunk(500, function ($conversas) use ($ponto) {
+                foreach ($conversas as $c) {
+                    $ponto([
+                        $c->id,
+                        $c->created_at?->format('d/m/Y H:i'),
+                        $c->contact?->nomeExibicao(),
+                        $c->contact?->telefoneDiscavel(),
+                        $c->channel?->nome,
+                        $c->rotuloStatus(),
+                        $c->atendente?->name,
+                        $c->team?->nome,
+                        $c->messages_count,
+                        $c->nao_lidas,
+                        $c->origemResumo(),
+                        $c->origem_id,
+                    ]);
+                }
+            });
+
+            fclose($saida);
+        }, $nome, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     public function getViewData(): array
