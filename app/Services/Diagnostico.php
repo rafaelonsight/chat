@@ -25,6 +25,31 @@ class Diagnostico
     public function __construct(private ?Closure $sonda = null) {}
 
     /** @return array<int, array{chave: string, nivel: string, mensagem: string}> */
+    /**
+     * O que esta rotina cobre, para a tela poder mostrar tambem o que esta BEM.
+     *
+     * verificar() devolve apenas problemas — e uma tela que so lista problemas nao responde
+     * "o que voce olhou?". Sem essa resposta, "tudo certo" nao tranquiliza ninguem: pode
+     * significar que esta tudo bem ou que nada foi verificado.
+     *
+     * As chaves sao as MESMAS que verificar() usa nos problemas. E o encaixe entre as duas
+     * listas, e por isso a tela nao precisa repetir nenhuma regra.
+     */
+    public const COBERTURA = [
+        'horizon'        => 'Fila de trabalho (Horizon) rodando',
+        'evolution'      => 'Evolution no ar (canal não oficial)',
+        'redis'          => 'Redis no ar (a fila depende dele)',
+        'reverb'         => 'Reverb no ar (a tela atualiza sozinha)',
+        'whisper'        => 'Whisper no ar (transcrição de áudio)',
+        'banco'          => 'Banco de dados acessível',
+        'webhook_parado' => 'Mensagem recebida sem processar',
+        'fila'           => 'Fila acumulando trabalho',
+        'falhas'         => 'Jobs falhando acima do normal',
+        'canais'         => 'Canais conectados',
+        'disco'          => 'Espaço em disco',
+        'backup'         => 'Backup recente',
+    ];
+
     public function verificar(): array
     {
         $limites = config('onchat.limites');
