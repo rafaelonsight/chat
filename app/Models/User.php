@@ -21,6 +21,15 @@ class User extends Authenticatable implements FilamentUser
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
 
+    // Sem isto, um usuario recem-criado responde NULL a ->operador em vez de false: o valor
+    // padrao existe no BANCO, e o objeto em memoria so o conheceria depois de um refresh.
+    // (bool) null da false e nada quebraria hoje, mas "a coluna nao aceita nulo e o objeto
+    // devolve nulo" e o tipo de discrepancia que so aparece no dia em que alguem compara com
+    // === false.
+    protected $attributes = [
+        'operador' => false,
+    ];
+
     /**
      * Get the attributes that should be cast.
      *
@@ -31,6 +40,9 @@ class User extends Authenticatable implements FilamentUser
         return [
             'email_verified_at' => 'datetime',
             'admin' => 'boolean',
+            // 'operador' NAO entra no #[Fillable]: e a chave da casa. Fora do
+            // preenchimento em massa, so o comando onchat:operador concede.
+            'operador' => 'boolean',
             'password' => 'hashed',
         ];
     }

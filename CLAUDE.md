@@ -118,6 +118,15 @@ Job atrasado dispara na hora. Para testar tolerância e temporizador, use
 `Queue::fake([JobEspecifico::class])` — **parcial**. `Queue::fake()` sem argumento também
 falsifica o job do webhook, e aí o motor nunca roda.
 
+### `assertDontSee` com texto curto é gerador de falha intermitente
+
+Cada resposta do Livewire carrega ids e snapshots aleatórios. `assertDontSee('oi')` passa
+quase sempre e falha no dia em que sai um `oi` dentro de um hash — e o sintoma é uma
+acusação de vazamento que não houve, num teste que passa quando rodado sozinho.
+
+Asserção de AUSÊNCIA precisa de texto que só possa vir de um lugar. Se o cenário usa um
+corpo curto, passe um corpo longo só para esse teste.
+
 ### Postgres: `CHECK` em vez de enum, e sequência não volta atrás
 
 Enum precisa de `ALTER TYPE` para crescer. E `id` não é 1 no teste: a transação desfaz as

@@ -20,14 +20,14 @@ function cenarioDet(string $slug): array
     return [$t, $u, $c, $ct, $cv];
 }
 
-function msgDet(Conversation $cv, string $direcao): Message
+function msgDet(Conversation $cv, string $direcao, string $corpo = 'oi'): Message
 {
     return Message::create([
         'conversation_id' => $cv->id,
         'channel_id'      => $cv->channel_id,
         'direcao'         => $direcao,
         'tipo'            => 'text',
-        'corpo'           => 'oi',
+        'corpo'           => $corpo,
         'status'          => $direcao === 'in' ? Message::STATUS_DELIVERED : Message::STATUS_QUEUED,
     ]);
 }
@@ -217,7 +217,11 @@ it('Detalhes traz telefone com atalho do WhatsApp e caminho para o cadastro', fu
 it('Arquivos lista so mensagem com anexo', function () {
     [, $u, , , $cv] = cenarioDet('ab5');
 
-    msgDet($cv, 'in');  // texto puro: nao pode aparecer
+    // Corpo LONGO e improvavel de proposito. Este teste falhava de vez em quando por causa
+    // de assertDontSee('oi'): 'oi' tem duas letras, e cada resposta do Livewire carrega ids e
+    // snapshots aleatorios. Uma hora sai um 'oi' dentro de um hash e o teste acusa vazamento
+    // que nao houve. Assercao de AUSENCIA precisa de texto que so possa vir de um lugar.
+    msgDet($cv, 'in', 'texto-puro-nao-deve-aparecer-em-arquivos');
 
     Message::create([
         'conversation_id' => $cv->id,
@@ -237,7 +241,7 @@ it('Arquivos lista so mensagem com anexo', function () {
         ->call('irPara', 'arquivos')
         ->assertSee('comprovante.pdf')
         ->assertSee('2 KB')
-        ->assertDontSee('oi');
+        ->assertDontSee('texto-puro-nao-deve-aparecer-em-arquivos');
 });
 
 it('Arquivos avisa quando nao ha anexo, em vez de ficar vazia', function () {
