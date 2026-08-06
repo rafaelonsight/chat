@@ -96,6 +96,41 @@ class MediaService
         return $codigo === 0 && trim(implode('', $saida)) !== '';
     }
 
+    /**
+     * Duracao em segundos, lida do proprio arquivo.
+     *
+     * A Evolution informa a duracao no payload; a Meta NAO manda. Sem isto, audio que chega
+     * pelo canal oficial aparece sem tempo na bolha, e o atendente nao sabe se vai ouvir
+     * cinco segundos ou tres minutos antes de dar play — o que muda se ele ouve agora ou
+     * depois.
+     *
+     * Arredonda para CIMA: audio de 0,4 s existe, e mostrar "0s" pareceria defeito.
+     */
+    public function duracaoSegundos(?string $caminhoAbsoluto): ?int
+    {
+        if (! $caminhoAbsoluto || ! is_file($caminhoAbsoluto) || ! $this->temFfprobe()) {
+            return null;
+        }
+
+        // 2>/dev/null: arquivo que nao e midia faz o ffprobe escrever no stderr, e isso
+        // vazava para a saida dos testes. Saida de teste com ruido ensina a ignorar saida de
+        // teste — e o codigo de retorno ja diz tudo o que precisamos saber aqui.
+        exec(sprintf(
+            'ffprobe -v error -show_entries format=duration -of csv=p=0 %s 2>/dev/null',
+            escapeshellarg($caminhoAbsoluto)
+        ), $saida, $codigo);
+
+        if ($codigo !== 0) {
+            return null;
+        }
+
+        $segundos = (float) trim(implode('', $saida));
+
+        // Container sem duracao declarada devolve 0 ou "N/A". null e melhor que "0s" na
+        // tela: ausencia de informacao nao deve se disfarcar de informacao.
+        return $segundos > 0 ? (int) ceil($segundos) : null;
+    }
+
     public function temFfprobe(): bool
     {
         exec('which ffprobe', $s, $c);

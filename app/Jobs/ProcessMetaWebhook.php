@@ -13,6 +13,7 @@ use App\Support\TenantContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -234,13 +235,28 @@ class ProcessMetaWebhook implements ShouldQueue
                 $mensagem->media_nome,
             );
 
-            $mensagem->update([
+            $novos = [
                 'media_path'    => $guardado['path'],
                 'media_mime'    => $guardado['mime'],
                 'media_nome'    => $guardado['nome'],
                 'media_tamanho' => $guardado['tamanho'],
                 'erro'          => null,
-            ]);
+            ];
+
+            // A Meta nao manda a duracao no webhook, diferente da Evolution. Lemos do
+            // arquivo que acabamos de baixar — e so para audio e video, porque em imagem e
+            // documento a pergunta nao existe.
+            if (in_array($mensagem->tipo, ['audio', 'video'], true)) {
+                $duracao = app(MediaService::class)->duracaoSegundos(
+                    Storage::disk('local')->path($guardado['path']),
+                );
+
+                if ($duracao !== null) {
+                    $novos['media_duracao'] = $duracao;
+                }
+            }
+
+            $mensagem->update($novos);
 
             // So audio que ENTRA, igual ao outro canal: transcrever o que nos mesmos
             // gravamos custaria CPU pelo que o atendente ja sabe que disse.
