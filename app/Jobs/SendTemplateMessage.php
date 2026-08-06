@@ -5,7 +5,9 @@ namespace App\Jobs;
 use App\Events\MessageStored;
 use App\Models\Message;
 use App\Models\MetaTemplate;
+use App\Services\Canais\ConfiguracaoInvalida;
 use App\Services\Canais\Enviadores;
+use App\Services\Canais\FalhaDoProvedor;
 use App\Services\Canais\MetaCloudEnviador;
 use App\Support\TenantContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -109,7 +111,11 @@ class SendTemplateMessage implements ShouldQueue
                 // montagem — template nao suportado, numero de valores errado, valor com
                 // quebra de linha — nao muda por retentar: tres tentativas encheriam o
                 // Horizon de erro repetido e esconderiam falha de verdade.
-                if ($e instanceof RequestException) {
+                // Erro de configuracao tambem relanca. O que fica em silencio e recusa do
+                // provedor e escolha invalida do atendente — template sem suporte, valores
+                // em quantidade errada —, porque o motivo aparece na bolha e retentar nao
+                // muda nada.
+                if (FalhaDoProvedor::transitoria($e) || $e instanceof ConfiguracaoInvalida) {
                     throw $e;
                 }
             }

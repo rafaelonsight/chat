@@ -91,7 +91,13 @@ class SendMediaMessage implements ShouldQueue
                     'erro'   => mb_substr($e->getMessage(), 0, 500),
                 ]);
 
-                throw $e;
+                // Mesma regra do envio de texto: relanca so o que pode dar certo depois.
+                // 4xx do provedor e pedido errado, e repetir pedido errado tres vezes nao
+                // o torna certo — so multiplica o erro no Horizon.
+                if (\App\Services\Canais\FalhaDoProvedor::transitoria($e)
+                    || $e instanceof \App\Services\Canais\ConfiguracaoInvalida) {
+                    throw $e;
+                }
             } finally {
                 broadcast(new MessageStored($mensagem->refresh()));
             }

@@ -48,7 +48,7 @@ class EvolutionEnviador implements Enviador
         $nome = trim((string) $canal->instance_name);
 
         if ($nome === '') {
-            throw new \RuntimeException(
+            throw new ConfiguracaoInvalida(
                 "O canal \"{$canal->nome}\" e da Evolution mas nao tem instancia."
             );
         }

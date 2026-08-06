@@ -84,7 +84,7 @@ class MetaCloudEnviador implements Enviador
         $id = trim((string) $canal->meta_phone_number_id);
 
         if ($id === '') {
-            throw new \RuntimeException(
+            throw new ConfiguracaoInvalida(
                 "O canal \"{$canal->nome}\" e do tipo oficial mas nao tem Phone Number ID."
             );
         }
@@ -227,7 +227,7 @@ class MetaCloudEnviador implements Enviador
         $id = trim((string) $canal->meta_waba_id);
 
         if ($id === '') {
-            throw new \RuntimeException(
+            throw new ConfiguracaoInvalida(
                 "O canal \"{$canal->nome}\" nao tem WABA ID, e template vive na conta e nao no numero."
             );
         }
@@ -288,7 +288,7 @@ class MetaCloudEnviador implements Enviador
         }
 
         if (trim($this->tokenPadrao) === '') {
-            throw new \RuntimeException(
+            throw new ConfiguracaoInvalida(
                 "O canal \"{$canal->nome}\" nao tem token da Meta e nao existe token padrao configurado."
             );
         }

@@ -33,6 +33,16 @@ class ChannelsTable
                         'connecting' => 'warning',
                         default      => 'danger',
                     }),
+                // Qual fluxo atende este canal. Sem esta coluna, canal sem bot e
+                // silencioso: descobrir que ninguem responde automaticamente ali exigiu
+                // uma investigacao no banco. Uma vez basta.
+                TextColumn::make('chatbot')
+                    ->label('Chatbot')
+                    ->badge()
+                    ->state(fn (\App\Models\Channel $record) => \App\Models\Chatbot::publicadoPara($record)?->nome ?? 'nenhum')
+                    ->color(fn (string $state) => $state === 'nenhum' ? 'gray' : 'success')
+                    ->tooltip('Fluxo publicado que responde neste canal. "nenhum" significa que ninguem atende automaticamente aqui.'),
+
                 TextColumn::make('conectado_em')->label('Conectado em')->dateTime('d/m/Y H:i')->placeholder('—'),
             ])
             ->recordActions([EditAction::make()])

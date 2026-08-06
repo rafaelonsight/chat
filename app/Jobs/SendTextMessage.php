@@ -74,7 +74,20 @@ class SendTextMessage implements ShouldQueue
                     'erro'   => mb_substr($e->getMessage(), 0, 500),
                 ]);
 
-                throw $e; // deixa o Horizon registrar e reagendar
+                // Relanca duas coisas, por razoes opostas:
+                //
+                // 1. o que pode dar certo depois (provedor fora do ar, limite de taxa);
+                // 2. erro de CONFIGURACAO, que nao vai dar certo nunca mas precisa
+                //    aparecer alto no Horizon, porque alguem tem de consertar.
+                //
+                // Fica em silencio o meio: recusa definitiva do provedor. "Empresa
+                // restrita neste pais" nao muda por retentar, e tres tentativas dariam
+                // tres erros identicos escondendo falha de verdade no meio. O motivo ja
+                // esta na bolha da conversa, que e onde o atendente olha.
+                if (\App\Services\Canais\FalhaDoProvedor::transitoria($e)
+                    || $e instanceof \App\Services\Canais\ConfiguracaoInvalida) {
+                    throw $e; // deixa o Horizon registrar e reagendar
+                }
             } finally {
                 broadcast(new MessageStored($mensagem->refresh()));
             }
