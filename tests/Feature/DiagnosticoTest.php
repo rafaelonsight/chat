@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Http;
 use Laravel\Horizon\Contracts\MasterSupervisorRepository;
 
 beforeEach(function () {
+    // E-mail configurado no cenario base. A verificacao de e-mail entrou depois destes
+    // testes e nao e o assunto deles: sem isto, todo cenario "tudo de pe" passaria a ter um
+    // aviso a mais e os numeros de alerta parariam de fechar.
+    config(['mail.default' => 'smtp', 'mail.from.address' => 'nao-responda@onchat.test']);
+
     $this->tenant = Tenant::create(['nome' => 'T', 'slug' => 't']);
     TenantContext::set($this->tenant->id);
 
