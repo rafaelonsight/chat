@@ -42,6 +42,7 @@ class Diagnostico
         'reverb'         => 'Reverb no ar (a tela atualiza sozinha)',
         'whisper'        => 'Whisper no ar (transcrição de áudio)',
         'banco'          => 'Banco de dados acessível',
+        'email'          => 'Envio de e-mail configurado',
         'webhook_parado' => 'Mensagem recebida sem processar',
         'fila'           => 'Fila acumulando trabalho',
         'falhas'         => 'Jobs falhando acima do normal',
@@ -61,6 +62,7 @@ class Diagnostico
             $this->porta('reverb', 8080, self::AVISO, 'Reverb fora do ar: a tela para de atualizar sozinha'),
             $this->porta('whisper', 9090, self::AVISO, 'Whisper fora do ar: audio nao e transcrito'),
             $this->banco(),
+            $this->email(),
             $this->webhookParado($limites['webhook_parado_minutos']),
             $this->filaAcumulada($limites['fila_acumulada']),
             $this->falhas($limites['falhas_por_hora']),
@@ -128,6 +130,40 @@ class Diagnostico
             DB::select('select 1');
         } catch (\Throwable $e) {
             return $this->problema('banco', self::CRITICO, 'Banco inacessivel: '.$e->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
+     * Da para enviar e-mail?
+     *
+     * Aviso e nao critico: sem e-mail as mensagens continuam entrando e saindo. Mas
+     * recuperacao de senha, convite de usuario e qualquer aviso por e-mail passam a
+     * "funcionar" sem chegar a ninguem — a tela diz "enviamos" e o texto vai para o arquivo
+     * de log. Falha silenciosa e o pior tipo, e a unica forma de nao ser silenciosa e alguem
+     * dizer em voz alta que ela existe.
+     */
+    private function email(): ?array
+    {
+        $transporte = (string) config('mail.default');
+
+        if (in_array($transporte, ['', 'log', 'array'], true)) {
+            return $this->problema(
+                'email',
+                self::AVISO,
+                'E-mail nao configurado: recuperacao de senha e avisos nao chegam a ninguem, ficam no log.',
+            );
+        }
+
+        $remetente = (string) config('mail.from.address');
+
+        if ($remetente === '' || str_contains($remetente, 'example.com')) {
+            return $this->problema(
+                'email',
+                self::AVISO,
+                'Remetente de e-mail nao definido: provedor de destino recusa mensagem sem remetente valido.',
+            );
         }
 
         return null;

@@ -48,6 +48,13 @@ class AdminPanelProvider extends PanelProvider
                 fn (): string => view('filament.tempo-real')->render(),
             )
             ->login()
+            // Sem isto, funcionario do cliente que esquece a senha depende de alguem com
+            // acesso ao banco. Para revender, isso e constrangedor antes de ser tecnico.
+            //
+            // Depende de e-mail configurado para valer de verdade: com MAIL_MAILER vazio o
+            // Laravel escreve a mensagem no log e a tela diz "enviamos" — falha silenciosa
+            // que o Diagnostico agora denuncia.
+            ->passwordReset()
             ->colors([
                 'primary' => Color::Amber,
             ])
