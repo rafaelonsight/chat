@@ -92,6 +92,40 @@ class MetaCloudEnviador implements Enviador
     }
 
     /**
+     * Confere a configuracao contra a Meta, SEM enviar mensagem.
+     *
+     * Nao entra na interface Enviador de proposito: e pergunta do caminho oficial. A
+     * Evolution ja tem o QR Code para a mesma finalidade — provar que o canal esta de pe —
+     * e aquilo nao cabe nesta forma.
+     *
+     * Devolve resultado em vez de estourar: quem chama e tela, e tela precisa mostrar o
+     * motivo ao atendente, nao uma pagina de erro.
+     *
+     * @return array{ok: bool, erro?: string, numero?: string, nome?: string, qualidade?: string, situacao?: string}
+     */
+    public function conferir(Channel $canal): array
+    {
+        try {
+            $r = $this->cliente($canal)
+                ->get($this->url($canal), [
+                    'fields' => 'display_phone_number,verified_name,quality_rating,status',
+                ])
+                ->throw()
+                ->json();
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'erro' => mb_substr($e->getMessage(), 0, 300)];
+        }
+
+        return [
+            'ok'        => true,
+            'numero'    => (string) data_get($r, 'display_phone_number', '—'),
+            'nome'      => (string) data_get($r, 'verified_name', '—'),
+            'qualidade' => (string) data_get($r, 'quality_rating', '—'),
+            'situacao'  => (string) data_get($r, 'status', '—'),
+        ];
+    }
+
+    /**
      * O token do CANAL, com o do .env como reserva.
      *
      * No modelo em que cada cliente traz o proprio numero, a credencial e por WABA: quem
