@@ -27,6 +27,29 @@ class EvolutionEnviador implements Enviador
         return ['external_id' => data_get($r, 'key.id')];
     }
 
+    public function midia(Channel $canal, string $destino, array $arquivo): array
+    {
+        $tipo = (string) $arquivo['tipo'];
+        $base64 = base64_encode($arquivo['bytes']);
+
+        // Audio vai por endpoint proprio: pelo sendMedia ele chega como arquivo anexado,
+        // sem onda e sem play. Isto veio do job e nao mudou de comportamento — mudou de
+        // lugar, para o job parar de conhecer a Evolution.
+        $r = $tipo === 'audio'
+            ? $this->evolution->sendAudio($this->instancia($canal), $destino, $base64)
+            : $this->evolution->sendMedia(
+                $this->instancia($canal),
+                $destino,
+                $tipo === 'sticker' ? 'image' : $tipo,
+                $base64,
+                $arquivo['legenda'] ?? null,
+                $arquivo['nome'] ?? null,
+                $arquivo['mime'] ?? null,
+            );
+
+        return ['external_id' => data_get($r, 'key.id')];
+    }
+
     public function marcarLida(Channel $canal, string $jid, array $externalIds): void
     {
         // A Evolution marca uma lista de uma vez, e cada item precisa do jid junto: no

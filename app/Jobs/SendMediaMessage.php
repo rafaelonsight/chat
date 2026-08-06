@@ -4,8 +4,7 @@ namespace App\Jobs;
 
 use App\Events\MessageStored;
 use App\Models\Message;
-use App\Services\EvolutionService;
-use App\Services\MediaService;
+use App\Services\Canais\Enviadores;
 use App\Support\TenantContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -30,7 +29,7 @@ class SendMediaMessage implements ShouldQueue
         return [(new WithoutOverlapping('conversa:'.($m?->conversation_id ?? 0)))->releaseAfter(10)];
     }
 
-    public function handle(EvolutionService $evolution, MediaService $media): void
+    public function handle(Enviadores $enviadores): void
     {
         $mensagem = Message::withoutGlobalScope('tenant')->find($this->messageId);
 
@@ -38,7 +37,7 @@ class SendMediaMessage implements ShouldQueue
             return;
         }
 
-        TenantContext::runAs($mensagem->tenant_id, function () use ($mensagem, $evolution) {
+        TenantContext::runAs($mensagem->tenant_id, function () use ($mensagem, $enviadores) {
             $canal = $mensagem->conversation->channel;
 
             // Fora da janela de 24h a API oficial RECUSA texto livre. Barrar aqui e
@@ -63,24 +62,19 @@ class SendMediaMessage implements ShouldQueue
                     throw new \RuntimeException('arquivo da mensagem nao encontrado no disco');
                 }
 
-                $base64 = base64_encode((string) Storage::disk('local')->get($mensagem->media_path));
-
-                // Audio vai por endpoint proprio: no sendMedia ele chega como
-                // arquivo anexado, sem onda nem play.
-                $r = $mensagem->tipo === 'audio'
-                    ? $evolution->sendAudio($canal->instance_name, $destino, $base64)
-                    : $evolution->sendMedia(
-                        $canal->instance_name,
-                        $destino,
-                        $mensagem->tipo === 'sticker' ? 'image' : $mensagem->tipo,
-                        $base64,
-                        $mensagem->legenda,
-                        $mensagem->media_nome,
-                        $mensagem->media_mime,
-                    );
+                // Quem envia e o canal, nao o job: o "if" de audio e o formato do
+                // payload passaram a viver no driver de cada provedor, porque na Meta
+                // sao duas chamadas e na Evolution e uma.
+                $r = $enviadores->para($canal)->midia($canal, $destino, [
+                    'tipo'    => (string) $mensagem->tipo,
+                    'bytes'   => (string) Storage::disk('local')->get($mensagem->media_path),
+                    'mime'    => $mensagem->media_mime,
+                    'nome'    => $mensagem->media_nome,
+                    'legenda' => $mensagem->legenda,
+                ]);
 
                 $mensagem->update([
-                    'external_id' => Arr::get($r, 'key.id'),
+                    'external_id' => Arr::get($r, 'external_id'),
                     'status'      => Message::STATUS_SENT,
                     'enviada_em'  => now(),
                     'erro'        => null,

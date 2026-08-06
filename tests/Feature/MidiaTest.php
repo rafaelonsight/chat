@@ -184,7 +184,7 @@ it('envia imagem pelo endpoint de midia da Evolution', function () {
         'status' => Message::STATUS_QUEUED,
     ]);
 
-    (new SendMediaMessage($m->id))->handle(app(EvolutionService::class), app(MediaService::class));
+    (new SendMediaMessage($m->id))->handle(app(App\Services\Canais\Enviadores::class));
 
     expect($m->refresh()->status)->toBe(Message::STATUS_SENT)
         ->and($m->external_id)->toBe('OUT-IMG');
@@ -209,7 +209,7 @@ it('envia audio pelo endpoint de nota de voz, nao pelo de midia', function () {
         'status' => Message::STATUS_QUEUED,
     ]);
 
-    (new SendMediaMessage($m->id))->handle(app(EvolutionService::class), app(MediaService::class));
+    (new SendMediaMessage($m->id))->handle(app(App\Services\Canais\Enviadores::class));
 
     expect($m->refresh()->status)->toBe(Message::STATUS_SENT);
     Http::assertSent(fn ($r) => str_contains($r->url(), '/message/sendWhatsAppAudio/'));
@@ -230,7 +230,7 @@ it('marca failed quando a Evolution recusa a midia', function () {
     ]);
 
     try {
-        (new SendMediaMessage($m->id))->handle(app(EvolutionService::class), app(MediaService::class));
+        (new SendMediaMessage($m->id))->handle(app(App\Services\Canais\Enviadores::class));
     } catch (\Throwable) {
     }
 

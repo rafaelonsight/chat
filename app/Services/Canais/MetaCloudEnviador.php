@@ -173,6 +173,68 @@ class MetaCloudEnviador implements Enviador
     }
 
     /**
+     * Envia arquivo. SAO DUAS CHAMADAS, e nao uma.
+     *
+     * Na API oficial nao existe mandar bytes junto da mensagem: sobe-se o arquivo primeiro,
+     * a Meta devolve um id, e a mensagem referencia esse id. Quem espera um unico POST
+     * como na Evolution perde tempo procurando o parametro que nao existe.
+     *
+     * @param  array{tipo: string, bytes: string, mime: ?string, nome: ?string, legenda: ?string}  $arquivo
+     * @return array{external_id: ?string}
+     */
+    public function midia(Channel $canal, string $destino, array $arquivo): array
+    {
+        $tipo = (string) $arquivo['tipo'];
+        $mime = (string) ($arquivo['mime'] ?: 'application/octet-stream');
+
+        // PASSO 1: subir o arquivo. Cliente PROPRIO, sem asJson — ver clienteDeArquivo().
+        $subida = $this->clienteDeArquivo($canal)
+            ->attach('file', $arquivo['bytes'], $arquivo['nome'] ?: 'arquivo', ['Content-Type' => $mime])
+            ->post($this->url($canal).'/media', [
+                'messaging_product' => 'whatsapp',
+                'type'              => $mime,
+            ])
+            ->throw()
+            ->json();
+
+        $id = (string) data_get($subida, 'id');
+
+        if ($id === '') {
+            throw new \RuntimeException('a Meta aceitou o arquivo mas nao devolveu o id da midia.');
+        }
+
+        // PASSO 2: a mensagem que aponta para o arquivo.
+        //
+        // Cada tipo aceita campos diferentes, e mandar campo que o tipo nao aceita volta
+        // como erro 100 "param is not valid" — que nao diz qual param. Audio nao aceita
+        // legenda; figurinha nao aceita nada alem do id.
+        $conteudo = ['id' => $id];
+
+        if (($arquivo['legenda'] ?? null) && in_array($tipo, ['image', 'video', 'document'], true)) {
+            $conteudo['caption'] = $arquivo['legenda'];
+        }
+
+        if ($tipo === 'document' && ($arquivo['nome'] ?? null)) {
+            // Sem filename o cliente recebe o documento com um nome gerado pela Meta, e
+            // "attachment-1.pdf" no lugar de "contrato.pdf" gera pergunta no atendimento.
+            $conteudo['filename'] = $arquivo['nome'];
+        }
+
+        $r = $this->cliente($canal)
+            ->post($this->url($canal).'/messages', [
+                'messaging_product' => 'whatsapp',
+                'recipient_type'    => 'individual',
+                'to'                => self::soDigitos($destino),
+                'type'              => $tipo,
+                $tipo               => $conteudo,
+            ])
+            ->throw()
+            ->json();
+
+        return ['external_id' => data_get($r, 'messages.0.id')];
+    }
+
+    /**
      * Baixa uma midia recebida.
      *
      * SAO DUAS CHAMADAS, e nao uma. A primeira pergunta a Meta onde esta o arquivo; a
@@ -338,6 +400,30 @@ class MetaCloudEnviador implements Enviador
         }
 
         return $this->tokenPadrao;
+    }
+
+    /**
+     * Cliente para subir arquivo. Igual ao outro, MENOS o asJson.
+     *
+     * asJson() faz duas coisas: escolhe o formato do corpo E fixa o cabecalho
+     * Content-Type em application/json. O attach() muda apenas o formato do corpo. Juntos,
+     * produzem um corpo multipart anunciado como JSON, sem boundary — e a Meta recusa sem
+     * dizer por que.
+     *
+     * Isso passou pelo meu teste com fake e foi pego por uma assercao que eu quase deixei
+     * de escrever: "o pedido de upload e multipart". Sem ela, o defeito so apareceria na
+     * primeira foto que um atendente tentasse mandar.
+     *
+     * Sem Content-Type nosso, o cliente HTTP monta o dele com o boundary correto.
+     */
+    private function clienteDeArquivo(Channel $canal)
+    {
+        return Http::withToken($this->tokenDe($canal))
+            // Arquivo demora mais que texto: 16 MB de video em rede ruim nao cabe no
+            // timeout de uma chamada de texto, e o corte no meio do upload aparece como
+            // falha sem causa.
+            ->timeout(max($this->timeout, 120))
+            ->acceptJson();
     }
 
     private function cliente(Channel $canal)
