@@ -103,7 +103,13 @@ class MediaService
         return $c === 0;
     }
 
-    private function guardarBytes(Conversation $conversa, string $bytes, string $mime, ?string $nome): array
+    /**
+     * Publico porque a API oficial entrega BYTES, nao base64.
+     *
+     * Passar por base64 so para reaproveitar o guardarBase64 significaria inflar 33% um
+     * video de 16 MB na memoria, codificar e decodificar de volta, para nada.
+     */
+    public function guardarBytes(Conversation $conversa, string $bytes, string $mime, ?string $nome): array
     {
         $tipo = $this->tipoPorMime($mime);
         $limite = (self::LIMITES_MB[$tipo] ?? 16) * 1024 * 1024;

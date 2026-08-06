@@ -173,6 +173,50 @@ class MetaCloudEnviador implements Enviador
     }
 
     /**
+     * Baixa uma midia recebida.
+     *
+     * SAO DUAS CHAMADAS, e nao uma. A primeira pergunta a Meta onde esta o arquivo; a
+     * segunda busca os bytes na URL que ela devolveu. Nao ha atalho: o webhook entrega
+     * apenas um id.
+     *
+     * Dois detalhes que custam tempo de investigacao quando faltam:
+     *
+     * 1. A URL devolvida vive POUCOS MINUTOS. Guardar essa URL no banco para baixar
+     *    depois nao funciona — por isso baixamos na hora, e o que guardamos e o arquivo.
+     * 2. A URL exige o MESMO cabecalho Authorization. Ela e de outro dominio
+     *    (lookaside.fbsbx.com) e parece publica, mas sem o token devolve 401 — e o erro
+     *    nao diz que falta credencial.
+     *
+     * @return array{bytes: string, mime: string, tamanho: int}
+     */
+    public function baixarMidia(Channel $canal, string $mediaId): array
+    {
+        $meta = $this->cliente($canal)
+            ->get("https://graph.facebook.com/{$this->versao}/{$mediaId}")
+            ->throw()
+            ->json();
+
+        $url = (string) data_get($meta, 'url');
+
+        if ($url === '') {
+            throw new \RuntimeException('a Meta nao devolveu a URL da midia '.$mediaId);
+        }
+
+        $arquivo = $this->cliente($canal)
+            // Sem asJson aqui: a resposta e binaria. E com User-Agent porque o
+            // lookaside recusa cliente sem identificacao com 403.
+            ->withHeaders(['User-Agent' => 'OnChat/1.0'])
+            ->get($url)
+            ->throw();
+
+        return [
+            'bytes'   => $arquivo->body(),
+            'mime'    => (string) (data_get($meta, 'mime_type') ?: 'application/octet-stream'),
+            'tamanho' => (int) (data_get($meta, 'file_size') ?: strlen($arquivo->body())),
+        ];
+    }
+
+    /**
      * Lista os templates da WABA deste canal.
      *
      * Pagina por CURSOR, e nao seguindo o link "next" que a Meta devolve: aquele link vem

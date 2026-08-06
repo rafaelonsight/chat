@@ -4,7 +4,10 @@ namespace App\Jobs;
 
 use App\Events\MessageStored;
 use App\Models\{Channel, Contact, Conversation, Message, WebhookEvent};
+use App\Services\Canais\Enviadores;
+use App\Services\Canais\MetaCloudEnviador;
 use App\Services\ChatbotMotor;
+use App\Services\MediaService;
 use App\Support\Jid;
 use App\Support\TenantContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -147,10 +150,61 @@ class ProcessMetaWebhook implements ShouldQueue
             return; // reentrega: nao apita nem chama o bot de novo
         }
 
+        // Antes de avisar a tela: sem isso o atendente ve a bolha de audio chegar e
+        // clicar em play num arquivo que ainda nao existe.
+        if (! empty($conteudo['media_id'])) {
+            $this->baixarMidia($canal, $mensagem, (string) $conteudo['media_id']);
+        }
+
         broadcast(new MessageStored($mensagem->refresh()));
 
         // O bot tem a primeira palavra, igual ao canal nao oficial.
         app(ChatbotMotor::class)->talvezAtender($canal, $mensagem);
+    }
+
+    /**
+     * Traz o arquivo para o disco.
+     *
+     * Espelha o que o webhook da Evolution faz, inclusive na escolha de NAO derrubar a
+     * mensagem quando o download falha: legenda, remetente e hora nao se perdem por causa
+     * do arquivo, e o erro fica gravado na propria mensagem — que e onde o atendente olha.
+     * O id continua no payload cru, entao dar para refazer depois.
+     */
+    private function baixarMidia(Channel $canal, Message $mensagem, string $mediaId): void
+    {
+        try {
+            $enviador = app(Enviadores::class)->para($canal);
+
+            if (! $enviador instanceof MetaCloudEnviador) {
+                return;
+            }
+
+            $arquivo = $enviador->baixarMidia($canal, $mediaId);
+
+            $guardado = app(MediaService::class)->guardarBytes(
+                $mensagem->conversation,
+                $arquivo['bytes'],
+                $arquivo['mime'] ?: (string) $mensagem->media_mime ?: 'application/octet-stream',
+                $mensagem->media_nome,
+            );
+
+            $mensagem->update([
+                'media_path'    => $guardado['path'],
+                'media_mime'    => $guardado['mime'],
+                'media_nome'    => $guardado['nome'],
+                'media_tamanho' => $guardado['tamanho'],
+                'erro'          => null,
+            ]);
+
+            // So audio que ENTRA, igual ao outro canal: transcrever o que nos mesmos
+            // gravamos custaria CPU pelo que o atendente ja sabe que disse.
+            if ($mensagem->tipo === 'audio' && $mensagem->direcao === 'in') {
+                $mensagem->update(['transcricao_status' => 'pendente']);
+                TranscribeAudio::dispatch($mensagem->id);
+            }
+        } catch (\Throwable $e) {
+            $mensagem->update(['erro' => mb_substr('midia: '.$e->getMessage(), 0, 500)]);
+        }
     }
 
     /**
@@ -246,6 +300,9 @@ class ProcessMetaWebhook implements ShouldQueue
                 'legenda' => data_get($b, $tipo.'.caption'),
                 'mime'    => data_get($b, $tipo.'.mime_type'),
                 'nome'    => data_get($b, $tipo.'.filename'),
+                // O id e a UNICA forma de chegar ao arquivo: o webhook nao traz bytes
+                // nem URL. Sem guardar isto, a midia fica perdida para sempre.
+                'media_id' => data_get($b, $tipo.'.id'),
             ],
 
             default => null,
