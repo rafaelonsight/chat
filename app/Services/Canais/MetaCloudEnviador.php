@@ -19,7 +19,8 @@ use Illuminate\Support\Facades\Http;
 class MetaCloudEnviador implements Enviador
 {
     public function __construct(
-        private readonly string $token,
+        /** Reserva, do .env: vale para canal que ainda nao tem credencial propria. */
+        private readonly string $tokenPadrao,
         private readonly string $versao,
         private readonly int $timeout,
     ) {}
@@ -31,7 +32,7 @@ class MetaCloudEnviador implements Enviador
 
     public function texto(Channel $canal, string $destino, string $texto): array
     {
-        $r = $this->cliente()
+        $r = $this->cliente($canal)
             ->post($this->url($canal).'/messages', [
                 'messaging_product' => 'whatsapp',
                 'recipient_type'    => 'individual',
@@ -62,7 +63,7 @@ class MetaCloudEnviador implements Enviador
             return;
         }
 
-        $this->cliente()
+        $this->cliente($canal)
             ->post($this->url($canal).'/messages', [
                 'messaging_product' => 'whatsapp',
                 'status'            => 'read',
@@ -90,9 +91,38 @@ class MetaCloudEnviador implements Enviador
         return "https://graph.facebook.com/{$this->versao}/{$id}";
     }
 
-    private function cliente()
+    /**
+     * O token do CANAL, com o do .env como reserva.
+     *
+     * No modelo em que cada cliente traz o proprio numero, a credencial e por WABA: quem
+     * autoriza e o cliente, e a Meta emite o token para a conta dele. Token global so
+     * funciona enquanto o numero e nosso — o segundo cliente nao cabe.
+     *
+     * Falta dos DOIS estoura: canal oficial sem credencial nenhuma nao pode "quase
+     * funcionar" mandando com a credencial de outro.
+     */
+    private function tokenDe(Channel $canal): string
     {
-        return Http::withToken($this->token)
+        $doCanal = trim((string) $canal->meta_token);
+
+        if ($doCanal !== '') {
+            return $doCanal;
+        }
+
+        if (trim($this->tokenPadrao) === '') {
+            throw new \RuntimeException(
+                "O canal \"{$canal->nome}\" nao tem token da Meta e nao existe token padrao configurado."
+            );
+        }
+
+        return $this->tokenPadrao;
+    }
+
+    private function cliente(Channel $canal)
+    {
+        // withToken: o segredo vai no cabecalho Authorization, nunca na URL. URL aparece
+        // em log de servidor, em historico de proxy e em mensagem de excecao.
+        return Http::withToken($this->tokenDe($canal))
             ->timeout($this->timeout)
             ->acceptJson()
             // Sem retentativa aqui: o job de envio ja tem backoff, e retentar em dois

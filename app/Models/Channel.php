@@ -25,10 +25,16 @@ class Channel extends Model
     protected $fillable = [
         'tenant_id', 'tipo', 'nome', 'instance_name',
         'webhook_secret', 'telefone_e164', 'status', 'conectado_em', 'ultimo_erro',
-        'meta_phone_number_id', 'meta_waba_id',
+        'meta_phone_number_id', 'meta_waba_id', 'meta_token', 'meta_business_id',
     ];
 
-    protected $casts = ['conectado_em' => 'datetime'];
+    protected $casts = [
+        'conectado_em' => 'datetime',
+        // encrypted: o token da Meta nao fica legivel no banco. Quem tira um dump para
+        // depurar, ou quem consegue ler uma tabela, nao sai com credencial de cliente na
+        // mao. A chave e a APP_KEY, que nao mora no banco — sem ela o dump nao serve.
+        'meta_token'   => 'encrypted',
+    ];
 
     protected static function booted(): void
     {
