@@ -70,16 +70,66 @@ class MediaService
     // vai pelo endpoint errado e chega no cliente sem onda nem play. Quando o
     // navegador declara audio, o ffprobe da a palavra final: se nao existe
     // faixa de video, e audio.
+    /**
+     * Que tipo de arquivo e este, DE VERDADE.
+     *
+     * WEBM, MATROSKA, OGG E MP4 SERVEM PARA VIDEO E PARA AUDIO. O finfo responde pelo
+     * CONTEINER e nao pelas faixas: uma nota de voz gravada pelo navegador chega como
+     * "video/webm" mesmo tendo uma unica faixa de audio Opus dentro. Quem decide e o conteudo.
+     *
+     * ESTA DEFESA JA EXISTIA E ESTAVA LIGADA NO LUGAR ERRADO. Ela so agia quando o NAVEGADOR
+     * declarava audio/ — e o Livewire descarta o mime do navegador ao guardar o upload
+     * temporario, entao a condicao nunca era verdadeira. O resultado: toda nota de voz saia
+     * classificada como video, ia para o WhatsApp como video sem imagem, e o WhatsApp
+     * DESCARTAVA EM SILENCIO. Aqui aparecia "enviada"; no aparelho do cliente, nada.
+     *
+     * Agora nao depende de declaracao nenhuma: se o conteiner diz video e nao ha faixa de
+     * video, e audio.
+     */
     private function mimeEfetivo(UploadedFile $arquivo): string
     {
         $detectado = strtolower($arquivo->getMimeType() ?: 'application/octet-stream');
-        $declarado = strtolower((string) $arquivo->getClientMimeType());
 
-        if (! str_starts_with($declarado, 'audio/')) {
-            return $detectado;
+        if (str_starts_with($detectado, 'video/') && $this->ehSoAudio($arquivo->getRealPath())) {
+            return 'audio/'.substr($detectado, strlen('video/'));
         }
 
-        return $this->temFaixaDeVideo($arquivo->getRealPath()) ? $detectado : $declarado;
+        return $detectado;
+    }
+
+    /**
+     * O arquivo tem SO faixa de audio?
+     *
+     * Exige PROVA POSITIVA: o ffprobe precisa ter lido o arquivo, encontrado audio, e nao ter
+     * encontrado video. As tres coisas.
+     *
+     * A diferenca em relacao a simplesmente negar temFaixaDeVideo() nao e detalhe — foi um
+     * defeito que eu mesmo introduzi ao consertar o outro. "Nao achei faixa de video" e
+     * "arquivo ilegivel" davam a mesma resposta, e um .mp4 corrompido virava nota de voz. Um
+     * teste que ja existia pegou na hora.
+     *
+     * "Nao sei" nunca pode virar "e audio".
+     */
+    private function ehSoAudio(?string $caminho): bool
+    {
+        if (! $caminho || ! is_file($caminho) || ! $this->temFfprobe()) {
+            return false;
+        }
+
+        exec(sprintf(
+            'ffprobe -v error -show_entries stream=codec_type -of csv=p=0 %s',
+            escapeshellarg($caminho)
+        ), $saida, $codigo);
+
+        if ($codigo !== 0) {
+            return false;
+        }
+
+        $tipos = array_values(array_filter(array_map('trim', $saida)));
+
+        return $tipos !== []
+            && in_array('audio', $tipos, true)
+            && ! in_array('video', $tipos, true);
     }
 
     private function temFaixaDeVideo(?string $caminho): bool
