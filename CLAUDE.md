@@ -176,3 +176,20 @@ Ação de menu que muda estado precisa de `MenuItem::postAction()`.
 3. `php -l` nas views compiladas se tocou em Blade.
 4. Provou contra a coisa real quando dava para provar — fake prova fiação, não comportamento.
    Quando não dava, diga isso sem disfarce.
+
+## Mexeu em código? Reinicie o Horizon.
+
+`systemctl restart onchat-horizon` (ou `php artisan horizon:terminate`) **depois de qualquer
+alteração em arquivo PHP**, antes de testar qualquer coisa que passe pela fila.
+
+O worker do Horizon carrega as classes uma vez e fica rodando por dias. Editar o arquivo não
+muda o que já está na memória dele — o `opcache` valida timestamp, mas isso só vale para
+processos NOVOS. Envio de mensagem, reação, apagar, transcrição, webhook: tudo isso roda
+dentro do worker.
+
+**O sintoma engana e me custou uma tarde.** Os testes passavam verdes (cada teste é um
+processo novo, com o código de agora), e ao vivo o comportamento era o de dias atrás. Passei a
+procurar defeito no código novo quando o problema é que ele nunca tinha entrado em execução.
+
+O `onchat-deploy.sh` já faz isso. Aplicar patch na mão pulando o deploy, não — e foi assim que
+trabalhei o dia inteiro.
