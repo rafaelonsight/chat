@@ -26,7 +26,29 @@ class ChannelForm
                 // depois faria o historico mentir sobre o proprio atendimento. Canal novo
                 // custa um clique; historico torto nao se desfaz.
                 ->disabledOn('edit')
+                // Ja escolhido na tela anterior: mostrar de novo faria a escolha parecer
+                // inutil. Continua visivel se alguem chegar aqui pela URL sem escolher.
+                ->hidden(fn (Get $get) => request()->query('tipo') !== null)
                 ->helperText('Oficial: janela de 24h, modelo aprovado, sem grupo. Evolution: sem janela, com grupo.'),
+
+            // O AVISO MAIS IMPORTANTE DESTE FORMULARIO, e ele nao existia.
+            //
+            // Vincular um numero a API oficial e IRREVERSIVEL na pratica: aquele numero para
+            // de funcionar no aplicativo do WhatsApp, no celular, para sempre. Quem descobre
+            // isso depois descobre da pior forma — tentando abrir o WhatsApp da empresa e nao
+            // conseguindo mais.
+            Placeholder::make('aviso_oficial')
+                ->label('')
+                ->content(new \Illuminate\Support\HtmlString(
+                    '<div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900 '
+                    .'dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">'
+                    .'<p class="font-semibold">Atenção: isto não tem volta fácil.</p>'
+                    .'<p class="mt-1">Depois de vincular um número à API oficial da Meta, ele '
+                    .'<strong>deixa de funcionar no aplicativo do WhatsApp</strong> — no celular, '
+                    .'para sempre. Use um número que a empresa não usa no dia a dia.</p></div>'
+                ))
+                ->visible(fn (Get $get) => $get('tipo') === Channel::META_CLOUD)
+                ->columnSpanFull(),
 
             TextInput::make('nome')
                 ->label('Nome do canal')

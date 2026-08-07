@@ -13,6 +13,40 @@ class CreateChannel extends CreateRecord
     protected static string $resource = ChannelResource::class;
 
     /**
+     * O tipo ja foi escolhido na tela anterior; aqui ele so e preenchido.
+     *
+     * Sem isto a pessoa escolheria "Conectar por QR Code" e cairia num formulario perguntando
+     * de novo qual e o tipo — o que faz a escolha anterior parecer que nao valeu nada.
+     */
+    protected function fillForm(): void
+    {
+        $tipo = request()->query('tipo');
+
+        parent::fillForm();
+
+        if (in_array($tipo, array_keys(Channel::TIPOS), true)) {
+            $this->form->fill(['tipo' => $tipo]);
+        }
+    }
+
+    /**
+     * Depois de criar, vai para onde a pessoa precisa ir.
+     *
+     * No QR isso e a tela do codigo: ela veio conectar um numero, e voltar para a lista faria
+     * ela procurar sozinha qual botao abre o QR. No oficial e a edicao, porque la o que falta
+     * e conferir credencial.
+     */
+    protected function getRedirectUrl(): string
+    {
+        $canal = $this->record;
+
+        return $canal->tipo === Channel::EVOLUTION
+            ? static::getResource()::getUrl('conectar', ['record' => $canal])
+            : static::getResource()::getUrl('edit', ['record' => $canal]);
+    }
+
+
+    /**
      * O que acontece depois de salvar depende do TIPO.
      *
      * Antes esta pagina criava instancia na Evolution para qualquer canal, sem perguntar.

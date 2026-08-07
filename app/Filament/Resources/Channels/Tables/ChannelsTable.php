@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Channels\Tables;
 
+use Filament\Actions\Action;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -45,7 +46,18 @@ class ChannelsTable
 
                 TextColumn::make('conectado_em')->label('Conectado em')->dateTime('d/m/Y H:i')->placeholder('—'),
             ])
-            ->recordActions([EditAction::make()])
+            ->recordActions([
+                // Leva para a tela do QR em vez de abrir modal: mesma tela do cadastro, mesmo
+                // endereco, e da para mandar o link para o cliente conectar sozinho.
+                Action::make('conectar')
+                    ->label(fn ($record) => $record->status === 'open' ? 'Ver conexão' : 'Conectar')
+                    ->icon('heroicon-o-qr-code')
+                    ->color(fn ($record) => $record->status === 'open' ? 'gray' : 'primary')
+                    ->visible(fn ($record) => $record->tipo === \App\Models\Channel::EVOLUTION)
+                    ->url(fn ($record) => \App\Filament\Resources\Channels\ChannelResource::getUrl('conectar', ['record' => $record])),
+
+                EditAction::make(),
+            ])
             ->emptyStateHeading('Nenhum canal ainda')
             ->emptyStateDescription('Crie um canal e conecte um numero de WhatsApp pelo QR Code.');
     }

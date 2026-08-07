@@ -63,6 +63,9 @@ class ChannelResource extends Resource
             'index' => ListChannels::route('/'),
             'create' => CreateChannel::route('/create'),
             'edit' => EditChannel::route('/{record}/edit'),
+            // Endereco proprio para o QR: o cadastro leva direto para ca, e o link
+            // pode ser mandado para o cliente conectar o numero dele sozinho.
+            'conectar' => \App\Filament\Resources\Channels\Pages\ConectarChannel::route('/{record}/conectar'),
         ];
     }
 }
