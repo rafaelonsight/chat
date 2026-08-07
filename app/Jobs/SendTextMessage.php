@@ -60,7 +60,12 @@ class SendTextMessage implements ShouldQueue
             try {
                 // Quem envia e o canal, nao o job. Trocar de provedor deixou de ser
                 // mexer aqui dentro.
-                $r = $enviadores->para($canal)->texto($canal, $destino, (string) $mensagem->corpo);
+                // paraCitacao devolve null quando a mensagem citada nao tem external_id
+                // (nao saiu, falhou, ou e nota interna). Ai a resposta vai sem citacao em vez
+                // de nao ir: o vinculo continua registrado aqui dentro.
+                $citar = $mensagem->respondeA?->paraCitacao();
+
+                $r = $enviadores->para($canal)->texto($canal, $destino, (string) $mensagem->corpo, $citar);
 
                 $mensagem->update([
                     'external_id' => Arr::get($r, 'external_id'),

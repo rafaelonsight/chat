@@ -134,6 +134,24 @@
                 @error('template') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
             </div>
         @else
+        {{-- O que esta sendo citado, acima do campo. Sem esta faixa, escolher "responder" e
+             uma acao sem retorno visivel: a pessoa nao sabe se pegou, nem qual pegou, e so
+             descobre depois de enviar. --}}
+        @if ($citada = $this->mensagemCitada())
+            <div class="mb-2 flex items-start gap-2 rounded-lg border-l-4 border-emerald-500 bg-slate-50 px-3 py-2">
+                <div class="min-w-0 flex-1">
+                    <div class="text-xs font-semibold text-emerald-700">
+                        Respondendo {{ $citada->entrada() ? ($citada->remetente_nome ?: 'o cliente') : 'você mesmo' }}
+                    </div>
+                    <div class="truncate text-xs text-slate-600">{{ $citada->resumo(120) }}</div>
+                </div>
+
+                <button type="button" wire:click="cancelarResposta"
+                        class="shrink-0 rounded px-2 text-lg leading-none text-slate-400 hover:text-slate-700"
+                        title="Não citar" aria-label="Cancelar a citação">&times;</button>
+            </div>
+        @endif
+
         <form wire:submit="enviar" class="flex items-end gap-2 {{ $nota ? 'rounded-lg bg-amber-50/60 p-1.5 ring-1 ring-amber-200' : '' }}">
             {{-- anexar: escondido em nota interna, o arquivo iria para o cliente --}}
             @unless ($nota)

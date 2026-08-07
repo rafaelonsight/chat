@@ -139,8 +139,40 @@
                 @endif
 
                 @php $m = $item; $entrada = $m->entrada(); @endphp
-                <div wire:key="msg-{{ $m->id }}" class="flex {{ $entrada ? 'justify-start' : 'justify-end' }}">
+                <div wire:key="msg-{{ $m->id }}" class="group flex items-end gap-1 {{ $entrada ? 'justify-start' : 'justify-end' }}">
+                    {{--
+                        order-first/order-last poe a seta sempre do lado de DENTRO do balao,
+                        seja ele da esquerda ou da direita — assim ela ocupa o vao que ja
+                        existe, em vez de empurrar a conversa para o lado.
+
+                        Visivel sempre no celular e so no passar do mouse no computador: no
+                        telefone nao existe "passar o mouse", e um botao que so aparece no
+                        hover simplesmente nao existiria la.
+                    --}}
+                    <button type="button" wire:click="responder({{ $m->id }})"
+                            title="Responder citando" aria-label="Responder citando esta mensagem"
+                            class="shrink-0 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700
+                                   opacity-100 lg:opacity-0 lg:group-hover:opacity-100
+                                   {{ $entrada ? 'order-last' : 'order-first' }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                             stroke-width="2" stroke="currentColor" class="h-4 w-4">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+                        </svg>
+                    </button>
+
                     <div class="max-w-lg rounded-lg px-3 py-2 text-sm {{ $entrada ? 'border border-slate-200 bg-white text-slate-800' : 'bg-emerald-600 text-white' }}">
+                        {{-- A mensagem citada, do jeito que o WhatsApp mostra: faixa curta
+                             acima, com quem falou e o comeco do que foi dito. --}}
+                        @if ($m->respondeA)
+                            <div class="mb-1.5 rounded border-l-2 px-2 py-1 text-xs {{ $entrada ? 'border-emerald-600 bg-slate-100 text-slate-600' : 'border-white/70 bg-white/15 text-white/90' }}">
+                                <div class="font-semibold">
+                                    {{ $m->respondeA->entrada() ? ($m->respondeA->remetente_nome ?: 'Cliente') : 'Você' }}
+                                </div>
+                                <div class="opacity-90">{{ $m->respondeA->resumo(70) }}</div>
+                            </div>
+                        @endif
+
                         @if ($entrada && $m->remetente_nome)
                             {{-- em grupo, quem falou importa tanto quanto o que foi dito --}}
                             <div class="mb-0.5 text-xs font-semibold text-emerald-700">{{ $m->remetente_nome }}</div>

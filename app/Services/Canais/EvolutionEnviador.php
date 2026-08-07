@@ -20,23 +20,30 @@ class EvolutionEnviador implements Enviador
         return 'evolution';
     }
 
-    public function texto(Channel $canal, string $destino, string $texto): array
+    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null): array
     {
-        $r = $this->evolution->sendText($this->instancia($canal), $destino, $texto);
+        $r = $this->evolution->sendText(
+            $this->instancia($canal),
+            $destino,
+            $texto,
+            // O destino serve de remoteJid: e a mesma conversa, vista do lado de la.
+            $citar ? \App\Services\EvolutionService::quoted($citar, $destino) : null,
+        );
 
         return ['external_id' => data_get($r, 'key.id')];
     }
 
-    public function midia(Channel $canal, string $destino, array $arquivo): array
+    public function midia(Channel $canal, string $destino, array $arquivo, ?array $citar = null): array
     {
         $tipo = (string) $arquivo['tipo'];
         $base64 = base64_encode($arquivo['bytes']);
+        $quoted = $citar ? \App\Services\EvolutionService::quoted($citar, $destino) : null;
 
         // Audio vai por endpoint proprio: pelo sendMedia ele chega como arquivo anexado,
         // sem onda e sem play. Isto veio do job e nao mudou de comportamento — mudou de
         // lugar, para o job parar de conhecer a Evolution.
         $r = $tipo === 'audio'
-            ? $this->evolution->sendAudio($this->instancia($canal), $destino, $base64)
+            ? $this->evolution->sendAudio($this->instancia($canal), $destino, $base64, $quoted)
             : $this->evolution->sendMedia(
                 $this->instancia($canal),
                 $destino,
@@ -45,6 +52,7 @@ class EvolutionEnviador implements Enviador
                 $arquivo['legenda'] ?? null,
                 $arquivo['nome'] ?? null,
                 $arquivo['mime'] ?? null,
+                $quoted,
             );
 
         return ['external_id' => data_get($r, 'key.id')];

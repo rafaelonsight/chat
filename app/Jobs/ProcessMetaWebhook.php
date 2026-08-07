@@ -87,6 +87,8 @@ class ProcessMetaWebhook implements ShouldQueue
         }
 
         $conteudo = $this->conteudo($bruta);
+        // A Meta poe a citacao em context.id, e o valor e o wamid da mensagem citada.
+        $citadoWamid = ((string) data_get($bruta, 'context.id', '')) ?: null;
 
         if (! $conteudo) {
             // Tipo que ainda nao tratamos. Nao e erro: o evento fica gravado e o
@@ -103,7 +105,7 @@ class ProcessMetaWebhook implements ShouldQueue
         $e164 = '+'.preg_replace('/\D+/', '', $de);
         $nome = (string) data_get($valor, 'contacts.0.profile.name', '');
 
-        $mensagem = DB::transaction(function () use ($canal, $e164, $nome, $wamid, $conteudo) {
+        $mensagem = DB::transaction(function () use ($canal, $e164, $nome, $wamid, $conteudo, $citadoWamid) {
             // Procura pelas duas grafias do numero antes de criar: a Meta identifica
             // celular brasileiro antigo SEM o nono digito, e o mesmo cliente pode ja
             // existir com a grafia longa, vindo da Evolution ou de uma planilha.
@@ -126,6 +128,9 @@ class ProcessMetaWebhook implements ShouldQueue
                     'remetente_jid'   => $contato->jid,
                     'tipo'            => $conteudo['tipo'],
                     'corpo'           => $conteudo['corpo'] ?? null,
+                    // Pode nao achar: o cliente cita mensagem que nunca passou por aqui.
+                    // Fica null e a conversa segue.
+                    'responde_a_id'   => Message::acharPorExternalId($canal->id, $citadoWamid)?->id,
                     'legenda'         => $conteudo['legenda'] ?? null,
                     'media_mime'      => $conteudo['mime'] ?? null,
                     'media_nome'      => $conteudo['nome'] ?? null,

@@ -81,12 +81,13 @@ class ProcessEvolutionWebhook implements ShouldQueue
         }
 
         $conteudo = $this->identificarConteudo(Arr::get($data, 'message', []));
+        $citadoExternalId = $this->citado(Arr::get($data, 'message', []));
 
         if (! $conteudo) {
             return; // tipo que ainda nao tratamos (localizacao, contato, enquete)
         }
 
-        $mensagem = DB::transaction(function () use ($canal, $origem, $externalId, $conteudo) {
+        $mensagem = DB::transaction(function () use ($canal, $origem, $externalId, $conteudo, $citadoExternalId) {
             $contato = $origem['contato'];
 
             // Nao e firstOrCreate: se o ultimo atendimento foi encerrado, o
@@ -104,6 +105,10 @@ class ProcessEvolutionWebhook implements ShouldQueue
                     'remetente_jid'  => $origem['remetente_jid'],
                     'tipo'           => $conteudo['tipo'],
                     'corpo'          => $conteudo['corpo'] ?? null,
+                    // Pode nao achar: o cliente e capaz de citar mensagem anterior a
+                    // instalacao do OnChat, que nunca esteve neste banco. Fica null e a
+                    // conversa segue — a alternativa seria recusar a mensagem inteira.
+                    'responde_a_id'  => Message::acharPorExternalId($canal->id, $citadoExternalId)?->id,
                     'legenda'        => $conteudo['legenda'] ?? null,
                     'media_mime'     => $conteudo['mime'] ?? null,
                     'media_nome'     => $conteudo['nome'] ?? null,
@@ -215,6 +220,25 @@ class ProcessEvolutionWebhook implements ShouldQueue
         // ultima_msg_em NAO e atualizado de proposito: a espera do cliente comecou
         // quando ele escreveu, e em Novos a fila e ordenada por isso.
         SendTextMessage::dispatch($automatica->id);
+    }
+
+    /**
+     * O id da mensagem citada, quando o cliente respondeu alguma.
+     *
+     * O Baileys guarda o contextInfo DENTRO do conteudo, e o nome da chave muda com o tipo:
+     * extendedTextMessage para texto, imageMessage para foto, e assim por diante. Varrer um
+     * nivel evita uma lista de tipos que envelheceria calada — tipo novo entraria e a citacao
+     * dele simplesmente nao apareceria, sem erro.
+     */
+    private function citado(array $msg): ?string
+    {
+        foreach ($msg as $conteudo) {
+            if (is_array($conteudo) && ($id = Arr::get($conteudo, 'contextInfo.stanzaId'))) {
+                return (string) $id;
+            }
+        }
+
+        return Arr::get($msg, 'contextInfo.stanzaId');
     }
 
     private function identificarConteudo(array $msg): ?array

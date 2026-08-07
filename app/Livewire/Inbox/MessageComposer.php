@@ -30,6 +30,15 @@ class MessageComposer extends Component
     // cor propria na tela e se desliga sozinho ao trocar de conversa.
     public bool $nota = false;
 
+    /**
+     * Qual mensagem a proxima resposta vai citar.
+     *
+     * Guarda o id e nao o objeto: propriedade de componente Livewire viaja para o navegador e
+     * volta a cada clique, e mandar a mensagem inteira levaria junto corpo, midia e o que mais
+     * ela tiver — dado que ja esta no banco, atravessando a rede duas vezes por clique.
+     */
+    public ?int $respondendoA = null;
+
     /** Template escolhido quando a janela de 24h esta fechada: la, texto livre nao sai. */
     public ?int $templateId = null;
 
@@ -43,13 +52,49 @@ class MessageComposer extends Component
 
     public function getListeners(): array
     {
-        return ['abrir-conversa' => 'abrir'];
+        return [
+            'abrir-conversa' => 'abrir',
+            'responder-a'    => 'responderA',
+        ];
     }
 
     public function abrir(int $conversationId): void
     {
+        // Trocar de conversa apaga a citacao pendente. Sem isto, escolher "responder" numa
+        // conversa e mudar para outra deixaria a citacao armada apontando para mensagem de
+        // outro cliente — e a checagem de conversa no responderA nao pega isto, porque aqui
+        // quem mudou foi a conversa, nao a mensagem.
+        $this->respondendoA = null;
+
         $this->conversationId = $conversationId;
         $this->reset(['corpo', 'anexo', 'nota', 'templateId', 'valoresTemplate']);
+    }
+
+    public function responderA(int $messageId): void
+    {
+        $mensagem = Message::find($messageId);
+
+        // Conferir a conversa nao e paranoia: o evento vem do navegador, e sem isto bastaria
+        // forjar um id para citar mensagem de OUTRO cliente — que apareceria no historico
+        // desta conversa e, pior, sairia citada no WhatsApp de quem nao devia ver.
+        if (! $mensagem || $mensagem->conversation_id !== $this->conversationId) {
+            return;
+        }
+
+        // Nota interna nao existe do lado de la; citar dentro dela nao significaria nada para
+        // o cliente. Volta para o modo de responder, que e o que a pessoa quis dizer.
+        $this->nota = false;
+        $this->respondendoA = $messageId;
+    }
+
+    public function cancelarResposta(): void
+    {
+        $this->respondendoA = null;
+    }
+
+    public function mensagemCitada(): ?Message
+    {
+        return $this->respondendoA ? Message::find($this->respondendoA) : null;
     }
 
     public function alternarNota(): void
@@ -108,7 +153,7 @@ class MessageComposer extends Component
 
         $conversa->update(['ultima_msg_em' => now()]);
 
-        $this->reset(['corpo', 'anexo']);
+        $this->reset(['corpo', 'anexo', 'respondendoA']);
         $this->dispatch('abrir-conversa', conversationId: $conversa->id);
     }
 
@@ -139,6 +184,7 @@ class MessageComposer extends Component
             'channel_id'      => $conversa->channel_id,
             'direcao'         => 'out',
             'tipo'            => 'text',
+            'responde_a_id'            => $this->respondendoA,
             'corpo'           => $this->corpo,
             'status'          => Message::STATUS_QUEUED,
         ]);
@@ -177,6 +223,7 @@ class MessageComposer extends Component
             'channel_id'      => $conversa->channel_id,
             'direcao'         => 'out',
             'tipo'            => $meta['tipo'],
+            'responde_a_id'   => $this->respondendoA,
             'legenda'         => trim($this->corpo) !== '' ? trim($this->corpo) : null,
             'media_path'      => $meta['path'],
             'media_mime'      => $meta['mime'],

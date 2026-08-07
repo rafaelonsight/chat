@@ -137,6 +137,24 @@ class ConversationWindow extends Component
         $this->dispatch('conversa-atualizada');
     }
 
+    /**
+     * Arma a citacao no compositor.
+     *
+     * Passa pelo servidor em vez de um $dispatch do Alpine porque aqui ha uma conferencia a
+     * fazer — a mensagem tem de ser desta conversa — e conferencia que mora so no navegador
+     * nao e conferencia.
+     */
+    public function responder(int $messageId): void
+    {
+        $mensagem = \App\Models\Message::find($messageId);
+
+        if (! $mensagem || $mensagem->conversation_id !== $this->conversationId) {
+            return;
+        }
+
+        $this->dispatch('responder-a', messageId: $messageId);
+    }
+
     public function verDetalhes(): void
     {
         $this->dispatch('abrir-detalhes');

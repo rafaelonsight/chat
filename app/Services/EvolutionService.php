@@ -58,12 +58,35 @@ class EvolutionService
         return $this->client()->delete("/instance/delete/{$instance}")->json() ?? [];
     }
 
-    public function sendText(string $instance, string $to, string $text): array
+    public function sendText(string $instance, string $to, string $text, ?array $quoted = null): array
     {
-        return $this->client()->post("/message/sendText/{$instance}", [
+        return $this->client()->post("/message/sendText/{$instance}", array_filter([
             'number' => $to,
             'text'   => $text,
-        ])->throw()->json();
+            'quoted' => $quoted,
+        ], fn ($v) => $v !== null))->throw()->json();
+    }
+
+    /**
+     * Monta o "quoted" no formato do Baileys.
+     *
+     * As tres partes da chave importam: o id diz QUAL mensagem, o fromMe diz de que lado ela
+     * esta — o mesmo id existe nos dois sentidos — e o remoteJid diz em qual conversa. O corpo
+     * vai junto porque o Baileys desenha a previa com o texto que recebe; sem ele, a citacao
+     * chega como uma faixa cinza vazia no aparelho do cliente.
+     *
+     * @param  array{external_id: string, texto: ?string, minha: bool}  $citar
+     */
+    public static function quoted(array $citar, string $remoteJid): array
+    {
+        return [
+            'key' => [
+                'id'        => $citar['external_id'],
+                'fromMe'    => $citar['minha'],
+                'remoteJid' => $remoteJid,
+            ],
+            'message' => ['conversation' => (string) ($citar['texto'] ?? '')],
+        ];
     }
 
     // Pergunta ao WhatsApp se os numeros existem e devolve o JID canonico.
@@ -102,6 +125,7 @@ class EvolutionService
         ?string $caption = null,
         ?string $fileName = null,
         ?string $mimetype = null,
+        ?array $quoted = null,
     ): array {
         return $this->client()->timeout(180)
             ->post("/message/sendMedia/{$instance}", array_filter([
@@ -111,18 +135,20 @@ class EvolutionService
                 'caption'   => $caption,
                 'media'     => $base64,
                 'fileName'  => $fileName,
+                'quoted'    => $quoted,
             ], fn ($v) => $v !== null && $v !== ''))->throw()->json();
     }
 
     // Endpoint separado de proposito: o sendMedia manda audio como arquivo
     // anexado; so este faz virar nota de voz.
-    public function sendAudio(string $instance, string $to, string $base64): array
+    public function sendAudio(string $instance, string $to, string $base64, ?array $quoted = null): array
     {
         return $this->client()->timeout(180)
-            ->post("/message/sendWhatsAppAudio/{$instance}", [
+            ->post("/message/sendWhatsAppAudio/{$instance}", array_filter([
                 'number' => $to,
                 'audio'  => $base64,
-            ])->throw()->json();
+                'quoted' => $quoted,
+            ], fn ($v) => $v !== null))->throw()->json();
     }
 
     public function groupInfo(string $instance, string $groupJid): array

@@ -71,7 +71,7 @@ class SendMediaMessage implements ShouldQueue
                     'mime'    => $mensagem->media_mime,
                     'nome'    => $mensagem->media_nome,
                     'legenda' => $mensagem->legenda,
-                ]);
+                ], $mensagem->respondeA?->paraCitacao());
 
                 $mensagem->update([
                     'external_id' => Arr::get($r, 'external_id'),

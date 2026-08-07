@@ -31,13 +31,17 @@ class MetaCloudEnviador implements Enviador
         return 'meta_cloud';
     }
 
-    public function texto(Channel $canal, string $destino, string $texto): array
+    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null): array
     {
         $r = $this->cliente($canal)
-            ->post($this->url($canal).'/messages', [
+            ->post($this->url($canal).'/messages', array_filter([
                 'messaging_product' => 'whatsapp',
                 'recipient_type'    => 'individual',
                 'to'                => self::soDigitos($destino),
+                // A Meta chama a citacao de "context", e quer so o wamid. Se o wamid nao
+                // existir mais do lado dela — mensagem antiga demais — ela recusa o envio
+                // inteiro com erro 131009, e nao apenas ignora a citacao.
+                'context'           => $citar ? ['message_id' => $citar['external_id']] : null,
                 'type'              => 'text',
                 'text'              => [
                     // Sem previa de link: a Meta busca a pagina para montar o cartao, e
@@ -46,7 +50,7 @@ class MetaCloudEnviador implements Enviador
                     'preview_url' => false,
                     'body'        => $texto,
                 ],
-            ])
+            ], fn ($v) => $v !== null))
             ->throw()
             ->json();
 
@@ -182,7 +186,7 @@ class MetaCloudEnviador implements Enviador
      * @param  array{tipo: string, bytes: string, mime: ?string, nome: ?string, legenda: ?string}  $arquivo
      * @return array{external_id: ?string}
      */
-    public function midia(Channel $canal, string $destino, array $arquivo): array
+    public function midia(Channel $canal, string $destino, array $arquivo, ?array $citar = null): array
     {
         $tipo = (string) $arquivo['tipo'];
         $mime = (string) ($arquivo['mime'] ?: 'application/octet-stream');
@@ -221,13 +225,14 @@ class MetaCloudEnviador implements Enviador
         }
 
         $r = $this->cliente($canal)
-            ->post($this->url($canal).'/messages', [
+            ->post($this->url($canal).'/messages', array_filter([
                 'messaging_product' => 'whatsapp',
                 'recipient_type'    => 'individual',
                 'to'                => self::soDigitos($destino),
+                'context'           => $citar ? ['message_id' => $citar['external_id']] : null,
                 'type'              => $tipo,
                 $tipo               => $conteudo,
-            ])
+            ], fn ($v) => $v !== null))
             ->throw()
             ->json();
 

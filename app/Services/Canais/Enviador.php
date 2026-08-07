@@ -24,8 +24,15 @@ interface Enviador
      *                                     recibo de entrega que volta pelo webhook
      *
      * @throws \Throwable quando o provedor recusa — quem chama decide se retenta
+     *
+     * O $citar chega como dados soltos, e nao como um Message, pela mesma razao de midia()
+     * receber BYTES em vez de caminho: o driver nao conhece o banco do OnChat. Cada provedor
+     * usa o que precisa — a Meta so quer o id; o Baileys quer id, autoria e o texto citado,
+     * porque desenha a previa com o que recebe.
+     *
+     * @param  array{external_id: string, texto: ?string, minha: bool}|null  $citar
      */
-    public function texto(Channel $canal, string $destino, string $texto): array;
+    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null): array;
 
     /**
      * Envia arquivo.
@@ -37,8 +44,10 @@ interface Enviador
      * @return array{external_id: ?string}
      *
      * @throws \Throwable quando o provedor recusa — quem chama decide se retenta
+     *
+     * @param  array{external_id: string, texto: ?string, minha: bool}|null  $citar
      */
-    public function midia(Channel $canal, string $destino, array $arquivo): array;
+    public function midia(Channel $canal, string $destino, array $arquivo, ?array $citar = null): array;
 
     /**
      * Avisa o provedor de que o atendente leu as mensagens do cliente.
