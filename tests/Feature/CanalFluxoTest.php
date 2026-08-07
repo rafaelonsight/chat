@@ -37,10 +37,13 @@ beforeEach(function () {
 
 // ============================================================ escolher antes
 
-it('a lista oferece os dois caminhos com nome do que se quer fazer', function () {
+it('um botao so, com as opcoes que existem hoje', function () {
+    // Dois botoes lado a lado davam o mesmo peso a caminhos que nao tem o mesmo peso — e no
+    // dia em que Instagram e Messenger entrarem seriam quatro disputando o cabecalho.
     $this->get(ChannelResource::getUrl('index'))
         ->assertSuccessful()
-        ->assertSee('Conectar por QR Code')
+        ->assertSee('Novo canal')
+        ->assertSee('WhatsApp por QR Code')
         ->assertSee('WhatsApp oficial');
 });
 
@@ -94,7 +97,7 @@ it('a tela mostra os tres passos e onde a pessoa esta', function () {
     ]);
 
     $this->get(ChannelResource::getUrl('conectar', ['record' => $canal]))
-        ->assertSee('Criar o canal')
+        ->assertSee('Canal criado')
         ->assertSee('Ler o QR Code')
         ->assertSee('Pronto');
 });
@@ -124,17 +127,67 @@ it('canal de outra conta nao abre', function () {
 
 // ======================================================= o caminho depois de criar
 
-it('criar um canal por QR leva direto para o codigo', function () {
-    // A pessoa veio conectar um numero. Voltar para a lista faria ela procurar sozinha qual
-    // botao abre o QR.
-    $tela = Livewire\Livewire::actingAs($this->admin)
-        ->test(App\Filament\Resources\Channels\Pages\CreateChannel::class)
-        ->fillForm(['tipo' => Channel::EVOLUTION, 'nome' => 'Comercial'])
-        ->call('create');
+it('escolher QR Code cria o canal e abre o codigo, sem passar por formulario', function () {
+    // A MUDANCA: pedir "nome do canal" antes do QR e pedir uma decisao que a pessoa ainda nao
+    // tem como tomar — ela veio conectar um numero. O nome bom so aparece depois de conectar.
+    expect(Channel::count())->toBe(0);
 
-    $canal = Channel::where('nome', 'Comercial')->firstOrFail();
+    Livewire\Livewire::actingAs($this->admin)
+        ->test(App\Filament\Resources\Channels\Pages\ListChannels::class)
+        ->callAction('evolution');
 
-    $tela->assertRedirect(ChannelResource::getUrl('conectar', ['record' => $canal]));
+    $canal = Channel::firstOrFail();
+
+    expect($canal->tipo)->toBe(Channel::EVOLUTION)
+        ->and($canal->temNomeProvisorio())->toBeTrue()
+        ->and($canal->instance_name)->not->toBeNull();
+});
+
+it('o canal nasce com nome provisorio, e o segundo nao repete o primeiro', function () {
+    Channel::create([
+        'tenant_id' => $this->conta->id, 'tipo' => Channel::EVOLUTION,
+        'nome' => Channel::nomeProvisorio(),
+    ]);
+
+    expect(Channel::nomeProvisorio())->toBe('WhatsApp 2');
+});
+
+it('canal ja batizado nao e considerado provisorio', function () {
+    // Quem ja deu nome ao canal nao pode ver o nome dele sumir sozinho quando conectar.
+    $canal = Channel::create([
+        'tenant_id' => $this->conta->id, 'tipo' => Channel::EVOLUTION,
+        'nome' => 'Comercial', 'instance_name' => 'cfx',
+    ]);
+
+    expect($canal->temNomeProvisorio())->toBeFalse();
+});
+
+it('da para trocar o nome na propria tela do QR', function () {
+    $canal = Channel::create([
+        'tenant_id' => $this->conta->id, 'tipo' => Channel::EVOLUTION,
+        'nome' => Channel::nomeProvisorio(), 'status' => 'open', 'instance_name' => 'cfn',
+    ]);
+
+    Livewire\Livewire::actingAs($this->admin)
+        ->test(App\Filament\Resources\Channels\Pages\ConectarChannel::class, ['record' => $canal->id])
+        ->set('nome', 'Comercial')
+        ->call('salvarNome');
+
+    expect($canal->fresh()->nome)->toBe('Comercial');
+});
+
+it('nome em branco nao apaga o que ja existe', function () {
+    $canal = Channel::create([
+        'tenant_id' => $this->conta->id, 'tipo' => Channel::EVOLUTION,
+        'nome' => 'Comercial', 'status' => 'open', 'instance_name' => 'cfv',
+    ]);
+
+    Livewire\Livewire::actingAs($this->admin)
+        ->test(App\Filament\Resources\Channels\Pages\ConectarChannel::class, ['record' => $canal->id])
+        ->set('nome', '   ')
+        ->call('salvarNome');
+
+    expect($canal->fresh()->nome)->toBe('Comercial');
 });
 
 it('a lista leva para a tela do QR, e nao para um modal', function () {

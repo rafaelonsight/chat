@@ -36,6 +36,41 @@ class Channel extends Model
         'meta_token'   => 'encrypted',
     ];
 
+    /** Como se chama um canal que ainda nao tem nome. */
+    public const NOME_PROVISORIO = 'WhatsApp';
+
+    /**
+     * Um nome para o canal nascer com, ja que ninguem vai digitar um.
+     *
+     * Existe porque pedir "nome do canal" antes do QR Code e pedir uma decisao que a pessoa
+     * ainda nao tem como tomar: ela veio conectar um numero, e o nome bom para ele so aparece
+     * DEPOIS — normalmente e o proprio numero.
+     */
+    public static function nomeProvisorio(): string
+    {
+        $usados = static::query()->pluck('nome')->all();
+
+        if (! in_array(self::NOME_PROVISORIO, $usados, true)) {
+            return self::NOME_PROVISORIO;
+        }
+
+        for ($i = 2; $i < 100; $i++) {
+            $tentativa = self::NOME_PROVISORIO.' '.$i;
+
+            if (! in_array($tentativa, $usados, true)) {
+                return $tentativa;
+            }
+        }
+
+        return self::NOME_PROVISORIO.' '.uniqid();
+    }
+
+    /** Ainda esta com o nome que o sistema deu? Se sim, da para trocar sozinho pelo numero. */
+    public function temNomeProvisorio(): bool
+    {
+        return (bool) preg_match('/^'.preg_quote(self::NOME_PROVISORIO, '/').'( \d+)?$/', (string) $this->nome);
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Channel $c) {

@@ -34,11 +34,26 @@ class ConectarChannel extends Page
     public function mount(int|string $record): void
     {
         $this->record = $this->resolveRecord($record);
+        $this->nome = (string) $this->record->nome;
     }
 
     public function getTitle(): string|Htmlable
     {
         return 'Conectar '.$this->record->nome;
+    }
+
+    /** Nome novo, digitado na propria tela do QR. */
+    public string $nome = '';
+
+    public function salvarNome(): void
+    {
+        $nome = trim($this->nome);
+
+        if ($nome === '') {
+            return;
+        }
+
+        $this->record->update(['nome' => mb_substr($nome, 0, 60)]);
     }
 
     protected function getHeaderActions(): array

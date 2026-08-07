@@ -466,6 +466,16 @@ class ProcessEvolutionWebhook implements ShouldQueue
 
                 if ($telefone = PhoneNumber::toE164($jid)) {
                     $canal->forceFill(['telefone_e164' => $telefone])->saveQuietly();
+
+                    // O canal nasceu sem nome de verdade porque ninguem tinha um para dar
+                    // antes de conectar. Agora tem: o proprio numero. So troca se o nome ainda
+                    // for o provisorio — quem ja batizou o canal nao pode ver o nome dele
+                    // sumir sozinho.
+                    if ($canal->temNomeProvisorio()) {
+                        $canal->forceFill([
+                            'nome' => \App\Support\PhoneNumber::discavel($telefone) ?: $telefone,
+                        ])->saveQuietly();
+                    }
                 }
             } catch (\Throwable $e) {
                 // numero e informativo: nao vale derrubar o processamento
