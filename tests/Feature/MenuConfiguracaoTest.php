@@ -65,14 +65,15 @@ it('configuracao inteira e so para admin', function () {
         ->and(MessageTemplateResource::canViewAny())->toBeFalse();
 });
 
-it('as telas reservadas abrem com aviso, para o admin', function () {
+it('Consumo deixou de ser tela reservada', function () {
+    // Era a ultima casca de Configuracoes. Virou modulo: mostra o mes corrente ao vivo e os
+    // meses fechados, que sao foto e nao mudam mais.
     $admin = usuarioConf('cf2');
 
-    foreach (['/admin/consumo-conversas'] as $rota) {
-        $this->withSession(sessaoConf($admin))->get($rota)
-            ->assertSuccessful()
-            ->assertSee('em constru');
-    }
+    $this->withSession(sessaoConf($admin))->get('/admin/consumo-conversas')
+        ->assertSuccessful()
+        ->assertDontSee('em constru')
+        ->assertSee('A conta é por conversa iniciada');
 });
 
 // ------------------------------------------------------------------ Cadastro
