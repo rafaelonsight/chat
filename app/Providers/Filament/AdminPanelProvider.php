@@ -63,6 +63,15 @@ class AdminPanelProvider extends PanelProvider
             // Laravel escreve a mensagem no log e a tela diz "enviamos" — falha silenciosa
             // que o Diagnostico agora denuncia.
             ->passwordReset()
+            // "Meu perfil": trocar o proprio nome e a propria senha. Nao existia — depois de
+            // aceitar o convite a pessoa ficava com aquela senha para sempre, ou usava
+            // "esqueci minha senha" para trocar uma senha que ela lembra.
+            //
+            // isSimple: false para a pagina abrir DENTRO do painel, com o menu do lado. A
+            // versao simples e uma tela solta, sem saida a nao ser o botao de voltar — serve
+            // para cadastro obrigatorio no primeiro acesso, nao para uma pagina que a pessoa
+            // visita quando quer.
+            ->profile(\App\Filament\Pages\Auth\Perfil::class, isSimple: false)
             ->colors([
                 'primary' => Color::Amber,
             ])
