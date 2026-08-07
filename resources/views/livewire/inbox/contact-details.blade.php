@@ -1,5 +1,8 @@
 <div @class([
-        'flex w-80 shrink-0 flex-col overflow-y-auto border-l border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900' => $aberto,
+        // w-full no celular, w-80 no computador: la ele e uma coluna ao lado da conversa,
+        // aqui ele E a tela. Largura fixa de 320px num telefone de 360 deixaria uma faixa
+        // morta e o conteudo apertado do lado.
+        'flex w-full shrink-0 flex-col overflow-y-auto border-l border-gray-200 bg-white lg:w-80 dark:border-white/10 dark:bg-gray-900' => $aberto,
         'hidden' => ! $aberto,
     ])>
     @if ($aberto && $conversa)
@@ -28,9 +31,12 @@
                     </p>
                 </div>
             </div>
-            <button type="button" wire:click="fechar"
-                    class="shrink-0 rounded px-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                    title="Fechar">&times;</button>
+            {{-- O wire:click fecha o painel no servidor; o $dispatch devolve a VISTA para a
+                 conversa no celular. Sem o segundo, fechar os detalhes no telefone deixaria
+                 a tela em branco: o painel some e nada toma o lugar dele. --}}
+            <button type="button" wire:click="fechar" x-on:click="$dispatch('voltar-para-conversa')"
+                    class="shrink-0 rounded px-3 py-1 text-2xl leading-none text-gray-400 hover:text-gray-700 lg:px-2 lg:text-base dark:hover:text-gray-200"
+                    title="Fechar" aria-label="Fechar detalhes">&times;</button>
         </div>
 
         @if ($contato->bloqueado() || $contato->arquivado())

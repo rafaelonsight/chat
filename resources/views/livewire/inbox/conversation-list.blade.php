@@ -4,7 +4,9 @@
     <div class="flex shrink-0 items-center gap-1 border-b border-gray-200 px-2 py-2 dark:border-white/10">
         @foreach (['novos', 'meus', 'outros'] as $chave)
             <button type="button" wire:key="bl-{{ $chave }}" wire:click="selecionarBalde('{{ $chave }}')"
-                    class="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition
+                    {{-- Maior no celular: dedo nao acerta alvo de 24px. No computador volta
+                         ao tamanho antigo, onde o ponteiro e preciso e o espaco e curto. --}}
+                    class="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition lg:px-2.5 lg:py-1 lg:text-xs
                            {{ $balde === $chave
                                 ? 'bg-gray-200 text-gray-900 dark:bg-white/15 dark:text-white'
                                 : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5' }}">

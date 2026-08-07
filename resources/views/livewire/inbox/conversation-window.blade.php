@@ -2,6 +2,18 @@
     @if ($conversa)
         <div class="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-white/10">
             <div class="flex min-w-0 items-center gap-2">
+                {{-- So no celular. La a lista sumiu para a conversa caber, e sem este botao
+                     o unico caminho de volta seria recarregar a pagina. No computador as duas
+                     colunas convivem e a seta seria ruido. --}}
+                <button type="button" x-on:click="$dispatch('voltar-para-lista')"
+                        class="-ml-1 shrink-0 rounded-full p-2 text-gray-500 transition hover:bg-gray-100 lg:hidden dark:text-gray-400 dark:hover:bg-white/5"
+                        title="Voltar para a lista" aria-label="Voltar para a lista">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                         stroke-width="2" stroke="currentColor" class="h-5 w-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
+                    </svg>
+                </button>
+
                 {{-- detalhes do contato: fica antes do nome, como identidade de quem se fala --}}
                 <button type="button" wire:click="verDetalhes"
                         class="shrink-0 rounded-full border border-gray-300 p-1.5 text-gray-500 transition hover:bg-gray-50 hover:text-gray-800 dark:border-white/20 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-100"
