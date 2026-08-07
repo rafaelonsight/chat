@@ -445,7 +445,18 @@
                         </span>
                     @endif
 
-                    <div class="max-w-lg rounded-lg px-3 py-2 text-sm {{ $entrada ? 'border border-slate-200 bg-white text-slate-800' : 'bg-emerald-600 text-white' }}">
+                    <div class="max-w-lg rounded-lg px-3 py-2 text-sm {{ $entrada
+                        ? ($m->mencao
+                            ? 'border-2 border-amber-400 bg-amber-50 text-slate-800'
+                            : 'border border-slate-200 bg-white text-slate-800')
+                        : 'bg-emerald-600 text-white' }}">
+                        {{-- No meio de duzentas mensagens de grupo, a que te chama precisa
+                             saltar sem precisar de leitura. --}}
+                        @if ($m->mencao)
+                            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                                mencionaram você
+                            </div>
+                        @endif
                         {{-- A mensagem citada, do jeito que o WhatsApp mostra: faixa curta
                              acima, com quem falou e o comeco do que foi dito. --}}
                         @if ($m->respondeA)

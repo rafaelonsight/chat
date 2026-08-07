@@ -25,7 +25,7 @@ class Conversation extends Model
     protected $fillable = [
         'tenant_id', 'channel_id', 'contact_id', 'status', 'atendente_id', 'team_id',
         'pesquisa_enviada_em', 'satisfacao', 'satisfacao_em',
-        'fixada_em', 'fixada_por',
+        'fixada_em', 'fixada_por', 'mencao_em',
         'funnel_stage_id', 'etapa_em',
         'ultima_msg_em', 'ultima_entrada_em', 'nao_lidas',
         'origem_tipo', 'origem_id', 'origem',
@@ -37,6 +37,7 @@ class Conversation extends Model
     protected $casts = [
         'pesquisa_enviada_em' => 'datetime',
         'fixada_em'           => 'datetime',
+        'mencao_em'           => 'datetime',
         'etapa_em'            => 'datetime',
         'satisfacao_em'       => 'datetime',
         'satisfacao'          => 'integer',

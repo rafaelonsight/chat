@@ -229,7 +229,10 @@ class ConversationList extends Component
         $conversa = Conversation::findOrFail($id);
 
         $this->selecionada = $conversa->id;
-        $conversa->update(['nao_lidas' => 0]);
+        // A mencao some junto com as nao lidas: ela e um pedido de atencao, e a atencao
+        // acabou de acontecer. Deixar a marca depois de a pessoa ter lido faria o aviso perder
+        // o sentido em uma semana.
+        $conversa->update(['nao_lidas' => 0, 'mencao_em' => null]);
 
         // Em fila, nao aqui: a tela nao pode esperar uma chamada HTTP para a
         // Evolution para abrir a conversa.

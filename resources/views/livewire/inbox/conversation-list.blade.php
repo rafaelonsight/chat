@@ -284,7 +284,23 @@
                             {{ $conversa->contact->nomeExibicao() }}
                         </span>
                     </span>
-                    @if ($conversa->nao_lidas > 0)
+                    {{--
+                        MENCAO GANHA DO CONTADOR.
+
+                        "12 nao lidas" num grupo nao diz nada — grupo sempre tem nao lidas. O
+                        que muda o dia e "te chamaram ali". Entao quando ha mencao pendente, a
+                        marca vira @ em ambar, e o numero sai da frente: dois sinais no mesmo
+                        canto competem, e quem perde e o que importa.
+                    --}}
+                    @if ($conversa->mencao_em)
+                        <span class="flex shrink-0 items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-xs font-semibold text-white"
+                              title="Mencionaram este número neste grupo">
+                            @
+                            @if ($conversa->nao_lidas > 0)
+                                <span class="opacity-90">{{ $conversa->nao_lidas }}</span>
+                            @endif
+                        </span>
+                    @elseif ($conversa->nao_lidas > 0)
                         <span class="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-xs text-white">{{ $conversa->nao_lidas }}</span>
                     @endif
                 </div>
@@ -302,7 +318,10 @@
                     };
                 @endphp
                 @if ($previa)
-                    <div class="truncate text-xs text-gray-600 dark:text-gray-400">
+                    <div class="truncate text-xs {{ $conversa->mencao_em ? 'text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-gray-400' }}">
+                        @if ($conversa->mencao_em)
+                            <span class="font-semibold">&#64; te chamaram</span> &middot;
+                        @endif
                         @unless ($ultima->entrada()) <span class="opacity-60">voce:</span> @endunless
                         {{ \Illuminate\Support\Str::limit($previa, 44) }}
                     </div>

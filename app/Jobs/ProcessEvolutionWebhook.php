@@ -88,13 +88,16 @@ class ProcessEvolutionWebhook implements ShouldQueue
         }
 
         $conteudo = $this->identificarConteudo(Arr::get($data, 'message', []));
-        $citadoExternalId = $this->citado(Arr::get($data, 'message', []));
+        $citadoExternalId = $this->citado($data);
+
+        // So faz sentido em grupo: em conversa de um para um, toda mensagem ja e para nos.
+        $mencionado = $origem['contato']->eGrupo() && $this->mencionaOCanal($data, $canal);
 
         if (! $conteudo) {
             return; // tipo que ainda nao tratamos (localizacao, contato, enquete)
         }
 
-        $mensagem = DB::transaction(function () use ($canal, $origem, $externalId, $conteudo, $citadoExternalId) {
+        $mensagem = DB::transaction(function () use ($canal, $origem, $externalId, $conteudo, $citadoExternalId, $mencionado) {
             $contato = $origem['contato'];
 
             // Nao e firstOrCreate: se o ultimo atendimento foi encerrado, o
@@ -116,6 +119,7 @@ class ProcessEvolutionWebhook implements ShouldQueue
                     // instalacao do OnChat, que nunca esteve neste banco. Fica null e a
                     // conversa segue — a alternativa seria recusar a mensagem inteira.
                     'responde_a_id'  => Message::acharPorExternalId($canal->id, $citadoExternalId)?->id,
+                    'mencao'         => $mencionado,
                     'legenda'        => $conteudo['legenda'] ?? null,
                     'media_mime'     => $conteudo['mime'] ?? null,
                     'media_nome'     => $conteudo['nome'] ?? null,
@@ -127,6 +131,12 @@ class ProcessEvolutionWebhook implements ShouldQueue
 
             if ($mensagem->wasRecentlyCreated) {
                 $conversa->increment('nao_lidas');
+
+                // A marca fica na CONVERSA tambem: a lista precisa saber sem abrir cada uma.
+                // E nao se apaga por mensagem nova — so quando alguem realmente abre.
+                if ($mencionado) {
+                    $conversa->forceFill(['mencao_em' => now()])->saveQuietly();
+                }
                 // ultima_entrada_em junto: e a mensagem do CLIENTE que reabre a
                 // janela de 24h, e so ela. Resposta nossa nao reabre nada — na regra
                 // da Meta, a janela pertence a quem procurou.
@@ -334,15 +344,84 @@ class ProcessEvolutionWebhook implements ShouldQueue
         broadcast(new \App\Events\MessageStored($alvo->refresh()));
     }
 
-    private function citado(array $msg): ?string
+    /**
+     * O id da mensagem citada, quando o cliente respondeu alguma.
+     *
+     * PROCURA EM DOIS LUGARES, e o segundo foi um defeito que passou despercebido por dias.
+     *
+     * Esta versao da Evolution manda o contextInfo em data.contextInfo — irmao de "message", e
+     * nao dentro dele. A funcao so olhava dentro do conteudo, e o resultado foi silencioso:
+     * cinco clientes citaram mensagens e NENHUMA citacao apareceu na tela. Nada quebrou, nada
+     * foi para o log; a faixa simplesmente nao existia.
+     *
+     * Os dois caminhos ficam porque versoes diferentes da Evolution mandam de jeitos
+     * diferentes, e nao ha como saber qual esta do outro lado.
+     */
+    private function citado(array $data): ?string
     {
-        foreach ($msg as $conteudo) {
+        if ($id = Arr::get($data, 'contextInfo.stanzaId')) {
+            return (string) $id;
+        }
+
+        foreach ((array) Arr::get($data, 'message', []) as $conteudo) {
             if (is_array($conteudo) && ($id = Arr::get($conteudo, 'contextInfo.stanzaId'))) {
                 return (string) $id;
             }
         }
 
-        return Arr::get($msg, 'contextInfo.stanzaId');
+        return Arr::get($data, 'message.contextInfo.stanzaId');
+    }
+
+    /**
+     * O grupo mencionou ESTE numero?
+     *
+     * Num grupo movimentado, a unica mensagem que e sua e aquela em que te chamam. Sem separar
+     * isso, o atendente le duzentas mensagens para achar uma — ou desiste e nao le nenhuma,
+     * que e o que acontece de verdade.
+     *
+     * DUAS FORMAS DE ACHAR, porque o WhatsApp esta trocando o jeito de identificar gente:
+     *
+     * 1. mentionedJid: a lista oficial. Compara so os digitos, com as duas formas do numero
+     *    brasileiro — com e sem o nono digito — porque o proprio Baileys informa o nosso numero
+     *    sem ele.
+     *
+     * 2. o texto: mencao aparece escrita como "@numero" no corpo. Serve de rede quando o
+     *    WhatsApp manda o novo identificador @lid, que nao da para casar com telefone.
+     *
+     * Se as duas falharem a mensagem entra como qualquer outra do grupo — nunca ao contrario.
+     * Marcar mencao onde nao houve treinaria o atendente a ignorar a marca.
+     */
+    private function mencionaOCanal(array $data, Channel $canal): bool
+    {
+        $meus = \App\Support\PhoneNumber::variantes((string) $canal->telefone_e164);
+
+        if ($meus === []) {
+            return false;
+        }
+
+        $mencionados = (array) (Arr::get($data, 'contextInfo.mentionedJid')
+            ?: Arr::get($data, 'message.extendedTextMessage.contextInfo.mentionedJid', []));
+
+        foreach ($mencionados as $jid) {
+            $digitos = preg_replace('/\D+/', '', (string) $jid);
+
+            foreach ($meus as $meu) {
+                if ($digitos === preg_replace('/\D+/', '', $meu)) {
+                    return true;
+                }
+            }
+        }
+
+        $texto = (string) (Arr::get($data, 'message.conversation')
+            ?: Arr::get($data, 'message.extendedTextMessage.text', ''));
+
+        foreach ($meus as $meu) {
+            if (str_contains($texto, '@'.preg_replace('/\D+/', '', $meu))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function identificarConteudo(array $msg): ?array
