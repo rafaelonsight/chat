@@ -92,7 +92,7 @@ class EvolutionService
             'key' => [
                 'id'        => $alvo['external_id'],
                 'fromMe'    => $alvo['minha'],
-                'remoteJid' => $to,
+                'remoteJid' => self::jid($to),
             ],
             'reaction' => $emoji,
         ])->throw()->json();
@@ -108,8 +108,29 @@ class EvolutionService
         return $this->client()->delete("/chat/deleteMessageForEveryone/{$instance}", [
             'id'        => $alvo['external_id'],
             'fromMe'    => $alvo['minha'],
-            'remoteJid' => $to,
+            'remoteJid' => self::jid($to),
         ])->throw()->json();
+    }
+
+    /**
+     * Transforma o destino num JID de verdade.
+     *
+     * ISTO EXISTE POR UM ERRO QUE CUSTOU UM ENVIO REAL. O destino que o OnChat usa para enviar
+     * e o telefone em E.164, com o sinal de mais: "+554396386381". Para MANDAR mensagem a
+     * Evolution aceita isso e normaliza sozinha. Mas dentro de uma CHAVE de mensagem — citar,
+     * reagir, apagar — o valor vai direto para o Baileys, que tenta decodificar como JID,
+     * nao consegue e devolve TypeError com 500.
+     *
+     * O sintoma enganava: em conversa de GRUPO tudo funcionava, porque ali o destino ja e um
+     * JID (...@g.us). So quebrava no atendimento individual, que e a maioria.
+     */
+    public static function jid(string $destino): string
+    {
+        if (str_contains($destino, '@')) {
+            return $destino;
+        }
+
+        return preg_replace('/\D+/', '', $destino).'@s.whatsapp.net';
     }
 
     public static function quoted(array $citar, string $remoteJid): array
@@ -118,7 +139,7 @@ class EvolutionService
             'key' => [
                 'id'        => $citar['external_id'],
                 'fromMe'    => $citar['minha'],
-                'remoteJid' => $remoteJid,
+                'remoteJid' => self::jid($remoteJid),
             ],
             'message' => ['conversation' => (string) ($citar['texto'] ?? '')],
         ];
