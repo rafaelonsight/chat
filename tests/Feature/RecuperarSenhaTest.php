@@ -84,8 +84,24 @@ it('avisa quando o remetente ainda e o de exemplo', function () {
         ->and($problemas['email']['mensagem'])->toContain('Remetente');
 });
 
-it('para de avisar quando esta configurado de verdade', function () {
+it('continua avisando com tudo configurado, enquanto nenhum e-mail tiver saido', function () {
+    // Este teste MUDOU DE AFIRMACAO, e a mudanca e o assunto.
+    //
+    // Antes ele dizia: configurado, entao para de avisar. Descobri na pratica que a frase e
+    // falsa — gravei host, porta, usuario e senha corretos e o envio voltou 535, senha
+    // recusada. Configuracao preenchida nao prova entrega, e um diagnostico que diz "tudo
+    // certo" sobre um sistema que nao manda e-mail e pior que um diagnostico que nao existe.
     config(['mail.default' => 'smtp', 'mail.from.address' => 'nao-responda@rpaulino.com.br']);
+
+    $problemas = collect(app(Diagnostico::class)->verificar())->keyBy('chave');
+
+    expect($problemas->has('email'))->toBeTrue()
+        ->and($problemas['email']['mensagem'])->toContain('nenhum envio');
+});
+
+it('so para de avisar depois que um envio foi aceito', function () {
+    config(['mail.default' => 'smtp', 'mail.from.address' => 'nao-responda@rpaulino.com.br']);
+    App\Models\SystemSetting::gravar('email.ultimo_envio', now()->toIso8601String());
 
     $problemas = collect(app(Diagnostico::class)->verificar())->keyBy('chave');
 

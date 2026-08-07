@@ -45,6 +45,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Registro explicito em vez de descoberta automatica: a descoberta depende de o
+        // cache de eventos estar em dia, e um listener que some em producao some em silencio.
+        \Illuminate\Support\Facades\Event::listen(
+            \Illuminate\Mail\Events\MessageSent::class,
+            \App\Listeners\RegistrarEmailEnviado::class,
+        );
+
         //
     }
 }

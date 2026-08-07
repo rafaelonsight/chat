@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Channel;
+use App\Models\SystemSetting;
 use App\Models\WebhookEvent;
 use Closure;
 use Illuminate\Support\Facades\DB;
@@ -163,6 +164,19 @@ class Diagnostico
                 'email',
                 self::AVISO,
                 'Remetente de e-mail nao definido: provedor de destino recusa mensagem sem remetente valido.',
+            );
+        }
+
+        // A verificacao que faltava, e a falta dela me pegou: com host, porta, usuario e senha
+        // preenchidos, o diagnostico escrevia "Tudo certo" enquanto um envio de verdade voltava
+        // 535 senha recusada. Configuracao preenchida nao e prova de nada; a unica prova de que
+        // o caminho existe e ter passado por ele.
+        if (! SystemSetting::ler('email.ultimo_envio')) {
+            return $this->problema(
+                'email',
+                self::AVISO,
+                'E-mail configurado, mas nenhum envio foi aceito pelo servidor ate agora: '
+                .'a configuracao pode estar certa e a senha errada.',
             );
         }
 

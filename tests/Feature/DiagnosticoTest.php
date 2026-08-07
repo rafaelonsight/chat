@@ -12,6 +12,9 @@ beforeEach(function () {
     // testes e nao e o assunto deles: sem isto, todo cenario "tudo de pe" passaria a ter um
     // aviso a mais e os numeros de alerta parariam de fechar.
     config(['mail.default' => 'smtp', 'mail.from.address' => 'nao-responda@onchat.test']);
+    // E um envio ja aceito: sem isto, o cenario "tudo de pe" carrega o aviso novo
+    // de "nunca saiu e-mail" e as contagens de alerta destes testes param de fechar.
+    App\Models\SystemSetting::gravar('email.ultimo_envio', now()->toIso8601String());
 
     $this->tenant = Tenant::create(['nome' => 'T', 'slug' => 't']);
     TenantContext::set($this->tenant->id);
