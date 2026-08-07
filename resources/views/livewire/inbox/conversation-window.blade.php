@@ -308,6 +308,41 @@
             </div>
         @endif
 
+        {{--
+            COMO O ATENDIMENTO TERMINOU.
+
+            Aparece so no momento de encerrar, que e o unico em que a pessoa tem a resposta na
+            cabeca. E tem saida sem classificar: obrigar faria o atendente com pressa clicar
+            sempre na primeira opcao, e ai o dado mente de um jeito pior — parece preenchido.
+        --}}
+        @if ($classificando)
+            <div class="border-b border-indigo-200 bg-indigo-50 px-4 py-3 dark:border-indigo-500/30 dark:bg-indigo-500/10">
+                <p class="text-xs font-semibold text-indigo-900 dark:text-indigo-200">Como este atendimento terminou?</p>
+
+                <div class="mt-2 flex flex-wrap gap-1">
+                    @foreach ($etiquetasDeConversa as $et)
+                        <button type="button" wire:key="fim-{{ $et->id }}"
+                                wire:click="encerrarCom({{ $et->id }})"
+                                class="flex items-center gap-1.5 rounded-full border border-indigo-200 bg-white px-2.5 py-1 text-xs text-gray-700 hover:bg-indigo-100 dark:border-indigo-500/40 dark:bg-gray-800 dark:text-gray-200">
+                            <span class="h-2 w-2 rounded-full {{ $et->pontinho() }}"></span>
+                            {{ $et->nome }}
+                        </button>
+                    @endforeach
+                </div>
+
+                <div class="mt-2 flex gap-2">
+                    <button type="button" wire:click="encerrar"
+                            class="text-xs text-indigo-700 underline dark:text-indigo-300">
+                        Encerrar sem classificar
+                    </button>
+                    <button type="button" wire:click="$set('classificando', false)"
+                            class="text-xs text-gray-500 underline">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        @endif
+
         @error('encaminhar')
             <div class="bg-red-50 px-4 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ $message }}</div>
         @enderror

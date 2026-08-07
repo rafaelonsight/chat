@@ -171,7 +171,41 @@ class ConversationWindow extends Component
         $this->dispatch('conversa-atualizada');
     }
 
+    /** Fica true enquanto a tela pergunta como o atendimento terminou. */
+    public bool $classificando = false;
+
+    /**
+     * Pergunta ANTES de arquivar.
+     *
+     * Etiqueta que so existe se alguem lembrar de aplicar e preenchida em uns 20% dos
+     * atendimentos — e 20% nao vira numero em que alguem confia. Pedir no fecho e o unico
+     * momento em que a pessoa tem a resposta na cabeca.
+     *
+     * MAS DEIXA PULAR. Obrigar faria o atendente com pressa clicar sempre na primeira opcao, e
+     * ai o dado mente de um jeito pior: parece preenchido.
+     *
+     * Sem etiqueta de conversa cadastrada, nem pergunta — perguntar com a lista vazia so
+     * atrapalha quem ainda nao configurou nada.
+     */
     public function finalizar(): void
+    {
+        if (! $this->classificando && \App\Models\Tag::deConversa()->exists()) {
+            $this->classificando = true;
+
+            return;
+        }
+
+        $this->encerrar();
+    }
+
+    /** Classifica e encerra, num movimento so. */
+    public function encerrarCom(int $tagId): void
+    {
+        $this->alternarEtiquetaDaConversa($tagId);
+        $this->encerrar();
+    }
+
+    public function encerrar(): void
     {
         $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
         $conversa->arquivar();
@@ -186,6 +220,8 @@ class ConversationWindow extends Component
             $conversa->contact,
             $conversa,
         );
+
+        $this->classificando = false;
 
         $this->dispatch('conversa-atualizada');
     }
