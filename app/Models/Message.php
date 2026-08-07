@@ -22,11 +22,12 @@ class Message extends Model
         'remetente_nome', 'remetente_jid', 'automatica',
         'transcricao', 'transcricao_status',
         'media_path', 'media_mime', 'media_nome', 'media_tamanho', 'media_duracao', 'legenda',
-        'lida_em', 'reacao_cliente', 'reacao_nossa',
+        'lida_em', 'reacao_cliente', 'reacao_nossa', 'apagada_em',
     ];
 
     protected $casts = [
         'enviada_em'     => 'datetime',
+        'apagada_em'     => 'datetime',
         'media_tamanho'  => 'integer',
         'media_duracao'  => 'integer',
         'automatica'     => 'boolean',
@@ -123,6 +124,11 @@ class Message extends Model
             'texto'       => $this->corpo ?: $this->legenda,
             'minha'       => ! $this->entrada(),
         ];
+    }
+
+    public function apagada(): bool
+    {
+        return $this->apagada_em !== null;
     }
 
     public function entrada(): bool

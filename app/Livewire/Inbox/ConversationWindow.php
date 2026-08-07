@@ -112,7 +112,9 @@ class ConversationWindow extends Component
             ))
             ->values();
 
-        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'pessoas', 'eventos', 'linha'));
+        $podeApagar = $this->canalApaga();
+
+        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'pessoas', 'eventos', 'linha', 'podeApagar'));
     }
 
     public function assumir(): void
@@ -203,6 +205,50 @@ class ConversationWindow extends Component
         \App\Jobs\SendReaction::dispatch($mensagem->id, $novo);
 
         $this->dispatch('conversa-atualizada');
+    }
+
+    /**
+     * Apaga uma mensagem NOSSA para todo mundo.
+     *
+     * So mensagem nossa: apagar a do cliente nao existe no WhatsApp — nem no aparelho dele nem
+     * no nosso. Um botao para isso apagaria so aqui e faria o atendente achar que sumiu dos
+     * dois lados.
+     */
+    public function apagar(int $messageId): void
+    {
+        $mensagem = \App\Models\Message::find($messageId);
+
+        if (! $mensagem || $mensagem->conversation_id !== $this->conversationId) {
+            return;
+        }
+
+        if ($mensagem->entrada()) {
+            $this->addError('apagar', 'Só dá para apagar mensagem que você enviou.');
+
+            return;
+        }
+
+        if (! $this->canalApaga()) {
+            $this->addError('apagar', 'O WhatsApp oficial não permite apagar mensagens já enviadas.');
+
+            return;
+        }
+
+        // Marca antes e desfaz se falhar, como na reacao: o balao some na hora, e volta se o
+        // provedor recusar. Sumir so aqui e ficar la seria a pior das saidas.
+        $mensagem->update(['apagada_em' => now()]);
+
+        \App\Jobs\DeleteMessage::dispatch($mensagem->id);
+
+        $this->dispatch('conversa-atualizada');
+    }
+
+    /** O canal desta conversa consegue apagar? A API oficial nao consegue. */
+    public function canalApaga(): bool
+    {
+        $canal = \App\Models\Conversation::find($this->conversationId)?->channel;
+
+        return $canal ? app(\App\Services\Canais\Enviadores::class)->para($canal)->podeApagar() : false;
     }
 
     public function verDetalhes(): void

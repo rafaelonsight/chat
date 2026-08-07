@@ -44,6 +44,25 @@ class MetaCloudEnviador implements Enviador
             ->throw();
     }
 
+    /**
+     * A API oficial NAO apaga mensagem. Nao ha endpoint — nem em versao nova, nem com outra
+     * permissao. Quem precisa disso hoje usa o canal por QR.
+     */
+    public function podeApagar(): bool
+    {
+        return false;
+    }
+
+    public function apagar(Channel $canal, string $destino, array $alvo): void
+    {
+        // Chegar aqui e defeito nosso: a tela nao deveria ter oferecido. A excecao existe para
+        // isso aparecer alto no Horizon em vez de a mensagem sumir so do nosso lado, deixando
+        // o atendente convencido de que o cliente nao ve mais o que ele apagou.
+        throw new ConfiguracaoInvalida(
+            'O WhatsApp oficial não permite apagar mensagens já enviadas.'
+        );
+    }
+
     public function nome(): string
     {
         return 'meta_cloud';

@@ -91,6 +91,25 @@ interface Enviador
      */
     public function reagir(Channel $canal, string $destino, array $alvo, string $emoji): void;
 
+    /**
+     * Este canal consegue apagar uma mensagem ja enviada?
+     *
+     * A resposta e NAO para a API oficial da Meta, que simplesmente nao tem essa operacao. Nao
+     * e limitacao nossa nem coisa que da para contornar: nao existe endpoint. Por isso a
+     * pergunta existe — para a tela nao oferecer um botao que nunca vai funcionar. Oferecer e
+     * falhar depois seria pior do que nao oferecer, porque a pessoa ja teria contado com isso.
+     */
+    public function podeApagar(): bool;
+
+    /**
+     * Apaga uma mensagem para todo mundo, inclusive no aparelho do cliente.
+     *
+     * @param  array{external_id: string, minha: bool}  $alvo
+     *
+     * @throws \Throwable quando o provedor recusa — passou do prazo dele, por exemplo
+     */
+    public function apagar(Channel $canal, string $destino, array $alvo): void;
+
     /** Nome curto para aparecer em log e em erro, sem revelar credencial. */
     public function nome(): string;
 }

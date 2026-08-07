@@ -98,6 +98,20 @@ class EvolutionService
         ])->throw()->json();
     }
 
+    /**
+     * Apaga para todos.
+     *
+     * @param  array{external_id: string, minha: bool}  $alvo
+     */
+    public function deleteMessage(string $instance, string $to, array $alvo): array
+    {
+        return $this->client()->delete("/chat/deleteMessageForEveryone/{$instance}", [
+            'id'        => $alvo['external_id'],
+            'fromMe'    => $alvo['minha'],
+            'remoteJid' => $to,
+        ])->throw()->json();
+    }
+
     public static function quoted(array $citar, string $remoteJid): array
     {
         return [

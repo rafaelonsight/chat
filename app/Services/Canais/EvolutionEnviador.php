@@ -20,6 +20,16 @@ class EvolutionEnviador implements Enviador
         $this->evolution->sendReaction($this->instancia($canal), $destino, $alvo, $emoji);
     }
 
+    public function podeApagar(): bool
+    {
+        return true;
+    }
+
+    public function apagar(Channel $canal, string $destino, array $alvo): void
+    {
+        $this->evolution->deleteMessage($this->instancia($canal), $destino, $alvo);
+    }
+
     public function nome(): string
     {
         return 'evolution';
