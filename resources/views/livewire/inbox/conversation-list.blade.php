@@ -46,6 +46,18 @@
          class="shrink-0 border-b border-gray-200 dark:border-white/10">
 
         <div class="flex items-center gap-1 px-2 py-1.5">
+            {{-- Recorte por canal. So com mais de um: com um canal so, um menu de uma
+                 opcao e um clique que nao faz nada. --}}
+            @if ($multiCanal)
+                <select wire:model.live="canal"
+                        class="min-w-0 max-w-32 shrink truncate rounded-full border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-200">
+                    <option value="">Todos os canais</option>
+                    @foreach ($canais as $c)
+                        <option value="{{ $c->id }}">{{ $c->nome }}</option>
+                    @endforeach
+                </select>
+            @endif
+
             {{-- so aparece quando ha equipe: sem nenhuma, a barra fica como antes --}}
             @if ($equipes->isNotEmpty())
                 <select wire:model.live="equipe"
@@ -244,6 +256,19 @@
                             </span>
                         @endif
 
+                        {{-- De qual plataforma o cliente escreveu. Parar o mouse em cima diz
+                             qual canal e qual numero — o icone sozinho nao distingue tres
+                             numeros de WhatsApp, e e isso que o Rafael tem hoje. --}}
+                        @if ($conversa->channel)
+                            <span class="flex shrink-0 items-center"
+                                  title="{{ $conversa->channel->rotulo() }}">
+                                @include('livewire.inbox.partials.icone-plataforma', [
+                                    'plataforma' => $conversa->channel->plataforma(),
+                                    'classe'     => 'h-3.5 w-3.5',
+                                ])
+                            </span>
+                        @endif
+
                         <span class="truncate font-medium text-gray-800 dark:text-gray-100">
                             {{ $conversa->contact->nomeExibicao() }}
                         </span>
@@ -279,7 +304,19 @@
                         </span>
                         <span class="shrink-0">{{ $conversa->messages_count }} msg</span>
                     @else
-                        <span>{{ $conversa->ultima_msg_em?->diffForHumans() }}</span>
+                        <span class="flex min-w-0 items-center gap-1.5">
+                            {{-- De qual numero e esta conversa. So com mais de um canal: com um
+                                 so, a marca nao separaria nada. --}}
+                            @if ($multiCanal && $conversa->channel)
+                                <span class="flex shrink-0 items-center gap-1"
+                                      title="Canal: {{ $conversa->channel->rotulo() }}">
+                                    <span class="h-2 w-2 rounded-full {{ $conversa->channel->cor() }}"></span>
+                                    <span class="max-w-24 truncate">{{ $conversa->channel->nomeCurto() }}</span>
+                                </span>
+                                <span class="shrink-0 opacity-40">&middot;</span>
+                            @endif
+                            <span class="truncate">{{ $conversa->ultima_msg_em?->diffForHumans() }}</span>
+                        </span>
                         @if ($conversa->team)
                             <span class="truncate">{{ $conversa->team->nome }}</span>
                         @elseif ($conversa->atendente)

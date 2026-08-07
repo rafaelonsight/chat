@@ -47,6 +47,15 @@ class ConversationList extends Component
      */
     public ?string $etiqueta = null;
 
+    /**
+     * Canal do recorte. Texto pelo mesmo motivo da etiqueta: vem do menu como texto.
+     *
+     * Existe porque o Rafael tem tres canais e a lista nao distinguia: duas conversas com o
+     * MESMO contato apareciam identicas, uma em cada numero. Nao era falta de informacao na
+     * tela — era informacao que so existia no banco.
+     */
+    public ?string $canal = null;
+
     public ?int $selecionada = null;
 
     public const PAGINA = 30;
@@ -128,6 +137,13 @@ class ConversationList extends Component
     // Livewire; balde, equipe e ordem passam por metodo e reiniciam lá.
     public function updatedBusca(): void
     {
+        $this->limite = self::PAGINA;
+    }
+
+    public function updatedCanal(): void
+    {
+        // Volta o limite ao inicio: sem isto, trocar o recorte mantem "carregar mais" de
+        // antes e a lista mostra um pedaco do meio.
         $this->limite = self::PAGINA;
     }
 
@@ -230,6 +246,10 @@ class ConversationList extends Component
             $query->whereHas('contact.tags', fn ($t) => $t->whereKey($id));
         }
 
+        if ($this->canal !== null && $this->canal !== '') {
+            $query->where('channel_id', (int) $this->canal);
+        }
+
         return $query;
     }
 
@@ -287,7 +307,7 @@ class ConversationList extends Component
 
         $conversas = $this->aplicarRecortes(
             $this->doBalde($this->balde)
-                ->with(['contact.tags', 'ultimaMensagem', 'atendente', 'team'])
+                ->with(['contact.tags', 'ultimaMensagem', 'atendente', 'team', 'channel'])
                 ->withCount('messages')
         )
             ->orderBy('ultima_msg_em', $this->ordemEfetiva() === 'antigos' ? 'asc' : 'desc')
@@ -300,6 +320,10 @@ class ConversationList extends Component
             'restantes'     => max(0, $total - $conversas->count()),
             'equipes'       => Team::ativas()->orderBy('nome')->get(),
             'etiquetas'     => Tag::orderBy('nome')->get(),
+            'canais'        => $canais = \App\Models\Channel::orderBy('nome')->get(),
+            // A marca de canal so aparece com MAIS DE UM canal. Com um so ela nao separa
+            // nada e viraria enfeite ocupando o lugar de informacao util.
+            'multiCanal'    => $canais->count() > 1,
             'etiquetaAtiva' => $this->etiquetaId() ? Tag::find($this->etiquetaId()) : null,
             'badges'        => $badges,
             'baldes'        => self::BALDES,

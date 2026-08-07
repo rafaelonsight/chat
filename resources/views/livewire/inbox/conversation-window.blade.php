@@ -60,6 +60,22 @@
                     @if ($conversa->atendente)
                         <span>&middot; {{ $conversa->atendente->name }}</span>
                     @endif
+
+                    {{-- Por qual numero esta conversa entrou. Aqui aparece SEMPRE, com um canal
+                         ou com dez: quem esta respondendo precisa saber de onde fala, e o
+                         cabecalho tem espaco de sobra. --}}
+                    @if ($conversa->channel)
+                        <span class="inline-flex items-center gap-1"
+                              title="{{ $conversa->channel->rotulo() }}">
+                            <span>&middot;</span>
+                            @include('livewire.inbox.partials.icone-plataforma', [
+                                'plataforma' => $conversa->channel->plataforma(),
+                                'classe'     => 'h-3.5 w-3.5',
+                            ])
+                            <span class="h-2 w-2 rounded-full {{ $conversa->channel->cor() }}"></span>
+                            <span>{{ $conversa->channel->nome }}</span>
+                        </span>
+                    @endif
                 </div>
                 </div>
             </div>

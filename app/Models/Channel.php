@@ -89,6 +89,64 @@ class Channel extends Model
         return self::TIPOS[$this->tipo] ?? (string) $this->tipo;
     }
 
+    /**
+     * Uma cor estavel para este canal, para o olho separar as conversas sem ler.
+     *
+     * Derivada do ID e nao guardada: cor de canal nao e informacao que alguem queira
+     * escolher, e uma coluna a mais seria uma coluna a mais para manter. O resto vira da
+     * mesma logica do avatar do contato — mesmo id, mesma cor, sempre.
+     */
+    /**
+     * De qual PLATAFORMA este canal fala.
+     *
+     * Nao e a mesma coisa que o tipo. O tipo diz por onde nos conectamos (Evolution por QR ou
+     * a API oficial da Meta); a plataforma diz o que o CLIENTE usou para escrever. Hoje os
+     * dois tipos sao WhatsApp, e por isso o icone sai igual em todas as conversas — o que
+     * separa um numero do outro e o nome do canal, nao o icone.
+     *
+     * Quando Instagram e Messenger entrarem, o icone muda sozinho aqui e aparece nos dois
+     * lugares que o usam.
+     */
+    public function plataforma(): string
+    {
+        return match ($this->tipo) {
+            'instagram' => 'instagram',
+            'messenger' => 'messenger',
+            default     => 'whatsapp',
+        };
+    }
+
+    /**
+     * O que aparece ao parar o mouse em cima: qual canal, e qual numero.
+     *
+     * O numero e a parte que importa quando ha tres canais na mesma plataforma — "RP" nao
+     * lembra nada a quem entrou ontem na equipe; "+55 41 9…" lembra.
+     */
+    public function rotulo(): string
+    {
+        $numero = $this->telefone_e164
+            ? \App\Support\PhoneNumber::discavel($this->telefone_e164)
+            : null;
+
+        return $this->nome.($numero ? ' · '.$numero : ' · número ainda não confirmado');
+    }
+
+    public function cor(): string
+    {
+        $cores = [
+            'bg-sky-500', 'bg-violet-500', 'bg-amber-500', 'bg-rose-500',
+            'bg-teal-500', 'bg-indigo-500', 'bg-lime-600', 'bg-fuchsia-500',
+        ];
+
+        return $cores[$this->id % count($cores)];
+    }
+
+    /** Nome curto para caber na lista. O nome inteiro fica no title. */
+    public function nomeCurto(int $limite = 14): string
+    {
+        return \Illuminate\Support\Str::limit((string) $this->nome, $limite, '…');
+    }
+
     public function conectado(): bool
     {
         return $this->status === 'open';
