@@ -180,6 +180,31 @@ class ConversationWindow extends Component
         $this->dispatch('conversa-atualizada');
     }
 
+    /**
+     * Reage a uma mensagem. Emoji vazio tira a reacao.
+     *
+     * Grava ANTES de mandar, para o clique responder na hora: reacao e gesto rapido, e esperar
+     * a fila para ver o polegar aparecer faria a pessoa clicar de novo. Se o envio falhar, o
+     * job desfaz e a reacao some da tela.
+     */
+    public function reagir(int $messageId, string $emoji = ''): void
+    {
+        $mensagem = \App\Models\Message::find($messageId);
+
+        if (! $mensagem || $mensagem->conversation_id !== $this->conversationId) {
+            return;
+        }
+
+        // Clicar no mesmo emoji de novo tira a reacao, como no WhatsApp.
+        $novo = ($emoji !== '' && $mensagem->reacao_nossa === $emoji) ? '' : $emoji;
+
+        $mensagem->update(['reacao_nossa' => $novo ?: null]);
+
+        \App\Jobs\SendReaction::dispatch($mensagem->id, $novo);
+
+        $this->dispatch('conversa-atualizada');
+    }
+
     public function verDetalhes(): void
     {
         $this->dispatch('abrir-detalhes');

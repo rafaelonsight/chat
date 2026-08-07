@@ -22,7 +22,7 @@ class Message extends Model
         'remetente_nome', 'remetente_jid', 'automatica',
         'transcricao', 'transcricao_status',
         'media_path', 'media_mime', 'media_nome', 'media_tamanho', 'media_duracao', 'legenda',
-        'lida_em',
+        'lida_em', 'reacao_cliente', 'reacao_nossa',
     ];
 
     protected $casts = [

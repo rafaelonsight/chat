@@ -1,7 +1,7 @@
 <?php
 
 /*
- * ARMADILHA DO Http::fake, escrita aqui porque ela me pegou QUATRO vezes.
+ * ARMADILHA DO Http::fake, escrita aqui porque ela me pegou CINCO vezes.
  *
  * Http::fake([...]) chamado uma segunda vez NAO substitui o primeiro. A definicao original
  * vence e a nova e ignorada em silencio — sem erro, sem aviso. O sintoma nunca e "o fake

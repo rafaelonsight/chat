@@ -26,6 +26,24 @@ class MetaCloudEnviador implements Enviador
         private readonly int $timeout,
     ) {}
 
+    public function reagir(Channel $canal, string $destino, array $alvo, string $emoji): void
+    {
+        $this->cliente($canal)
+            ->post($this->url($canal).'/messages', [
+                'messaging_product' => 'whatsapp',
+                'recipient_type'    => 'individual',
+                'to'                => self::soDigitos($destino),
+                'type'              => 'reaction',
+                'reaction'          => [
+                    'message_id' => $alvo['external_id'],
+                    // String vazia e como a Meta entende "tirar a reacao". Mandar null aqui
+                    // volta erro 100 dizendo que o parametro e invalido.
+                    'emoji'      => $emoji,
+                ],
+            ])
+            ->throw();
+    }
+
     public function nome(): string
     {
         return 'meta_cloud';

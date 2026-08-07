@@ -86,6 +86,14 @@ class ProcessMetaWebhook implements ShouldQueue
             throw new \RuntimeException('mensagem sem id ou sem remetente');
         }
 
+        // Reacao NAO e mensagem: e um enfeite sobre uma mensagem que ja existe. Tratar
+        // como mensagem faria a conversa ganhar um balao vazio a cada polegar levantado.
+        if (($bruta['type'] ?? '') === 'reaction') {
+            $this->reacao($canal, $bruta);
+
+            return;
+        }
+
         $conteudo = $this->conteudo($bruta);
         // A Meta poe a citacao em context.id, e o valor e o wamid da mensagem citada.
         $citadoWamid = ((string) data_get($bruta, 'context.id', '')) ?: null;
@@ -345,6 +353,21 @@ class ProcessMetaWebhook implements ShouldQueue
      *
      * @return array<string, mixed>|null
      */
+    /** O cliente reagiu a uma mensagem nossa. Emoji vazio quer dizer que ele TIROU a reacao. */
+    private function reacao(Channel $canal, array $bruta): void
+    {
+        $alvo = Message::acharPorExternalId($canal->id, (string) data_get($bruta, 'reaction.message_id'));
+
+        if (! $alvo) {
+            // Reacao a mensagem que nunca passou por aqui. Nao e erro: nao ha onde mostrar.
+            return;
+        }
+
+        $alvo->update(['reacao_cliente' => ((string) data_get($bruta, 'reaction.emoji', '')) ?: null]);
+
+        broadcast(new \App\Events\MessageStored($alvo->refresh()));
+    }
+
     private function conteudo(array $b): ?array
     {
         $tipo = (string) ($b['type'] ?? '');

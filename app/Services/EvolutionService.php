@@ -77,6 +77,27 @@ class EvolutionService
      *
      * @param  array{external_id: string, texto: ?string, minha: bool}  $citar
      */
+    /**
+     * Reage a uma mensagem.
+     *
+     * A chave e a mesma do quoted, e pelo mesmo motivo: sem o fromMe o Baileys procura a
+     * mensagem no lado errado e a reacao nao aparece em lugar nenhum — sem erro nenhum, o que
+     * e o pior desfecho.
+     *
+     * @param  array{external_id: string, minha: bool}  $alvo
+     */
+    public function sendReaction(string $instance, string $to, array $alvo, string $emoji): array
+    {
+        return $this->client()->post("/message/sendReaction/{$instance}", [
+            'key' => [
+                'id'        => $alvo['external_id'],
+                'fromMe'    => $alvo['minha'],
+                'remoteJid' => $to,
+            ],
+            'reaction' => $emoji,
+        ])->throw()->json();
+    }
+
     public static function quoted(array $citar, string $remoteJid): array
     {
         return [

@@ -80,6 +80,13 @@ class ProcessEvolutionWebhook implements ShouldQueue
             throw new \RuntimeException('remetente ou id ausente no payload');
         }
 
+        // Reacao NAO e mensagem: nao pode virar balao na conversa.
+        if ($reacao = Arr::get($data, 'message.reactionMessage')) {
+            $this->registrarReacao($canal, $reacao);
+
+            return;
+        }
+
         $conteudo = $this->identificarConteudo(Arr::get($data, 'message', []));
         $citadoExternalId = $this->citado(Arr::get($data, 'message', []));
 
@@ -230,6 +237,20 @@ class ProcessEvolutionWebhook implements ShouldQueue
      * nivel evita uma lista de tipos que envelheceria calada — tipo novo entraria e a citacao
      * dele simplesmente nao apareceria, sem erro.
      */
+    /** O cliente reagiu a uma mensagem. text vazio quer dizer que ele TIROU a reacao. */
+    private function registrarReacao(Channel $canal, array $reacao): void
+    {
+        $alvo = Message::acharPorExternalId($canal->id, (string) Arr::get($reacao, 'key.id'));
+
+        if (! $alvo) {
+            return;
+        }
+
+        $alvo->update(['reacao_cliente' => ((string) Arr::get($reacao, 'text', '')) ?: null]);
+
+        broadcast(new \App\Events\MessageStored($alvo->refresh()));
+    }
+
     private function citado(array $msg): ?string
     {
         foreach ($msg as $conteudo) {

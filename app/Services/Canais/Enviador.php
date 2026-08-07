@@ -79,6 +79,18 @@ interface Enviador
      */
     public function verificarNumero(Channel $canal, string $e164): array;
 
+    /**
+     * Reage a uma mensagem com um emoji.
+     *
+     * $emoji VAZIO quer dizer tirar a reacao. Nao e um caso especial inventado aqui: e assim
+     * que os dois provedores entendem, e assim que o WhatsApp mostra para o cliente.
+     *
+     * @param  array{external_id: string, minha: bool}  $alvo  qual mensagem recebe a reacao
+     *
+     * @throws \Throwable quando o provedor recusa
+     */
+    public function reagir(Channel $canal, string $destino, array $alvo, string $emoji): void;
+
     /** Nome curto para aparecer em log e em erro, sem revelar credencial. */
     public function nome(): string;
 }

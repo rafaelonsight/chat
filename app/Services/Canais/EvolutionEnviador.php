@@ -15,6 +15,11 @@ class EvolutionEnviador implements Enviador
 {
     public function __construct(private readonly EvolutionService $evolution) {}
 
+    public function reagir(Channel $canal, string $destino, array $alvo, string $emoji): void
+    {
+        $this->evolution->sendReaction($this->instancia($canal), $destino, $alvo, $emoji);
+    }
+
     public function nome(): string
     {
         return 'evolution';

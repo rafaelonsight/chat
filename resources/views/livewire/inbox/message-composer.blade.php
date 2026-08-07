@@ -202,6 +202,42 @@
                 </button>
             </div>
 
+            {{--
+                Seletor de emoji escrito a mao, com uma lista curta.
+
+                Sem biblioteca de proposito: as prontas trazem alguns megabytes, uma fonte
+                inteira de imagens e, quase sempre, um pedido a um servidor de terceiro. E o
+                atendente nao precisa de tres mil figurinhas — precisa das vinte que ele usa
+                todo dia, na mao.
+
+                A insercao acontece no NAVEGADOR, sem ida ao servidor: emoji e digitacao, e
+                digitacao com espera de rede no meio e insuportavel.
+            --}}
+            @unless ($nota)
+                <div class="relative shrink-0" x-data="{ aberto: false }" x-on:click.outside="aberto = false">
+                    <button type="button" x-on:click="aberto = !aberto"
+                            title="Emojis" aria-label="Escolher um emoji"
+                            class="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                        &#128512;
+                    </button>
+
+                    <div x-show="aberto" x-cloak id="onchat-emojis"
+                         class="absolute bottom-full left-0 z-30 mb-1 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                        <div class="grid grid-cols-8 gap-0.5">
+                            @foreach (["\u{1F44D}", "\u{1F44C}", "\u{1F64F}", "\u{1F60A}", "\u{1F600}", "\u{1F602}", "\u{1F605}", "\u{1F609}",
+                                       "\u{1F60D}", "\u{1F618}", "\u{1F44F}", "\u{1F64C}", "\u{1F4AA}", "\u{1F91D}", "\u{1F389}", "\u{2705}",
+                                       "\u{274C}", "\u{26A0}", "\u{2764}", "\u{1F525}", "\u{2B50}", "\u{1F4CC}", "\u{1F4CE}", "\u{1F4DE}",
+                                       "\u{1F4F1}", "\u{1F4AC}", "\u{1F4B0}", "\u{1F4B3}", "\u{1F69A}", "\u{1F4E6}", "\u{1F550}", "\u{1F4C5}",
+                                       "\u{1F4CD}", "\u{1F642}", "\u{1F615}", "\u{1F622}", "\u{1F621}", "\u{1F44B}", "\u{1F914}", "\u{1F4A1}"] as $emoji)
+                                <button type="button" wire:key="em-{{ $loop->index }}"
+                                        x-on:click="$wire.corpo = ($wire.corpo ?? '') + @js($emoji)"
+                                        class="rounded p-1 text-lg leading-none hover:bg-slate-100">{{ $emoji }}</button>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+            @endunless
+
             {{-- alternar entre responder o cliente e escrever nota interna --}}
             <button type="button" wire:click="alternarNota"
                     title="{{ $nota ? 'Voltar a responder o cliente' : 'Escrever nota interna (nao vai para o cliente)' }}"
