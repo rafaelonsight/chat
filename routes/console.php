@@ -13,3 +13,11 @@ Artisan::command('inspire', function () {
 Schedule::command('onchat:diagnostico --alertar')
     ->everyFiveMinutes()
     ->withoutOverlapping();
+
+// Sequencias: um tique por minuto. O job tem trava de sobreposicao, entao rodada que demorar
+// nao empilha com a seguinte.
+Schedule::job(new \App\Jobs\AvancarSequencias)->everyMinute();
+
+// Quem sumiu depois de a gente responder. Uma vez por hora basta: a unidade do gatilho e
+// hora, e varrer a cada minuto so gastaria consulta para achar o mesmo nada.
+Schedule::job(new \App\Jobs\ProcurarSumidos)->hourly();

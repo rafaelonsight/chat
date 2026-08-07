@@ -163,6 +163,14 @@ class ProcessMetaWebhook implements ShouldQueue
             return; // reentrega: nao apita nem chama o bot de novo
         }
 
+        // SEQUENCIAS. Duas coisas de uma vez, e a ordem importa:
+        //
+        // 1. o cliente FALOU, entao qualquer jornada em andamento para. Sem isto a sequencia
+        //    vira perseguicao — ele responde, alguem atende, e a maquina continua mandando
+        //    "notou que voce nao respondeu?" no dia seguinte.
+        // 2. se esta e a PRIMEIRA conversa dele, comeca a jornada de quem chega.
+        $this->talvezSequencias($mensagem);
+
         // "PARAR": mesmo tratamento do canal por QR.
         $this->talvezSairDaLista($mensagem);
 
@@ -363,6 +371,38 @@ class ProcessMetaWebhook implements ShouldQueue
      *
      * @return array<string, mixed>|null
      */
+    /**
+     * Sequencias: o cliente respondeu, e talvez seja a primeira vez que ele fala.
+     *
+     * Parar vem antes de inscrever de proposito. Se fosse ao contrario, a primeira mensagem
+     * dele inscreveria e no mesmo instante pararia a inscricao recem-criada — e ninguem
+     * receberia jornada nenhuma.
+     */
+    private function talvezSequencias(Message $mensagem): void
+    {
+        $contato = $mensagem->conversation?->contact;
+
+        if (! $contato) {
+            return;
+        }
+
+        $cadenciador = app(\App\Services\Cadenciador::class);
+
+        $cadenciador->clienteRespondeu($contato);
+
+        $primeira = \App\Models\Conversation::withoutGlobalScope('tenant')
+            ->where('contact_id', $contato->id)
+            ->count() === 1;
+
+        if ($primeira) {
+            $cadenciador->inscrever(
+                \App\Models\Sequence::PRIMEIRA_CONVERSA,
+                $contato,
+                $mensagem->conversation,
+            );
+        }
+    }
+
     /** O cliente pediu para sair da lista de campanhas. Mesmo tratamento do canal por QR. */
     private function talvezSairDaLista(Message $mensagem): void
     {

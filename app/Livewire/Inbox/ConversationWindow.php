@@ -180,6 +180,13 @@ class ConversationWindow extends Component
         // numa conversa ainda aberta e a nota entraria como conversa normal.
         app(\App\Services\PesquisaDeSatisfacao::class)->perguntar($conversa->refresh());
 
+        // E a jornada de pos-atendimento, se houver alguma ligada.
+        app(\App\Services\Cadenciador::class)->inscrever(
+            \App\Models\Sequence::ATENDIMENTO_ENCERRADO,
+            $conversa->contact,
+            $conversa,
+        );
+
         $this->dispatch('conversa-atualizada');
     }
 

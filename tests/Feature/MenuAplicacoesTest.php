@@ -63,7 +63,8 @@ it('as telas ainda reservadas abrem para admin, com as decisoes listadas', funct
     $chave = 'login_web_'.sha1('Illuminate\Auth\SessionGuard');
 
     // Campanhas saiu daqui: deixou de ser tela reservada e virou modulo de verdade.
-    foreach (['/admin/funcionarios-digitais', '/admin/sequencias'] as $rota) {
+    // Sequencias tambem saiu: so os Funcionarios Digitais continuam reservados.
+    foreach (['/admin/funcionarios-digitais'] as $rota) {
         $this->withSession([$chave => $admin->id])->get($rota)
             ->assertSuccessful()
             ->assertSee('em constru');
