@@ -179,6 +179,33 @@
                     </div>
                 @endif
 
+                {{-- Fixar no topo. E de QUEM fixou: a conversa que eu prendo nao ocupa o
+                     topo da tela de outro atendente. --}}
+                @php $fixada = $conversa->fixadaPara(auth()->user()); @endphp
+                <button type="button" wire:click="alternarFixada"
+                        title="{{ $fixada ? 'Soltar do topo' : 'Fixar no topo da sua lista' }}"
+                        class="rounded border p-1.5 {{ $fixada
+                            ? 'border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300'
+                            : 'border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-white/20 dark:text-gray-300 dark:hover:bg-white/5' }}">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="{{ $fixada ? 'currentColor' : 'none' }}"
+                         viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+                    </svg>
+                </button>
+
+                {{-- Busca DENTRO da conversa. A da lista acha a conversa; esta acha a
+                     mensagem. --}}
+                <button type="button" x-data x-on:click="$refs.buscaConversa?.focus()"
+                        title="Procurar nesta conversa"
+                        class="rounded border border-gray-300 p-1.5 text-gray-600 hover:bg-gray-50 dark:border-white/20 dark:text-gray-300 dark:hover:bg-white/5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8"
+                         stroke="currentColor" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                    </svg>
+                </button>
+
                 {{-- "Volto depois". Fecha a conversa junto — marcar como nao lida com ela
                      aberta na frente nao significaria nada. --}}
                 <button type="button" wire:click="marcarNaoLida"
@@ -234,6 +261,57 @@
             </div>
         </div>
 
+        {{-- A barra da busca. Fica sempre montada e discreta: campo que aparece e some
+             obriga a pessoa a lembrar que ele existe. --}}
+        <div class="flex items-center gap-2 border-b border-gray-100 px-4 py-1.5 dark:border-white/5">
+            <input type="search" wire:model.live.debounce.400ms="buscaNaConversa"
+                   x-ref="buscaConversa" placeholder="Procurar nesta conversa"
+                   class="w-full border-0 bg-transparent p-0 text-xs text-gray-700 placeholder:text-gray-400 focus:ring-0 dark:text-gray-200">
+
+            @if ($procurado !== '')
+                <span class="shrink-0 whitespace-nowrap text-[11px] text-gray-500">
+                    {{ $mensagens->count() }} {{ $mensagens->count() === 1 ? 'mensagem' : 'mensagens' }}
+                </span>
+                <button type="button" wire:click="limparBusca"
+                        class="shrink-0 rounded px-1.5 text-sm leading-none text-gray-400 hover:text-gray-700"
+                        title="Limpar a busca">&times;</button>
+            @endif
+        </div>
+
+        {{-- Para quem encaminhar. Busca por nome com pelo menos duas letras: a lista
+             inteira de contatos num menu nao ajuda ninguem a achar alguem. --}}
+        @if ($encaminhando)
+            <div class="border-b border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+                <div class="flex items-center gap-2">
+                    <span class="shrink-0 text-xs font-semibold text-amber-900 dark:text-amber-200">Encaminhar</span>
+                    <input type="text" wire:model.live.debounce.300ms="buscaEncaminhar"
+                           placeholder="nome do contato"
+                           class="flex-1 rounded border border-amber-300 bg-white px-2 py-1 text-xs dark:border-amber-500/40 dark:bg-gray-800">
+                    <button type="button" wire:click="$set('encaminhando', null)"
+                            class="shrink-0 rounded px-2 text-sm leading-none text-amber-700 hover:text-amber-900"
+                            title="Cancelar">&times;</button>
+                </div>
+
+                @if ($paraEncaminhar->isNotEmpty())
+                    <div class="mt-2 flex flex-wrap gap-1">
+                        @foreach ($paraEncaminhar as $c)
+                            <button type="button" wire:key="enc-{{ $c->id }}"
+                                    wire:click="encaminhar({{ $encaminhando }}, {{ $c->id }})"
+                                    class="rounded-full border border-amber-300 bg-white px-2.5 py-1 text-xs text-gray-700 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-gray-800 dark:text-gray-200">
+                                {{ $c->nomeExibicao() }}
+                            </button>
+                        @endforeach
+                    </div>
+                @elseif (mb_strlen(trim($buscaEncaminhar)) >= 2)
+                    <p class="mt-2 text-xs text-amber-800 dark:text-amber-300">Nenhum contato com esse nome.</p>
+                @endif
+            </div>
+        @endif
+
+        @error('encaminhar')
+            <div class="bg-red-50 px-4 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ $message }}</div>
+        @enderror
+
         @error('apagar')
             <div class="bg-red-50 px-4 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ $message }}</div>
         @enderror
@@ -251,6 +329,13 @@
                 <button type="button" wire:click="carregarMais" class="mx-auto block text-xs text-slate-500 underline">
                     carregar mensagens anteriores
                 </button>
+            @endif
+
+            @if ($procurado !== '' && $mensagens->isEmpty())
+                {{-- Lista vazia sem explicacao parece defeito, nao busca sem resultado. --}}
+                <p class="py-6 text-center text-xs text-slate-500">
+                    Nenhuma mensagem desta conversa contém <strong>{{ $procurado }}</strong>.
+                </p>
             @endif
 
             @foreach ($linha as $item)
@@ -283,6 +368,23 @@
                                   d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
                         </svg>
                     </button>
+
+                    {{-- Encaminhar para outro contato. Vale para mensagem de qualquer lado:
+                         o mais comum e repassar o que o CLIENTE mandou — um comprovante, uma
+                         foto do problema — para quem vai resolver. --}}
+                    @unless ($m->apagada())
+                        <button type="button" wire:click="$set('encaminhando', {{ $m->id }})"
+                                title="Encaminhar" aria-label="Encaminhar esta mensagem"
+                                class="shrink-0 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700
+                                       opacity-100 lg:opacity-0 lg:group-hover:opacity-100
+                                       {{ $entrada ? 'order-last' : 'order-first' }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                                 stroke-width="2" stroke="currentColor" class="h-4 w-4">
+                                <path stroke-linecap="round" stroke-linejoin="round"
+                                      d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 0 0 0 12h3" />
+                            </svg>
+                        </button>
+                    @endunless
 
                     {{-- Apagar: so mensagem NOSSA, e so em canal que consegue apagar de
                          verdade. No canal oficial o botao nem aparece — a Meta nao tem essa

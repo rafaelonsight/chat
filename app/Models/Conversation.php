@@ -25,6 +25,7 @@ class Conversation extends Model
     protected $fillable = [
         'tenant_id', 'channel_id', 'contact_id', 'status', 'atendente_id', 'team_id',
         'pesquisa_enviada_em', 'satisfacao', 'satisfacao_em',
+        'fixada_em', 'fixada_por',
         'ultima_msg_em', 'ultima_entrada_em', 'nao_lidas',
         'origem_tipo', 'origem_id', 'origem',
         'chatbot_id', 'chatbot_tentativas', 'chatbot_estado',
@@ -34,6 +35,7 @@ class Conversation extends Model
 
     protected $casts = [
         'pesquisa_enviada_em' => 'datetime',
+        'fixada_em'           => 'datetime',
         'satisfacao_em'       => 'datetime',
         'satisfacao'          => 'integer',
         'ultima_msg_em'      => 'datetime',
@@ -255,6 +257,31 @@ class Conversation extends Model
             ->whereKey($conversationId)
             ->where('tenant_id', $user->tenant_id)
             ->exists();
+    }
+
+    /**
+     * Prende a conversa no topo da lista.
+     *
+     * Serve para o atendimento que nao pode escorregar: o caso grave do dia, o cliente que
+     * esta esperando uma resposta que depende de terceiro. Sem isso, a conversa desce sozinha
+     * conforme outras chegam, e sumir da vista e sumir da cabeca.
+     *
+     * E de quem fixou, nao da conta: a coluna guarda o usuario. Conversa que um atendente
+     * fixou nao pode ficar presa no topo da tela de todo mundo.
+     */
+    public function fixarPara(User $quem): void
+    {
+        $this->forceFill(['fixada_em' => now(), 'fixada_por' => $quem->id])->save();
+    }
+
+    public function desafixar(): void
+    {
+        $this->forceFill(['fixada_em' => null, 'fixada_por' => null])->save();
+    }
+
+    public function fixadaPara(?User $quem): bool
+    {
+        return $quem !== null && $this->fixada_em !== null && (int) $this->fixada_por === $quem->id;
     }
 
     public function marcarNaoLida(): void

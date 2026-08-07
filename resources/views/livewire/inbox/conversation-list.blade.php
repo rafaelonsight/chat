@@ -269,6 +269,13 @@
                             </span>
                         @endif
 
+                        @if ($conversa->fixadaPara(auth()->user()))
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24"
+                                 class="h-3 w-3 shrink-0 text-amber-500" title="Fixada no topo">
+                                <path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z" />
+                            </svg>
+                        @endif
+
                         <span class="truncate font-medium text-gray-800 dark:text-gray-100">
                             {{ $conversa->contact->nomeExibicao() }}
                         </span>
@@ -316,6 +323,17 @@
                                 <span class="shrink-0 opacity-40">&middot;</span>
                             @endif
                             <span class="truncate">{{ $conversa->ultima_msg_em?->diffForHumans() }}</span>
+
+                            {{-- Ha quanto tempo ESPERA RESPOSTA. Conta da ultima mensagem do
+                                 cliente, e some quando a ultima palavra foi nossa: ai a bola
+                                 esta com ele, e marcar atraso seria inventar culpa. --}}
+                            @php $esperando = \App\Livewire\Inbox\ConversationList::esperandoHa($conversa); @endphp
+                            @if ($esperando !== null && $esperando >= 30)
+                                <span class="shrink-0 rounded px-1 font-medium {{ $esperando >= 120 ? 'bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300' }}"
+                                      title="Sem resposta há {{ $esperando }} minuto(s)">
+                                    {{ $esperando >= 60 ? intdiv($esperando, 60).'h' : $esperando.'min' }}
+                                </span>
+                            @endif
                         </span>
                         @if ($conversa->team)
                             <span class="truncate">{{ $conversa->team->nome }}</span>

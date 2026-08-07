@@ -152,6 +152,23 @@
             </div>
         @endif
 
+        {{--
+            RASCUNHO POR CONVERSA, guardado no navegador.
+
+            Antes, trocar de conversa apagava o texto — o que era o menos ruim entre duas
+            opcoes ruins, porque a outra era o texto ATRAVESSAR para a conversa seguinte e ser
+            mandado para o cliente errado. Agora cada conversa lembra o seu.
+
+            No navegador e nao no banco: rascunho e da MAQUINA de quem escreve. Metade de uma
+            frase minha aparecendo no computador de outro atendente seria constrangedor, e
+            gravar a cada tecla seria uma escrita no banco por letra digitada.
+        --}}
+        <div wire:key="rascunho-{{ $conversationId }}"
+             x-data="{ chave: 'onchat.rascunho.{{ $conversationId }}' }"
+             x-init="if (! $wire.corpo) { const g = localStorage.getItem(chave); if (g) $wire.corpo = g; }"
+             x-effect="$wire.corpo ? localStorage.setItem(chave, $wire.corpo) : localStorage.removeItem(chave)">
+        </div>
+
         <form wire:submit="enviar" class="flex items-end gap-2 {{ $nota ? 'rounded-lg bg-amber-50/60 p-1.5 ring-1 ring-amber-200' : '' }}">
             {{-- anexar: escondido em nota interna, o arquivo iria para o cliente --}}
             @unless ($nota)

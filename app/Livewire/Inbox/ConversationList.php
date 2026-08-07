@@ -84,6 +84,29 @@ class ConversationList extends Component
         return $listeners;
     }
 
+    /**
+     * Ha quanto tempo esta conversa espera resposta.
+     *
+     * Conta da ULTIMA MENSAGEM DO CLIENTE, e nao da abertura: conversa aberta ha tres dias em
+     * que ele escreveu agora nao esta esperando ha tres dias. E devolve null quando a ultima
+     * palavra foi nossa — ai a bola esta com ele, e cobrar o atendente por isso seria
+     * inventar atraso.
+     */
+    public static function esperandoHa(\App\Models\Conversation $c): ?int
+    {
+        if (! $c->ultima_entrada_em) {
+            return null;
+        }
+
+        $ultima = $c->ultimaMensagem;
+
+        if ($ultima && ! $ultima->entrada()) {
+            return null;
+        }
+
+        return (int) $c->ultima_entrada_em->diffInMinutes(now());
+    }
+
     public function limparSelecao(): void
     {
         $this->selecionada = null;
@@ -323,6 +346,9 @@ class ConversationList extends Component
                 ->with(['contact.tags', 'ultimaMensagem', 'atendente', 'team', 'channel'])
                 ->withCount('messages')
         )
+            // Fixadas primeiro, e so as fixadas por QUEM ESTA OLHANDO. Conversa que outro
+            // atendente prendeu no topo dele nao pode ocupar o topo do meu.
+            ->orderByRaw('case when fixada_em is not null and fixada_por = ? then 0 else 1 end', [auth()->id()])
             ->orderBy('ultima_msg_em', $this->ordemEfetiva() === 'antigos' ? 'asc' : 'desc')
             ->limit($this->limite)
             ->get();

@@ -9,7 +9,18 @@ class ConversationWindow extends Component
 {
     public ?int $conversationId = null;
 
-    public int $limite = 30;
+    /** Texto procurado dentro da conversa aberta. */
+    public string $buscaNaConversa = '';
+
+    /** Qual mensagem esta esperando um destino para ser encaminhada. */
+    public ?int $encaminhando = null;
+
+    public string $buscaEncaminhar = '';
+
+    /** Quantas mensagens por vez. Constante porque tres lugares precisam voltar a ela. */
+    public const PAGINA = 30;
+
+    public int $limite = self::PAGINA;
 
     public function mount(?int $conversationId = null): void
     {
@@ -71,8 +82,22 @@ class ConversationWindow extends Component
             ? Conversation::with(['contact.tags', 'tags'])->find($this->conversationId)
             : null;
 
+        $procurado = trim($this->buscaNaConversa);
+
         $mensagens = $conversa
-            ? $conversa->messages()->orderByDesc('id')->limit($this->limite)->get()->reverse()->values()
+            ? $conversa->messages()
+                ->when($procurado !== '', function ($q) use ($procurado) {
+                    // Procura tambem na legenda e na transcricao: audio transcrito e documento
+                    // com legenda sao conteudo que o cliente mandou, e nao achar neles faria a
+                    // busca parecer quebrada justamente em quem usa audio.
+                    $q->where(function ($w) use ($procurado) {
+                        $w->where('corpo', 'ilike', '%'.$procurado.'%')
+                            ->orWhere('legenda', 'ilike', '%'.$procurado.'%')
+                            ->orWhere('transcricao', 'ilike', '%'.$procurado.'%')
+                            ->orWhere('media_nome', 'ilike', '%'.$procurado.'%');
+                    });
+                })
+                ->orderByDesc('id')->limit($this->limite)->get()->reverse()->values()
             : collect();
 
         $equipes = \App\Models\Team::ativas()->orderBy('nome')->get();
@@ -87,9 +112,12 @@ class ConversationWindow extends Component
         // So os eventos que caem dentro do trecho de mensagens carregado. Sem
         // esse corte, evento antigo apareceria acima do "carregar anteriores" e a
         // linha do tempo ficaria mentindo sobre a ordem.
-        $desde = $mensagens->first()?->created_at;
+        // Buscando, a linha do tempo mostra so mensagens: evento de transferencia e nota no
+        // meio de um resultado de busca confunde mais do que ajuda, porque nao casam com o que
+        // foi procurado.
+        $desde = $procurado !== '' ? null : $mensagens->first()?->created_at;
 
-        $eventos = $conversa
+        $eventos = ($conversa && $procurado === '')
             ? $conversa->events()
                 ->with('user')
                 ->when($desde, fn ($q) => $q->where('created_at', '>=', $desde))
@@ -116,9 +144,18 @@ class ConversationWindow extends Component
         // errado se o lugar errado nao esta na lista.
         $etiquetasDeConversa = \App\Models\Tag::deConversa()->orderBy('nome')->get();
 
+        // Candidatos a receber o encaminhamento. So busca com pelo menos duas letras: a
+        // lista inteira de contatos num menu nao ajuda ninguem a achar alguem.
+        $paraEncaminhar = ($this->encaminhando && mb_strlen(trim($this->buscaEncaminhar)) >= 2)
+            ? \App\Models\Contact::ativos()
+                ->where('id', '!=', $conversa?->contact_id)
+                ->where('nome', 'ilike', '%'.trim($this->buscaEncaminhar).'%')
+                ->orderBy('nome')->limit(8)->get()
+            : collect();
+
         $podeApagar = $this->canalApaga();
 
-        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'pessoas', 'eventos', 'linha', 'podeApagar', 'etiquetasDeConversa'));
+        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'pessoas', 'eventos', 'linha', 'podeApagar', 'etiquetasDeConversa', 'procurado', 'paraEncaminhar'));
     }
 
     public function assumir(): void
@@ -304,6 +341,122 @@ class ConversationWindow extends Component
         }
 
         $this->dispatch('conversa-atualizada');
+    }
+
+    /**
+     * Busca dentro DESTA conversa.
+     *
+     * A busca da lista acha a conversa; esta acha a mensagem. Conversa de tres meses e
+     * "o que ele falou do orcamento?" era rolar com o dedo ate achar — e quando nao achava, o
+     * atendente perguntava de novo ao cliente, que ja tinha respondido.
+     *
+     * Filtra o trecho carregado no servidor e nao no navegador: as mensagens antigas nem estao
+     * na tela, e uma busca que so acha o que ja esta visivel encontra menos do que a pessoa ve
+     * rolando — pior que nao ter busca.
+     */
+    public function updatedBuscaNaConversa(): void
+    {
+        // Buscar recomeca do topo do resultado; manter o "carregar anteriores" de antes
+        // mostraria um pedaco do meio de outra coisa.
+        $this->limite = self::PAGINA;
+    }
+
+    public function limparBusca(): void
+    {
+        $this->buscaNaConversa = '';
+        $this->limite = self::PAGINA;
+    }
+
+    public function alternarFixada(): void
+    {
+        $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
+
+        $conversa->fixadaPara(auth()->user())
+            ? $conversa->desafixar()
+            : $conversa->fixarPara(auth()->user());
+
+        $this->dispatch('conversa-atualizada');
+    }
+
+    /**
+     * Encaminha uma mensagem para outro contato.
+     *
+     * O ARQUIVO E COPIADO, e nao apontado. Duas mensagens compartilhando o mesmo caminho
+     * pareceriam economia ate o dia em que o primeiro contato pedisse a exclusao dos dados
+     * dele pela LGPD: o arquivo sumiria do disco e a mensagem encaminhada, que e de OUTRA
+     * pessoa e nao foi pedida, quebraria junto.
+     */
+    public function encaminhar(int $messageId, int $contactId): void
+    {
+        $mensagem = \App\Models\Message::find($messageId);
+        $destino = \App\Models\Contact::find($contactId);
+
+        if (! $mensagem || $mensagem->conversation_id !== $this->conversationId || ! $destino) {
+            return;
+        }
+
+        if ($mensagem->apagada()) {
+            $this->addError('encaminhar', 'Essa mensagem foi apagada.');
+
+            return;
+        }
+
+        $origem = \App\Models\Conversation::findOrFail($this->conversationId);
+
+        $conversa = \App\Models\Conversation::abertaOuNova(
+            $origem->channel_id,
+            $destino->id,
+            $origem->tenant_id,
+        );
+
+        if (! $conversa->podeEnviarLivre()) {
+            $this->addError('encaminhar', 'A janela de 24 horas com '.$destino->nomeExibicao().' está fechada.');
+
+            return;
+        }
+
+        $caminho = null;
+
+        if ($mensagem->media_path) {
+            $caminho = 'media/'.\Illuminate\Support\Str::uuid().'.'
+                .pathinfo($mensagem->media_path, PATHINFO_EXTENSION);
+
+            if (! \Illuminate\Support\Facades\Storage::disk('local')->copy($mensagem->media_path, $caminho)) {
+                $this->addError('encaminhar', 'Não consegui copiar o arquivo.');
+
+                return;
+            }
+        }
+
+        $nova = \App\Models\Message::create([
+            'tenant_id'       => $origem->tenant_id,
+            'conversation_id' => $conversa->id,
+            'channel_id'      => $conversa->channel_id,
+            'direcao'         => 'out',
+            'tipo'            => $mensagem->tipo,
+            'corpo'           => $mensagem->corpo,
+            'legenda'         => $mensagem->legenda,
+            'media_path'      => $caminho,
+            'media_mime'      => $mensagem->media_mime,
+            'media_nome'      => $mensagem->media_nome,
+            'media_tamanho'   => $mensagem->media_tamanho,
+            'media_duracao'   => $mensagem->media_duracao,
+            'status'          => \App\Models\Message::STATUS_QUEUED,
+        ]);
+
+        $caminho
+            ? \App\Jobs\SendMediaMessage::dispatch($nova->id)
+            : \App\Jobs\SendTextMessage::dispatch($nova->id);
+
+        $conversa->update(['ultima_msg_em' => now()]);
+
+        $this->encaminhando = null;
+        $this->buscaEncaminhar = '';
+
+        $this->dispatch('conversa-atualizada');
+        // Abre a conversa de destino: encaminhar e mandar para alguem, e a pessoa quase
+        // sempre quer escrever uma linha junto.
+        $this->dispatch('abrir-conversa', conversationId: $conversa->id);
     }
 
     public function verDetalhes(): void
