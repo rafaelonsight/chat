@@ -23,6 +23,7 @@ class Contact extends Model
     ];
 
     protected $casts = [
+        'anonimizado_em' => 'datetime',
         'arquivado_em' => 'datetime',
         'bloqueado_em' => 'datetime',
     ];
@@ -72,6 +73,12 @@ class Contact extends Model
     public function instagramUrl(): ?string
     {
         return $this->instagram ? 'https://instagram.com/'.$this->instagram : null;
+    }
+
+    /** Os dados pessoais deste contato foram removidos a pedido dele. */
+    public function anonimizado(): bool
+    {
+        return $this->anonimizado_em !== null;
     }
 
     public function bloqueado(): bool

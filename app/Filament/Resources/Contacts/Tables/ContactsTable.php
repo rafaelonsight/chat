@@ -184,6 +184,54 @@ class ContactsTable
                 // Bloquear FAZ efeito: o motor do chatbot e a resposta automatica
                 // checam isto. Interruptor que nao impede o robo de responder nao
                 // bloqueia nada.
+                // ---- LGPD: acesso e eliminacao. So administrador: as duas acoes lidam
+                // com pedido legal do titular, e a segunda e irreversivel.
+                Action::make('exportar_lgpd')
+                    ->label('Exportar dados')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('gray')
+                    ->visible(fn (): bool => (bool) auth()->user()?->admin)
+                    ->action(function (Contact $record) {
+                        $servico = app(\App\Services\DadosDoContato::class);
+                        $dados = $servico->exportar($record);
+                        $nome = $servico->nomeDoArquivo($record);
+
+                        return response()->streamDownload(function () use ($dados) {
+                            echo json_encode($dados, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                        }, $nome, ['Content-Type' => 'application/json; charset=utf-8']);
+                    }),
+
+                Action::make('anonimizar_lgpd')
+                    ->label('Apagar dados (LGPD)')
+                    ->icon('heroicon-o-shield-exclamation')
+                    ->color('danger')
+                    ->visible(fn (Contact $record): bool => (bool) auth()->user()?->admin && ! $record->anonimizado())
+                    ->requiresConfirmation()
+                    ->modalHeading('Apagar os dados desta pessoa?')
+                    // O texto diz exatamente o que some e o que fica. Confirmacao que nao
+                    // explica a consequencia e so um clique a mais.
+                    ->modalDescription(new HtmlString(
+                        '<p class="mb-2"><strong>Some para sempre:</strong> nome, telefone, e-mail, '
+                        .'endereço, campos personalizados, o texto de todas as mensagens, as '
+                        .'transcrições de áudio e os arquivos enviados.</p>'
+                        .'<p class="mb-2"><strong>Fica:</strong> que houve atendimento, em que dia e '
+                        .'quantas mensagens — sem conteúdo. Isso é registro da empresa, exigido por '
+                        .'obrigação fiscal e contábil, e é o que impede os relatórios dos meses '
+                        .'passados de mudarem sozinhos.</p>'
+                        .'<p><strong>Não tem como desfazer.</strong></p>'
+                    ))
+                    ->modalSubmitActionLabel('Apagar os dados')
+                    ->action(function (Contact $record) {
+                        $r = app(\App\Services\DadosDoContato::class)->anonimizar($record);
+
+                        Notification::make()
+                            ->title('Dados removidos')
+                            ->body("{$r['mensagens']} mensagem(ns) em {$r['conversas']} conversa(s), "
+                                ."e {$r['arquivos']} arquivo(s) apagado(s) do disco.")
+                            ->success()
+                            ->send();
+                    }),
+
                 Action::make('bloquear')
                     ->label(fn (Contact $record) => $record->bloqueado() ? 'Desbloquear' : 'Bloquear')
                     ->icon('heroicon-o-no-symbol')
