@@ -47,6 +47,14 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::HEAD_END,
                 fn (): string => view('filament.tempo-real')->render(),
             )
+            // Aviso de conta sem canal, no topo do conteudo de TODA tela. Caixa de entrada
+            // vazia porque ninguem escreveu e caixa vazia porque o WhatsApp nunca foi
+            // conectado sao a mesma tela; sem isto, a unica forma de o cliente saber a
+            // diferenca e telefonar.
+            ->renderHook(
+                PanelsRenderHook::CONTENT_START,
+                fn (): string => view('filament.aviso-sem-canal')->render(),
+            )
             ->login()
             // Sem isto, funcionario do cliente que esquece a senha depende de alguem com
             // acesso ao banco. Para revender, isso e constrangedor antes de ser tecnico.
