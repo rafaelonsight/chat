@@ -10,11 +10,16 @@ class FunnelStage extends Model
 {
     use BelongsToTenant;
 
-    protected $fillable = ['tenant_id', 'nome', 'cor', 'ordem', 'encerra'];
+    protected $fillable = ['tenant_id', 'funnel_id', 'nome', 'cor', 'ordem', 'encerra'];
 
     protected $casts = ['ordem' => 'integer', 'encerra' => 'boolean'];
 
     protected $attributes = ['cor' => 'cinza', 'ordem' => 0, 'encerra' => false];
+
+    public function funnel(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Funnel::class);
+    }
 
     public function conversations(): HasMany
     {

@@ -78,7 +78,7 @@ it('Paineis deixou de ser tela reservada: virou o funil', function () {
         ->assertSuccessful()
         ->assertDontSee('em constru')
         // conta sem coluna nenhuma e convidada a criar, em vez de encarar um quadro em branco
-        ->assertSee('Seu funil ainda não tem colunas');
+        ->assertSee('Você ainda não tem nenhum funil');
 });
 
 it('relatorios e barrado para atendente', function () {

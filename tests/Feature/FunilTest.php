@@ -63,7 +63,16 @@ it('cria as cinco colunas de exemplo', function () {
 });
 
 it('nao cria de novo se ja houver coluna', function () {
-    FunnelStage::create(['tenant_id' => $this->conta->id, 'nome' => 'Minha', 'ordem' => 0]);
+    // Etapa agora pertence a um FUNIL — a coluna virou obrigatoria quando o produto
+    // passou a ter mais de um quadro.
+    // Funil cru, sem as cinco etapas padrao: o que este teste afirma e que o criarPadrao
+    // nao passa por cima do que ja existe.
+    $funil = App\Models\Funnel::create(['tenant_id' => $this->conta->id, 'nome' => 'Meu']);
+
+    FunnelStage::create([
+        'tenant_id' => $this->conta->id, 'funnel_id' => $funil->id,
+        'nome' => 'Minha', 'ordem' => 0,
+    ]);
 
     Livewire::actingAs($this->admin)->test(Paineis::class)->call('criarPadrao');
 
@@ -71,7 +80,9 @@ it('nao cria de novo se ja houver coluna', function () {
 });
 
 it('salva a ordem das colunas como esta na tela', function () {
+    // Coluna agora pertence a um quadro: sem um funil aberto nao ha onde salvar.
     Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('criarPadrao')
         ->call('editarColunas')
         ->set('colunas', [
             ['id' => null, 'nome' => 'Entrou',  'cor' => 'cinza', 'encerra' => false],
@@ -161,8 +172,13 @@ it('tirar do funil limpa a etapa e a data', function () {
 
 it('nao move para etapa de OUTRA conta', function () {
     $outra = Tenant::create(['nome' => 'Outra', 'slug' => 'outra-funil']);
+    $funilAlheio = App\Models\Funnel::withoutGlobalScope('tenant')->create([
+        'tenant_id' => $outra->id, 'nome' => 'Alheio',
+    ]);
+
     $alheia = FunnelStage::withoutGlobalScope('tenant')->create([
-        'tenant_id' => $outra->id, 'nome' => 'Alheia', 'ordem' => 0,
+        'tenant_id' => $outra->id, 'funnel_id' => $funilAlheio->id,
+        'nome' => 'Alheia', 'ordem' => 0,
     ]);
 
     $conversa = conversaFunil($this, 'Maria');
@@ -229,6 +245,6 @@ it('conversa arquivada nao aparece em "fora do funil"', function () {
 
 it('o quadro vazio convida a criar as colunas', function () {
     Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->assertSee('Seu funil ainda não tem colunas')
-        ->assertSee('Criar as cinco colunas');
+        ->assertSee('Você ainda não tem nenhum funil')
+        ->assertSee('Criar meu primeiro funil');
 });

@@ -1,14 +1,91 @@
 <x-filament-panels::page>
-    @if ($etapas->isEmpty() && ! $editandoColunas)
+    {{--
+        AS ABAS DOS QUADROS.
+
+        Uma empresa que vende e tambem faz suporte precisa de dois processos: "Orçamento,
+        Negociação, Fechado" não descreve um chamado técnico, e forçar os dois no mesmo quadro
+        faz a pessoa inventar etapas que não servem para nenhum dos dois.
+
+        Abas e não menu suspenso: com dois ou três quadros, ver todos de uma vez é o que faz
+        alguém lembrar que o outro existe.
+    --}}
+    @if ($funis->isNotEmpty())
+        <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 pb-2 dark:border-white/10">
+            @foreach ($funis as $f)
+                <button type="button" wire:key="fn-{{ $f->id }}" wire:click="abrirFunil({{ $f->id }})"
+                        @class([
+                            'rounded-full px-3 py-1.5 text-sm transition',
+                            'bg-indigo-600 text-white' => $f->id === $funilId,
+                            'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5' => $f->id !== $funilId,
+                        ])>
+                    {{ $f->nome }}
+                    <span class="ml-1 text-[11px] opacity-70">{{ $f->stages()->count() }}</span>
+                </button>
+            @endforeach
+
+            <button type="button" wire:click="$toggle('editandoFunis')"
+                    class="rounded-full border border-dashed border-gray-300 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 dark:border-white/20 dark:text-gray-400 dark:hover:bg-white/5"
+                    title="Criar, renomear ou excluir funis">
+                + funil
+            </button>
+        </div>
+    @endif
+
+    {{-- ----------------------------------------------------- gerenciar os funis --}}
+    @if ($editandoFunis)
+        <x-filament::section>
+            <x-slot name="heading">Seus funis</x-slot>
+            <x-slot name="description">
+                Cada funil tem as próprias etapas e os próprios cartões. Uma conversa fica em
+                <strong>um funil de cada vez</strong> — o cartão é a conversa, e ela está num
+                ponto de um processo.
+            </x-slot>
+
+            <div class="space-y-2">
+                @foreach ($funis as $f)
+                    <div wire:key="gf-{{ $f->id }}" class="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 p-2 dark:border-white/10">
+                        <input type="text" value="{{ $f->nome }}" maxlength="60"
+                               wire:change="renomearFunil({{ $f->id }}, $event.target.value)"
+                               class="min-w-44 flex-1 rounded border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+
+                        <span class="text-xs text-gray-500">{{ $f->stages()->count() }} etapa(s)</span>
+
+                        <x-filament::button size="xs" color="danger" wire:click="excluirFunil({{ $f->id }})"
+                            wire:confirm="Excluir este funil? As etapas vão junto e os cartões voltam para fora do funil. As conversas não são apagadas.">
+                            Excluir
+                        </x-filament::button>
+                    </div>
+                @endforeach
+            </div>
+
+            <div class="mt-4 flex flex-wrap items-end gap-2">
+                <label class="min-w-52 flex-1">
+                    <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Novo funil</span>
+                    <input type="text" wire:model="nomeDoNovoFunil" placeholder="Suporte, Pós-venda, Cobrança…"
+                           class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+                    @error('nomeDoNovoFunil') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                </label>
+
+                <x-filament::button wire:click="criarFunil">Criar</x-filament::button>
+                <x-filament::button color="gray" wire:click="$set('editandoFunis', false)">Fechar</x-filament::button>
+            </div>
+
+            <p class="mt-3 text-xs text-gray-500">
+                O funil novo já nasce com as cinco colunas comuns. Renomeie as que não servirem.
+            </p>
+        </x-filament::section>
+    @endif
+
+    @if ($etapas->isEmpty() && ! $editandoColunas && ! $editandoFunis)
         {{-- Funil vazio nao ensina nada: a pessoa abre, ve um quadro em branco e fecha. --}}
         <div class="rounded-xl border border-dashed border-gray-300 p-10 text-center dark:border-white/20">
-            <p class="text-base font-medium text-gray-700 dark:text-gray-200">Seu funil ainda não tem colunas</p>
+            <p class="text-base font-medium text-gray-700 dark:text-gray-200">Você ainda não tem nenhum funil</p>
             <p class="mx-auto mt-2 max-w-lg text-sm text-gray-500 dark:text-gray-400">
                 Comece com as cinco mais comuns — Novo, Orçamento, Negociação, Fechado e
                 Perdido — e renomeie o que não servir. Leva trinta segundos.
             </p>
             <div class="mt-4 flex justify-center gap-2">
-                <x-filament::button wire:click="criarPadrao">Criar as cinco colunas</x-filament::button>
+                <x-filament::button wire:click="criarPadrao">Criar meu primeiro funil</x-filament::button>
                 <x-filament::button color="gray" wire:click="editarColunas">Montar do zero</x-filament::button>
             </div>
         </div>
