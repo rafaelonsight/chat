@@ -81,7 +81,7 @@ class Relatorios extends Page
         $q = Conversation::query();
 
         if ($id = $this->etiquetaId()) {
-            $q->whereHas('contact.tags', fn ($t) => $t->whereKey($id));
+            $q->whereHas('tags', fn ($t) => $t->whereKey($id));
         }
 
         return $q;
@@ -92,7 +92,7 @@ class Relatorios extends Page
         $q = Message::query();
 
         if ($id = $this->etiquetaId()) {
-            $q->whereHas('conversation.contact.tags', fn ($t) => $t->whereKey($id));
+            $q->whereHas('conversation.tags', fn ($t) => $t->whereKey($id));
         }
 
         return $q;
@@ -235,14 +235,17 @@ class Relatorios extends Page
             ->orderByDesc('conversas')
             ->get();
 
-        // Etiqueta vive no CONTATO, nao na conversa: a linha conta as conversas de
-        // quem tem a etiqueta HOJE. Contato com duas etiquetas conta nas duas, entao a
-        // soma da coluna passa do total — esta escrito na tela, porque numero que nao
-        // fecha e lido como erro.
+        // ETIQUETA DA CONVERSA, e nao mais a do contato. Antes esta linha contava as
+        // conversas de quem tem a etiqueta HOJE: se o cliente virou "Fechado" em agosto, o
+        // numero de julho encolhia sozinho. Numero que muda depois de o mes fechar e numero em
+        // que ninguem confia — era o motivo inteiro de separar as duas coisas.
+        //
+        // Conversa com duas etiquetas conta nas duas, entao a soma da coluna passa do total —
+        // esta escrito na tela, porque numero que nao fecha e lido como erro.
         $porEtiqueta = $this->conversas()
             ->where('conversations.created_at', '>=', $desde)
-            ->join('contact_tag', 'contact_tag.contact_id', '=', 'conversations.contact_id')
-            ->join('tags', 'tags.id', '=', 'contact_tag.tag_id')
+            ->join('conversation_tag', 'conversation_tag.conversation_id', '=', 'conversations.id')
+            ->join('tags', 'tags.id', '=', 'conversation_tag.tag_id')
             // O escopo global cobre conversations; o join em tags passa por fora dele,
             // e vazamento entre contas num relatorio e invisivel para quem le.
             ->where('tags.tenant_id', auth()->user()?->tenant_id)
@@ -258,10 +261,12 @@ class Relatorios extends Page
         // parecem otimo ate se descobrir que houve mil.
         $semEtiqueta = $this->conversas()
             ->where('conversations.created_at', '>=', $desde)
-            ->whereDoesntHave('contact.tags')
+            ->whereDoesntHave('tags')
             ->count();
 
-        $etiquetas = Tag::orderBy('nome')->get();
+        // So as de conversa: e por elas que este relatorio agrupa, e oferecer uma etiqueta
+        // de contato no menu daria zero resultado sem explicar por que.
+        $etiquetas = Tag::deConversa()->orderBy('nome')->get();
         $etiquetaEscolhida = $this->etiquetaId()
             ? $etiquetas->firstWhere('id', $this->etiquetaId())
             : null;

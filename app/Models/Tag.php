@@ -10,6 +10,31 @@ class Tag extends Model
 {
     use BelongsToTenant;
 
+    /** Onde esta etiqueta pode ser posta. */
+    public const CONTATO = 'contato';
+
+    public const CONVERSA = 'conversa';
+
+    public const CONTEXTOS = [
+        self::CONTATO  => 'O contato — característica da pessoa, vale para sempre',
+        self::CONVERSA => 'A conversa — o que aconteceu neste atendimento',
+    ];
+
+    public function scopeDeContato($q)
+    {
+        return $q->where('contexto', self::CONTATO);
+    }
+
+    public function scopeDeConversa($q)
+    {
+        return $q->where('contexto', self::CONVERSA);
+    }
+
+    public function eDeConversa(): bool
+    {
+        return $this->contexto === self::CONVERSA;
+    }
+
     /**
      * Paleta fechada de 24 cores, nao cor livre. Duas razoes: o contraste do
      * texto continua sendo garantia nossa, e a tela fica coerente mesmo com
@@ -57,9 +82,11 @@ class Tag extends Model
         'rosa'      => ['label' => 'Rosa',      'grupo' => 'Roxos'],
     ];
 
-    protected $fillable = ['tenant_id', 'nome', 'cor'];
+    protected $fillable = ['tenant_id', 'nome', 'cor', 'contexto'];
 
-    protected $attributes = ['cor' => 'cinza'];
+    // contexto com padrao aqui alem do padrao do banco: sem isto, uma etiqueta recem
+    // criada responde null ao ->contexto ate um refresh, e o escopo deContato a perderia.
+    protected $attributes = ['cor' => 'cinza', 'contexto' => self::CONTATO];
 
     public function contacts(): BelongsToMany
     {

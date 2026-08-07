@@ -251,7 +251,12 @@ class ConversationList extends Component
         $query = $this->aplicarEquipe($query);
 
         if ($id = $this->etiquetaId()) {
-            $query->whereHas('contact.tags', fn ($t) => $t->whereKey($id));
+            // O filtro segue o CONTEXTO da etiqueta escolhida. "Cliente VIP" filtra pelo
+            // contato; "Orcamento enviado" filtra pela conversa. Sem isso, escolher uma
+            // etiqueta de conversa devolveria lista vazia e pareceria defeito.
+            $daConversa = \App\Models\Tag::whereKey($id)->value('contexto') === \App\Models\Tag::CONVERSA;
+
+            $query->whereHas($daConversa ? 'tags' : 'contact.tags', fn ($t) => $t->whereKey($id));
         }
 
         if ($this->canal !== null && $this->canal !== '') {

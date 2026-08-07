@@ -68,7 +68,7 @@ class ConversationWindow extends Component
     public function render()
     {
         $conversa = $this->conversationId
-            ? Conversation::with(['contact.tags'])->find($this->conversationId)
+            ? Conversation::with(['contact.tags', 'tags'])->find($this->conversationId)
             : null;
 
         $mensagens = $conversa
@@ -112,9 +112,13 @@ class ConversationWindow extends Component
             ))
             ->values();
 
+        // So as de CONVERSA. As de contato nem aparecem aqui: nao da para marcar no lugar
+        // errado se o lugar errado nao esta na lista.
+        $etiquetasDeConversa = \App\Models\Tag::deConversa()->orderBy('nome')->get();
+
         $podeApagar = $this->canalApaga();
 
-        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'pessoas', 'eventos', 'linha', 'podeApagar'));
+        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'pessoas', 'eventos', 'linha', 'podeApagar', 'etiquetasDeConversa'));
     }
 
     public function assumir(): void
@@ -272,6 +276,34 @@ class ConversationWindow extends Component
         $this->dispatch('conversa-atualizada');
         $this->dispatch('fechar-conversa');
         $this->dispatch('voltar-para-lista');
+    }
+
+    /**
+     * Poe ou tira uma etiqueta DESTA CONVERSA.
+     *
+     * Passa pelo Etiquetador, o mesmo caminho do contato, do chatbot e dos futuros agentes:
+     * quando uma etiqueta aparecer errada alguem vai perguntar quem colocou, e a resposta tem
+     * de existir venha de onde vier.
+     */
+    public function alternarEtiquetaDaConversa(int $tagId): void
+    {
+        $conversa = \App\Models\Conversation::find($this->conversationId);
+
+        if (! $conversa) {
+            return;
+        }
+
+        $etiquetador = app(\App\Services\Etiquetador::class);
+
+        if ($conversa->tags()->whereKey($tagId)->exists()) {
+            $etiquetador->remover($conversa, [$tagId]);
+        } else {
+            // O Etiquetador recusa sozinho etiqueta de contato aqui: o contexto vem do TIPO do
+            // alvo, e nao de quem chama.
+            $etiquetador->aplicar($conversa, [$tagId], \App\Services\Etiquetador::MANUAL, auth()->id());
+        }
+
+        $this->dispatch('conversa-atualizada');
     }
 
     public function verDetalhes(): void

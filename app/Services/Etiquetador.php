@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Contact;
 use App\Models\Tag;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -62,9 +62,12 @@ class Etiquetador
     /**
      * @param  array<int, int>  $tagIds
      */
-    public function aplicar(Contact $contato, array $tagIds, string $origem = self::MANUAL, ?int $usuarioId = null): int
+    public function aplicar(Model $alvo, array $tagIds, string $origem = self::MANUAL, ?int $usuarioId = null): int
     {
-        $validos = Tag::whereKey($tagIds)->pluck('id')->all();
+        // So etiqueta do contexto certo. O filtro esta AQUI, e nao so no menu da tela, porque
+        // o id chega de fora — do navegador, do chatbot, da importacao — e etiqueta no lugar
+        // errado e exatamente o que estraga o relatorio historico.
+        $validos = Tag::whereKey($tagIds)->where('contexto', self::contextoDe($alvo))->pluck('id')->all();
 
         if ($validos === []) {
             return 0;
@@ -73,15 +76,15 @@ class Etiquetador
         $agora = now();
         $aplicadas = 0;
 
-        DB::transaction(function () use ($contato, $validos, $origem, $usuarioId, $agora, &$aplicadas) {
+        DB::transaction(function () use ($alvo, $validos, $origem, $usuarioId, $agora, &$aplicadas) {
             foreach ($validos as $id) {
                 // Ja tem: nao reescreve. A primeira aplicacao e a que conta, senao
                 // o rastro de origem seria sobrescrito por quem passou depois.
-                if ($contato->tags()->whereKey($id)->exists()) {
+                if ($alvo->tags()->whereKey($id)->exists()) {
                     continue;
                 }
 
-                $contato->tags()->attach($id, [
+                $alvo->tags()->attach($id, [
                     'origem'       => $origem,
                     'aplicado_por' => $usuarioId,
                     'created_at'   => $agora,
@@ -97,9 +100,9 @@ class Etiquetador
     /**
      * @param  array<int, int>  $tagIds
      */
-    public function remover(Contact $contato, array $tagIds): int
+    public function remover(Model $alvo, array $tagIds): int
     {
-        return $contato->tags()->detach(Tag::whereKey($tagIds)->pluck('id')->all());
+        return $alvo->tags()->detach(Tag::whereKey($tagIds)->pluck('id')->all());
     }
 
     /**
@@ -108,11 +111,22 @@ class Etiquetador
      *
      * @param  array<int, int>  $tagIds
      */
-    public function sincronizar(Contact $contato, array $tagIds, string $origem = self::MANUAL, ?int $usuarioId = null): void
+    public function sincronizar(Model $alvo, array $tagIds, string $origem = self::MANUAL, ?int $usuarioId = null): void
     {
-        $validos = Tag::whereKey($tagIds)->pluck('id')->all();
+        $validos = Tag::whereKey($tagIds)->where('contexto', self::contextoDe($alvo))->pluck('id')->all();
 
-        $contato->tags()->detach(array_diff($contato->tags()->pluck('tags.id')->all(), $validos));
-        $this->aplicar($contato, $validos, $origem, $usuarioId);
+        $alvo->tags()->detach(array_diff($alvo->tags()->pluck('tags.id')->all(), $validos));
+        $this->aplicar($alvo, $validos, $origem, $usuarioId);
+    }
+
+    /**
+     * Que contexto de etiqueta este alvo aceita.
+     *
+     * Derivado do tipo do alvo, e nao passado por parametro: quem chama nao pode escolher
+     * errado se nao tem escolha.
+     */
+    private static function contextoDe(Model $alvo): string
+    {
+        return $alvo instanceof \App\Models\Conversation ? Tag::CONVERSA : Tag::CONTATO;
     }
 }

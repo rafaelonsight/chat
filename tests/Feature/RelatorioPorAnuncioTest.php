@@ -122,10 +122,12 @@ it('atendente nao ve o relatorio', function () {
 it('exporta as conversas com o recorte que esta na tela, e nao a base inteira', function () {
     // Exportar tudo quando a tela mostra 7 dias faria o gestor comparar planilha com tela e
     // concluir que um dos dois esta errado.
-    $etiqueta = Tag::create(['nome' => 'Financeiro', 'cor' => 'emerald']);
+    // De CONVERSA: o recorte por etiqueta no relatorio passou a ser pela conversa, para o
+    // numero do mes passado parar de mudar quando o cliente muda de categoria.
+    $etiqueta = Tag::create(['nome' => 'Financeiro', 'cor' => 'emerald', 'contexto' => Tag::CONVERSA]);
 
     $comEtiqueta = conversaDeAnuncio('120210001', 'Fibra');
-    $comEtiqueta->contact->tags()->attach($etiqueta->id);
+    $comEtiqueta->tags()->attach($etiqueta->id);
 
     conversaDeAnuncio(null); // sem etiqueta: nao deve entrar
 

@@ -16,24 +16,28 @@ beforeEach(function () {
 
     $this->canal = Channel::create(['nome' => 'Principal'])->refresh();
 
-    $this->financeiro = Tag::create(['nome' => 'Financeiro', 'cor' => 'verde']);
-    $this->suporte = Tag::create(['nome' => 'Suporte', 'cor' => 'azul']);
+    // ETIQUETAS DE CONVERSA. Este relatorio passou a agrupar por elas quando a
+    // etiqueta de conversa foi separada da de contato. Antes ele contava as conversas
+    // de quem tem a etiqueta HOJE, e o numero de julho encolhia quando o cliente
+    // mudava de categoria em agosto.
+    $this->financeiro = Tag::create(['nome' => 'Financeiro', 'cor' => 'verde', 'contexto' => Tag::CONVERSA]);
+    $this->suporte = Tag::create(['nome' => 'Suporte', 'cor' => 'azul', 'contexto' => Tag::CONVERSA]);
 });
 
 afterEach(fn () => TenantContext::forget());
 
-/** Contato com conversa e mensagens, opcionalmente etiquetado. */
+/** Conversa com mensagens, opcionalmente etiquetada. A etiqueta vai na CONVERSA. */
 function comEtiqueta(string $telefone, ?Tag $tag, int $entradas = 1, int $saidas = 1): Conversation
 {
     $contato = Contact::create(['telefone_e164' => $telefone, 'nome' => 'C'.$telefone]);
 
-    if ($tag) {
-        $contato->tags()->attach($tag->id, ['origem' => 'manual']);
-    }
-
     $conversa = Conversation::create([
         'channel_id' => test()->canal->id, 'contact_id' => $contato->id, 'ultima_msg_em' => now(),
     ]);
+
+    if ($tag) {
+        $conversa->tags()->attach($tag->id, ['origem' => 'manual']);
+    }
 
     foreach (range(1, $entradas) as $i) {
         Message::create([
@@ -76,15 +80,16 @@ it('conta separado quem nao tem etiqueta, senao nao da para saber a cobertura', 
     expect($dados['semEtiqueta'])->toBe(2);
 });
 
-it('contato com duas etiquetas aparece nas duas: a soma passa do total, e e isso mesmo', function () {
+it('conversa com duas etiquetas aparece nas duas: a soma passa do total, e e isso mesmo', function () {
     // Comportamento declarado, nao acidente: a tela avisa. Um teste guarda a decisao
     // para ninguem "consertar" isso depois dividindo conversa entre etiquetas.
     $contato = Contact::create(['telefone_e164' => '+5511000000009', 'nome' => 'Dois']);
-    $contato->tags()->attach([$this->financeiro->id, $this->suporte->id], ['origem' => 'manual']);
 
-    Conversation::create([
+    $conversa = Conversation::create([
         'channel_id' => $this->canal->id, 'contact_id' => $contato->id, 'ultima_msg_em' => now(),
     ]);
+
+    $conversa->tags()->attach([$this->financeiro->id, $this->suporte->id], ['origem' => 'manual']);
 
     $dados = Livewire::actingAs($this->admin)->test(Relatorios::class)->instance()->getViewData();
 
@@ -110,7 +115,7 @@ it('o filtro por etiqueta vale para TODOS os numeros, nao so para a tabela', fun
     $so = $tela->instance()->getViewData();
 
     expect($so['resumo']['conversas'])->toBe(1)
-        // 2 entradas + 3 saidas do contato do Financeiro, e nada do Suporte
+        // 2 entradas + 3 saidas da conversa do Financeiro, e nada do Suporte
         ->and($so['resumo']['mensagens'])->toBe(5)
         ->and($so['resumo']['recebidas'])->toBe(2)
         ->and($so['resumo']['enviadas'])->toBe(3);

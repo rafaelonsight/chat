@@ -232,6 +232,19 @@ class Conversation extends Model
      * unico lugar onde alguem poderia assinar o canal de outra conta e receber as mensagens
      * dela ao vivo.
      */
+    /**
+     * Etiquetas DESTE atendimento.
+     *
+     * Separada das do contato de proposito: esta fica presa ao que aconteceu aqui, e por isso
+     * o relatorio do mes passado nunca muda. A do contato descreve a pessoa e muda com ela.
+     */
+    public function tags(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class, 'conversation_tag')
+            ->withPivot(['origem', 'aplicado_por', 'created_at'])
+            ->orderBy('tags.nome');
+    }
+
     public static function visivelPara(?User $user, int $conversationId): bool
     {
         if (! $user) {

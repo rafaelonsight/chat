@@ -124,6 +124,61 @@
                     </div>
                 @endif
 
+                {{--
+                    Etiquetas DESTE atendimento.
+
+                    Separadas das do contato, que aparecem coladas no nome la em cima. A
+                    diferenca esta escrita no menu, porque as duas coisas parecem a mesma para
+                    quem chega: a do contato descreve a pessoa e vale para sempre; esta fica
+                    presa ao que aconteceu aqui, e e ela que faz o relatorio do mes passado
+                    continuar valendo.
+                --}}
+                @if ($etiquetasDeConversa->isNotEmpty())
+                    <div class="relative" x-data="{ aberto: false }" x-on:click.outside="aberto = false">
+                        <button type="button" x-on:click="aberto = !aberto"
+                                class="flex items-center gap-1 rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5">
+                            @if ($conversa->tags->isNotEmpty())
+                                @foreach ($conversa->tags->take(3) as $et)
+                                    <span class="h-2 w-2 rounded-full {{ $et->pontinho() }}"></span>
+                                @endforeach
+                                @if ($conversa->tags->count() > 3)
+                                    <span class="opacity-60">+{{ $conversa->tags->count() - 3 }}</span>
+                                @endif
+                            @else
+                                <span class="opacity-70">Etiquetar</span>
+                            @endif
+                            &#9662;
+                        </button>
+
+                        <div x-show="aberto" x-cloak
+                             class="absolute right-0 z-20 mt-1 max-h-64 w-64 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-white/10 dark:bg-gray-800">
+                            <p class="px-2 py-1 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                                Etiquetas deste atendimento
+                            </p>
+
+                            @foreach ($etiquetasDeConversa as $et)
+                                @php $posta = $conversa->tags->contains($et->id); @endphp
+                                <button type="button" wire:key="etc-{{ $et->id }}"
+                                        wire:click="alternarEtiquetaDaConversa({{ $et->id }})"
+                                        class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-gray-50 dark:hover:bg-white/5">
+                                    <span class="h-2.5 w-2.5 shrink-0 rounded-full {{ $et->pontinho() }}"></span>
+                                    <span class="flex-1 truncate {{ $posta ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-300' }}">
+                                        {{ $et->nome }}
+                                    </span>
+                                    @if ($posta)
+                                        <span class="text-emerald-600">&check;</span>
+                                    @endif
+                                </button>
+                            @endforeach
+
+                            <p class="border-t border-gray-100 px-2 pt-1.5 pb-1 text-[10px] leading-snug text-gray-400 dark:border-white/5">
+                                Descrevem o atendimento, não a pessoa. As do contato ficam no
+                                painel de detalhes.
+                            </p>
+                        </div>
+                    </div>
+                @endif
+
                 {{-- "Volto depois". Fecha a conversa junto — marcar como nao lida com ela
                      aberta na frente nao significaria nada. --}}
                 <button type="button" wire:click="marcarNaoLida"
