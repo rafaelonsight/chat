@@ -170,6 +170,46 @@ class Conversation extends Model
             ->exists();
     }
 
+    /**
+     * Passa a conversa para uma PESSOA.
+     *
+     * Diferente de transferir para equipe, e a diferenca e de proposito. Mandar para a equipe
+     * devolve a conversa para a fila: perde o dono e volta a ser Nova, para quem estiver livre
+     * pegar. Mandar para uma pessoa ja escolhe o dono — a conversa entra em atendimento no nome
+     * dela, e nao fica parada em Novos esperando alguem notar.
+     *
+     * A equipe NAO muda junto. Se o Joao do Suporte passa para a Maria das Vendas, a conversa
+     * continua contando como Suporte no relatorio ate que alguem transfira a equipe de fato.
+     * Trocar as duas coisas num clique so faria o numero do relatorio mudar sem ninguem ter
+     * pedido.
+     */
+    public function passarPara(User $destino, ?User $por = null): bool
+    {
+        if ($destino->tenant_id !== $this->tenant_id) {
+            return false;
+        }
+
+        $origem = $this->atendente?->name;
+
+        $this->forceFill([
+            'atendente_id' => $destino->id,
+            'status'       => self::EM_ATENDIMENTO,
+        ])->save();
+
+        ConversationEvent::create([
+            'tenant_id'       => $this->tenant_id,
+            'conversation_id' => $this->id,
+            'user_id'         => $por?->id ?? auth()->id(),
+            'tipo'            => ConversationEvent::TRANSFERENCIA,
+            'descricao'       => $origem
+                ? "Passada de {$origem} para {$destino->name}"
+                : "Passada para {$destino->name}",
+            'dados'           => ['de' => $origem, 'para' => $destino->name, 'pessoa' => true],
+        ]);
+
+        return true;
+    }
+
     public function assumir(?User $atendente = null): void
     {
         $this->forceFill([

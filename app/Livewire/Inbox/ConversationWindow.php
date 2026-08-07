@@ -77,6 +77,13 @@ class ConversationWindow extends Component
 
         $equipes = \App\Models\Team::ativas()->orderBy('nome')->get();
 
+        // Quem pode receber a conversa. O escopo global ja limita a conta; tirar quem ja e o
+        // atendente evita oferecer "passar para quem ja esta com ela", que nao faz nada.
+        $pessoas = \App\Models\User::query()
+            ->when($conversa?->atendente_id, fn ($q, $id) => $q->whereKeyNot($id))
+            ->orderBy('name')
+            ->get();
+
         // So os eventos que caem dentro do trecho de mensagens carregado. Sem
         // esse corte, evento antigo apareceria acima do "carregar anteriores" e a
         // linha do tempo ficaria mentindo sobre a ordem.
@@ -105,7 +112,7 @@ class ConversationWindow extends Component
             ))
             ->values();
 
-        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'eventos', 'linha'));
+        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'pessoas', 'eventos', 'linha'));
     }
 
     public function assumir(): void
@@ -153,6 +160,24 @@ class ConversationWindow extends Component
         }
 
         $this->dispatch('responder-a', messageId: $messageId);
+    }
+
+    public function passarPara(int $userId): void
+    {
+        $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
+
+        // find sob o escopo global: usuario de outro tenant nao existe nesta consulta. E a
+        // mesma defesa do transferir para equipe, e vale mais aqui — passar uma conversa para
+        // alguem de outra empresa daria a ela a conversa inteira.
+        $destino = \App\Models\User::find($userId);
+
+        if (! $destino || ! $conversa->passarPara($destino)) {
+            $this->addError('transferir', 'Não consegui passar para essa pessoa.');
+
+            return;
+        }
+
+        $this->dispatch('conversa-atualizada');
     }
 
     public function verDetalhes(): void

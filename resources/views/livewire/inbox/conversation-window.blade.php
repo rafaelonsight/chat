@@ -83,6 +83,27 @@
                                     @if ($conversa->team_id === $eq->id) <span class="text-xs opacity-60">(atual)</span> @endif
                                 </button>
                             @endforeach
+
+                            {{-- Passar para uma PESSOA e coisa diferente de transferir para
+                                 equipe, e o menu diz isso em vez de misturar: equipe devolve a
+                                 conversa para a fila, pessoa ja escolhe o dono. --}}
+                            @if ($pessoas->isNotEmpty())
+                                <p class="mt-1 border-t border-gray-200 px-2 py-1 pt-2 text-xs font-semibold text-gray-500 dark:border-white/10 dark:text-gray-400">
+                                    Passar para
+                                </p>
+                                <div class="max-h-56 overflow-y-auto">
+                                    @foreach ($pessoas as $pessoa)
+                                        <button type="button" wire:key="ps-{{ $pessoa->id }}"
+                                                wire:click="passarPara({{ $pessoa->id }})" x-on:click="aberto = false"
+                                                class="block w-full rounded-lg px-2 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/5">
+                                            {{ $pessoa->name }}
+                                            @if ($pessoa->id === auth()->id())
+                                                <span class="text-xs opacity-60">(você)</span>
+                                            @endif
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @endif
