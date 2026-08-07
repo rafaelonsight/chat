@@ -201,22 +201,57 @@
                 </div>
             @endif
 
-            {{-- gravar nota de voz (audio vai para o cliente: nao cabe em nota) --}}
+            {{--
+                NOTA DE VOZ COMO NO WHATSAPP: segurar para gravar, soltar para enviar.
+
+                Antes eram tres toques — clicar para gravar, clicar para parar, clicar em
+                enviar — e o audio ficava esperando anexado no meio do caminho. Ninguem grava
+                audio assim; grava-se falando e soltando.
+
+                Tres jeitos de usar, porque nem todo mundo usa igual:
+                  segurar e soltar ......... push-to-talk, envia ao soltar
+                  arrastar para cima ....... trava e continua gravando sem segurar
+                  toque rapido ............. tambem trava (e o caminho de quem usa teclado,
+                                             que nao tem como "segurar")
+                  arrastar para a esquerda . cancela
+            --}}
             <div x-data="gravadorDeVoz()" class="shrink-0" @if ($nota) hidden @endif>
+                {{-- touch-action none: sem isto, arrastar no celular rola a pagina em vez de
+                     travar a gravacao. --}}
                 <button type="button"
                         x-show="!gravando"
-                        x-on:click="iniciar()"
+                        x-on:pointerdown.prevent="segureParaGravar($event)"
+                        style="touch-action: none"
                         class="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
-                        title="Gravar nota de voz">
+                        title="Segure para gravar. Arraste para cima para travar.">
                     &#127908;
                 </button>
-                <button type="button"
-                        x-show="gravando"
-                        x-on:click="parar()"
-                        class="rounded bg-red-600 px-3 py-2 text-sm text-white"
-                        title="Parar e anexar">
-                    <span x-text="'■ ' + segundos + 's'"></span>
-                </button>
+
+                {{-- Gravando e ainda segurando: a dica muda conforme o dedo anda, para a
+                     pessoa descobrir o gesto no meio do caminho e nao antes. --}}
+                <div x-show="gravando && !travado" x-cloak
+                     class="flex items-center gap-2 rounded bg-red-600 px-3 py-2 text-sm text-white">
+                    <span class="h-2 w-2 animate-pulse rounded-full bg-white"></span>
+                    <span x-text="segundos + 's'"></span>
+                    <span class="text-[11px] opacity-80"
+                          x-text="perto ? 'solte para cancelar' : 'arraste \u2191 para travar'"></span>
+                </div>
+
+                {{-- Travado: as maos livres. Enviar manda DIRETO, sem parar antes. --}}
+                <div x-show="gravando && travado" x-cloak class="flex items-center gap-1">
+                    <button type="button" x-on:click="cancelar()"
+                            class="rounded border border-slate-300 px-2 py-2 text-sm text-slate-500 hover:bg-slate-50"
+                            title="Descartar">&times;</button>
+
+                    <span class="flex items-center gap-1.5 rounded bg-red-600 px-2 py-2 text-sm text-white">
+                        <span class="h-2 w-2 animate-pulse rounded-full bg-white"></span>
+                        <span x-text="segundos + 's'"></span>
+                    </span>
+
+                    <button type="button" x-on:click="pararEEnviar()"
+                            class="rounded bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"
+                            title="Enviar agora">&#10148;</button>
+                </div>
             </div>
 
             {{--
@@ -293,48 +328,133 @@
     // sem isso o WhatsApp mostra como arquivo anexado, nao como nota de voz.
     window.gravadorDeVoz = () => ({
         gravando: false,
+        travado: false,
+        perto: false,          // arrastou o bastante para a esquerda: soltar cancela
         segundos: 0,
         rec: null,
+        stream: null,
         pedacos: [],
         cronometro: null,
+        inicioX: 0,
+        inicioY: 0,
+        comecouEm: 0,
+        aoSoltar: null,        // o que fazer quando o dedo levantar
+
+        // Menos de um segundo nao e nota de voz, e um toque sem querer. Enviar um "tec" de
+        // 200ms para o cliente e pior que nao enviar nada.
+        MINIMO_MS: 900,
 
         formatoSuportado() {
             const opcoes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
             return opcoes.find((t) => window.MediaRecorder?.isTypeSupported?.(t)) ?? '';
         },
 
+        /**
+         * O dedo desceu no microfone. Comeca a gravar e passa a seguir o movimento.
+         *
+         * Os ouvintes ficam no DOCUMENTO e nao no botao: o dedo sai de cima dele em qualquer
+         * arrasto, e ouvinte preso ao botao perderia o movimento exatamente quando ele
+         * comeca a importar.
+         */
+        async segureParaGravar(evento) {
+            this.inicioX = evento.clientX;
+            this.inicioY = evento.clientY;
+            this.comecouEm = Date.now();
+            this.perto = false;
+            this.travado = false;
+
+            const mover = (e) => this.aoMover(e);
+            const soltar = (e) => {
+                document.removeEventListener('pointermove', mover);
+                document.removeEventListener('pointerup', soltar);
+                document.removeEventListener('pointercancel', cancelado);
+                this.aoLevantar();
+            };
+            // pointercancel (o sistema tomou o gesto) TRAVA em vez de cancelar: perder um
+            // audio ja gravado porque o navegador decidiu rolar a tela seria o pior desfecho.
+            const cancelado = () => {
+                document.removeEventListener('pointermove', mover);
+                document.removeEventListener('pointerup', soltar);
+                document.removeEventListener('pointercancel', cancelado);
+                if (this.gravando) this.travado = true;
+            };
+
+            document.addEventListener('pointermove', mover);
+            document.addEventListener('pointerup', soltar);
+            document.addEventListener('pointercancel', cancelado);
+
+            await this.iniciar();
+        },
+
+        aoMover(e) {
+            if (!this.gravando || this.travado) return;
+
+            const dy = e.clientY - this.inicioY;
+            const dx = e.clientX - this.inicioX;
+
+            if (dy < -60) { this.travado = true; this.perto = false; return; }
+
+            this.perto = dx < -90;
+        },
+
+        aoLevantar() {
+            if (!this.gravando || this.travado) return;
+
+            if (this.perto) { this.cancelar(); return; }
+
+            // Toque curto tambem trava, em vez de nao fazer nada. E o caminho de quem usa
+            // teclado ou leitor de tela, que nao tem como "segurar" — sem isso o recurso
+            // simplesmente nao existiria para essas pessoas.
+            if (Date.now() - this.comecouEm < this.MINIMO_MS) { this.travado = true; return; }
+
+            this.pararEEnviar();
+        },
+
         async iniciar() {
             if (!navigator.mediaDevices?.getUserMedia) {
-                alert('Este navegador nao permite gravar audio.');
+                alert('Este navegador não permite gravar áudio.');
                 return;
             }
 
-            let stream;
             try {
-                stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             } catch (e) {
                 alert('Precisa autorizar o microfone para gravar.');
                 return;
             }
 
+            // O dedo pode ter levantado enquanto o navegador pedia a permissao. Sem esta
+            // checagem a gravacao comecaria depois de a pessoa ja ter desistido.
+            if (this.comecouEm === 0) {
+                this.stream.getTracks().forEach((t) => t.stop());
+                return;
+            }
+
             const tipo = this.formatoSuportado();
             this.pedacos = [];
-            this.rec = tipo ? new MediaRecorder(stream, { mimeType: tipo }) : new MediaRecorder(stream);
+            this.rec = tipo ? new MediaRecorder(this.stream, { mimeType: tipo }) : new MediaRecorder(this.stream);
 
             this.rec.ondataavailable = (e) => {
                 if (e.data && e.data.size > 0) this.pedacos.push(e.data);
             };
 
             this.rec.onstop = () => {
-                stream.getTracks().forEach((t) => t.stop());
+                this.stream?.getTracks().forEach((t) => t.stop());
                 clearInterval(this.cronometro);
+
+                const enviar = this.aoSoltar === 'enviar';
+                this.aoSoltar = null;
+
+                if (!enviar) { this.pedacos = []; return; }
 
                 const mime = this.rec.mimeType || 'audio/webm';
                 const ext = mime.includes('ogg') ? 'ogg' : mime.includes('mp4') ? 'm4a' : 'webm';
                 const blob = new Blob(this.pedacos, { type: mime.split(';')[0] });
                 const arquivo = new File([blob], `nota-de-voz.${ext}`, { type: mime.split(';')[0] });
 
-                $wire.upload('anexo', arquivo);
+                // O envio so acontece DEPOIS que o arquivo terminou de subir. Chamar enviar()
+                // antes mandaria uma mensagem sem anexo — e o audio ficaria orfao no servidor.
+                $wire.upload('anexo', arquivo, () => { $wire.enviar(); });
             };
 
             this.rec.start();
@@ -342,13 +462,32 @@
             this.segundos = 0;
             this.cronometro = setInterval(() => {
                 this.segundos += 1;
-                if (this.segundos >= 300) this.parar(); // teto de 5 min
+                if (this.segundos >= 300) this.pararEEnviar(); // teto de 5 min
             }, 1000);
         },
 
-        parar() {
+        pararEEnviar() {
+            this.aoSoltar = 'enviar';
+            this.encerrar();
+        },
+
+        cancelar() {
+            this.aoSoltar = 'descartar';
+            this.encerrar();
+        },
+
+        encerrar() {
             this.gravando = false;
-            if (this.rec && this.rec.state !== 'inactive') this.rec.stop();
+            this.travado = false;
+            this.perto = false;
+            this.comecouEm = 0;
+
+            if (this.rec && this.rec.state !== 'inactive') {
+                this.rec.stop();
+            } else {
+                clearInterval(this.cronometro);
+                this.stream?.getTracks().forEach((t) => t.stop());
+            }
         },
     });
 </script>
