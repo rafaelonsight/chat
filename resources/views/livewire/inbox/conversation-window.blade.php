@@ -124,6 +124,14 @@
                     </div>
                 @endif
 
+                {{-- "Volto depois". Fecha a conversa junto — marcar como nao lida com ela
+                     aberta na frente nao significaria nada. --}}
+                <button type="button" wire:click="marcarNaoLida"
+                        title="Marcar como não lida e voltar para a lista"
+                        class="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5">
+                    Não lida
+                </button>
+
                 @if ($conversa->status === \App\Models\Conversation::NOVA)
                     <button type="button" wire:click="assumir"
                             class="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5">
@@ -149,6 +157,25 @@
                         Finalizar
                     </button>
                 @endif
+            </div>
+        </div>
+
+        {{--
+            wire:ignore para o Livewire nao apagar o estado do Alpine a cada atualizacao da
+            tela, e wire:key com o id da conversa para que TROCAR de conversa troque o
+            elemento — e ai o destroy() sai do canal antigo e o init() entra no novo.
+        --}}
+        <div wire:key="presenca-{{ $conversa->id }}" wire:ignore
+             x-data="presencaDaConversa({{ $conversa->id }}, {{ auth()->id() }})">
+            <div x-show="outros.length" x-cloak
+                 class="flex items-center gap-2 bg-amber-50 px-4 py-2 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8"
+                     stroke="currentColor" class="h-4 w-4 shrink-0">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                </svg>
+                <span x-text="aviso"></span>
             </div>
         </div>
 

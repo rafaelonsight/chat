@@ -110,6 +110,24 @@ interface Enviador
      */
     public function apagar(Channel $canal, string $destino, array $alvo): void;
 
+    /**
+     * Este canal consegue mostrar "digitando…" para o cliente?
+     *
+     * NAO para a API oficial. A Meta so mostra o "digitando" junto do recibo de leitura, preso
+     * a um wamid especifico e por no maximo 25 segundos — nao e um estado que da para ligar e
+     * desligar enquanto a pessoa escreve. Fingir que da faria o indicador aparecer na hora
+     * errada, que e pior que nao aparecer.
+     */
+    public function podeDigitando(): bool;
+
+    /**
+     * Liga ou desliga o "digitando…" no aparelho do cliente.
+     *
+     * NUNCA lanca. Indicador de digitacao e enfeite: se o provedor recusar, o atendente nao
+     * pode ver erro nenhum por causa disso — ele esta no meio de uma frase.
+     */
+    public function digitando(Channel $canal, string $destino, bool $ativo): void;
+
     /** Nome curto para aparecer em log e em erro, sem revelar credencial. */
     public function nome(): string;
 }

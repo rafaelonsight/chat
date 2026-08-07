@@ -255,6 +255,25 @@ class ConversationWindow extends Component
         return $canal ? app(\App\Services\Canais\Enviadores::class)->para($canal)->podeApagar() : false;
     }
 
+    /**
+     * "Volto nisso depois."
+     *
+     * Fecha a conversa junto, e isso e o ponto: marcar como nao lida e continuar com ela
+     * aberta na frente nao quer dizer nada — o proximo clique na lista zeraria o contador de
+     * novo e a marca teria durado dois segundos.
+     */
+    public function marcarNaoLida(): void
+    {
+        $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
+        $conversa->marcarNaoLida();
+
+        $this->conversationId = null;
+
+        $this->dispatch('conversa-atualizada');
+        $this->dispatch('fechar-conversa');
+        $this->dispatch('voltar-para-lista');
+    }
+
     public function verDetalhes(): void
     {
         $this->dispatch('abrir-detalhes');

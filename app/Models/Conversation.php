@@ -214,6 +214,41 @@ class Conversation extends Model
         return true;
     }
 
+    /**
+     * Devolve a conversa para a fila de "quero olhar isto depois".
+     *
+     * Poe 1 e nao o numero que havia antes: o contador diz "quantas mensagens do cliente
+     * ninguem leu", e reconstruir isso seria mentir — as mensagens FORAM lidas, a pessoa e que
+     * quer voltar nelas. Um significa "tem coisa aqui para voce", que e o que ela quis dizer.
+     *
+     * max(1, ...) e nao 1 puro: se chegou mensagem nova entre abrir e marcar, o numero real
+     * e maior e nao pode encolher.
+     */
+    /**
+     * Esta pessoa pode ver esta conversa?
+     *
+     * Mora aqui, e nao dentro da closure do canal, para ter teste proprio: e a regra que
+     * separa uma empresa da outra no tempo real. O escopo global protege o banco; aqui e o
+     * unico lugar onde alguem poderia assinar o canal de outra conta e receber as mensagens
+     * dela ao vivo.
+     */
+    public static function visivelPara(?User $user, int $conversationId): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        return static::withoutGlobalScope('tenant')
+            ->whereKey($conversationId)
+            ->where('tenant_id', $user->tenant_id)
+            ->exists();
+    }
+
+    public function marcarNaoLida(): void
+    {
+        $this->forceFill(['nao_lidas' => max(1, (int) $this->nao_lidas)])->save();
+    }
+
     public function assumir(?User $atendente = null): void
     {
         $this->forceFill([

@@ -124,6 +124,21 @@ class EvolutionService
      * O sintoma enganava: em conversa de GRUPO tudo funcionava, porque ali o destino ja e um
      * JID (...@g.us). So quebrava no atendimento individual, que e a maioria.
      */
+    /**
+     * Presenca no chat: composing (digitando), paused (parou), available.
+     *
+     * timeout curto de proposito: isto e chamado enquanto a pessoa digita, e uma espera de
+     * trinta segundos aqui seguraria a requisicao do navegador por um enfeite.
+     */
+    public function sendPresence(string $instance, string $to, string $presenca): array
+    {
+        return $this->client()->timeout(5)->post("/chat/sendPresence/{$instance}", [
+            'number'   => self::jid($to),
+            'delay'    => 1200,
+            'presence' => $presenca,
+        ])->throw()->json();
+    }
+
     public static function jid(string $destino): string
     {
         if (str_contains($destino, '@')) {

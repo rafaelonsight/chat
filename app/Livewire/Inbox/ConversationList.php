@@ -69,6 +69,9 @@ class ConversationList extends Component
     {
         $listeners = [
             'abrir-conversa'      => 'marcarSelecionada',
+            // Depois de marcar como nao lida, nenhuma conversa fica selecionada: senao a
+            // linha continuaria destacada como se estivesse aberta.
+            'fechar-conversa'     => 'limparSelecao',
             'conversa-atualizada' => '$refresh',
         ];
 
@@ -79,6 +82,11 @@ class ConversationList extends Component
         $listeners['mensagem-chegou'] = '$refresh';
 
         return $listeners;
+    }
+
+    public function limparSelecao(): void
+    {
+        $this->selecionada = null;
     }
 
     public function selecionarBalde(string $balde): void

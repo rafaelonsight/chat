@@ -20,6 +20,25 @@ class EvolutionEnviador implements Enviador
         $this->evolution->sendReaction($this->instancia($canal), $destino, $alvo, $emoji);
     }
 
+    public function podeDigitando(): bool
+    {
+        return true;
+    }
+
+    public function digitando(Channel $canal, string $destino, bool $ativo): void
+    {
+        try {
+            $this->evolution->sendPresence(
+                $this->instancia($canal),
+                $destino,
+                $ativo ? 'composing' : 'paused',
+            );
+        } catch (\Throwable $e) {
+            // Engolido de proposito. A pessoa esta no meio de uma frase; erro na tela por
+            // causa de um enfeite atrapalha mais do que a falta do enfeite.
+        }
+    }
+
     public function podeApagar(): bool
     {
         return true;

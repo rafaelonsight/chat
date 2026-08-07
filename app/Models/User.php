@@ -17,6 +17,18 @@ use Illuminate\Notifications\Notifiable;
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
 {
+    /**
+     * So o primeiro nome.
+     *
+     * Usado no canal de presenca: cada campo que vai para la e um campo que todo mundo com a
+     * mesma conversa aberta consegue ler. Nome inteiro nao acrescenta nada num aviso de uma
+     * linha.
+     */
+    public function primeiroNome(): string
+    {
+        return explode(' ', trim((string) $this->name))[0] ?? '';
+    }
+
     use BelongsToTenant;
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;

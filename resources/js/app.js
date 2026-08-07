@@ -264,6 +264,59 @@ if (tenant) {
     });
 }
 
+// ============================================ quem mais esta nesta conversa ====
+
+/**
+ * Dois atendentes na mesma conversa, e nada avisando.
+ *
+ * E o erro mais constrangedor de equipe: o cliente recebe duas respostas diferentes para a
+ * mesma pergunta, com minutos de diferenca. Nao da para impedir — as duas pessoas tem direito
+ * de abrir — mas da para AVISAR, e na pratica isso resolve: quem chega depois ve e sai, ou
+ * fala antes de responder.
+ *
+ * Canal de presenca do Reverb: nada e guardado no banco. Quem fecha a aba some da lista
+ * sozinho, e um aviso que fica preso depois de a pessoa sair seria pior que nenhum aviso.
+ */
+document.addEventListener('alpine:init', () => {
+    window.Alpine.data('presencaDaConversa', (conversaId, meuId) => ({
+        outros: [],
+
+        init() {
+            if (! conversaId || ! window.Echo) return;
+
+            try {
+                window.Echo.join(`conversation.${conversaId}`)
+                    .here((todos) => { this.outros = todos.filter((u) => u.id !== meuId); })
+                    .joining((u) => {
+                        if (u.id !== meuId && ! this.outros.some((o) => o.id === u.id)) {
+                            this.outros.push(u);
+                        }
+                    })
+                    .leaving((u) => { this.outros = this.outros.filter((o) => o.id !== u.id); })
+                    .error(() => { this.outros = []; });
+            } catch (e) {
+                // Sem presenca a tela continua inteira. Isto e aviso, nao funcionalidade.
+            }
+        },
+
+        destroy() {
+            // Sair do canal ao trocar de conversa. Sem isto a pessoa apareceria "vendo" cinco
+            // conversas ao mesmo tempo, e o aviso viraria mentira em todas.
+            if (conversaId && window.Echo) window.Echo.leave(`conversation.${conversaId}`);
+        },
+
+        get aviso() {
+            if (! this.outros.length) return '';
+
+            const nomes = this.outros.map((o) => o.nome).filter(Boolean);
+
+            return nomes.length === 1
+                ? `${nomes[0]} também está com esta conversa aberta`
+                : `${nomes.join(', ')} também estão com esta conversa aberta`;
+        },
+    }));
+});
+
 // =================================================== estado da conexao =========
 
 /**

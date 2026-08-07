@@ -245,7 +245,13 @@
                 &#128274;
             </button>
 
+            {{-- throttle e nao debounce: com debounce o aviso so sairia depois que a pessoa
+                 PARASSE de escrever, que e exatamente quando ele deixa de ser util. Tres
+                 segundos e o intervalo entre avisos; o Baileys mantem o "digitando" aceso
+                 nesse meio tempo. --}}
             <input type="text" wire:model="corpo" autocomplete="off"
+                   x-on:input.throttle.3000ms="$wire.digitando(true)"
+                   x-on:blur="$wire.digitando(false)"
                    placeholder="{{ $nota ? 'Nota interna, só a equipe vê' : ($anexo ? 'Legenda (opcional)' : 'Escreva uma mensagem') }}"
                    class="flex-1 rounded border px-3 py-2 text-sm {{ $nota ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-300' }}">
 

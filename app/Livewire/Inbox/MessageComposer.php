@@ -87,6 +87,40 @@ class MessageComposer extends Component
         $this->respondendoA = $messageId;
     }
 
+    /**
+     * Avisa o cliente que alguem esta escrevendo.
+     *
+     * Chamado do navegador com estrangulamento de alguns segundos, e nao a cada tecla: uma ida
+     * ao servidor por letra digitada seria absurdo para um enfeite.
+     *
+     * NAO vale para nota interna. A nota nao vai para o cliente, e mostrar "digitando" para
+     * ele enquanto o atendente escreve um lembrete interno anuncia uma resposta que nunca vem.
+     */
+    public function digitando(bool $ativo = true): void
+    {
+        if ($this->nota || ! $this->conversationId) {
+            return;
+        }
+
+        $conversa = Conversation::find($this->conversationId);
+
+        if (! $conversa) {
+            return;
+        }
+
+        $enviador = app(\App\Services\Canais\Enviadores::class)->para($conversa->channel);
+
+        if (! $enviador->podeDigitando()) {
+            return;
+        }
+
+        $enviador->digitando(
+            $conversa->channel,
+            $conversa->contact->destinoWhatsApp(),
+            $ativo,
+        );
+    }
+
     public function cancelarResposta(): void
     {
         $this->respondendoA = null;

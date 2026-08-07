@@ -45,6 +45,23 @@ class MetaCloudEnviador implements Enviador
     }
 
     /**
+     * A API oficial nao tem "digitando" que da para ligar e desligar.
+     *
+     * Ela mostra o indicador junto do recibo de leitura, preso a um wamid e por no maximo 25
+     * segundos. Nao serve para acompanhar alguem escrevendo: apareceria na hora errada, e um
+     * indicador que mente e pior que indicador nenhum.
+     */
+    public function podeDigitando(): bool
+    {
+        return false;
+    }
+
+    public function digitando(Channel $canal, string $destino, bool $ativo): void
+    {
+        // Nada. Nao lanca: quem chama esta no meio da digitacao de alguem.
+    }
+
+    /**
      * A API oficial NAO apaga mensagem. Nao ha endpoint — nem em versao nova, nem com outra
      * permissao. Quem precisa disso hoje usa o canal por QR.
      */
