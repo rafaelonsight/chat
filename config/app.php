@@ -65,7 +65,9 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Do .env, e nao fixo: o app rodava em UTC com o Brasil em -03, e cada hora mostrada na
+    // tela saia tres horas na frente do relogio de quem estava lendo.
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------
