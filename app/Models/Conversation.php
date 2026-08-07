@@ -26,6 +26,7 @@ class Conversation extends Model
         'tenant_id', 'channel_id', 'contact_id', 'status', 'atendente_id', 'team_id',
         'pesquisa_enviada_em', 'satisfacao', 'satisfacao_em',
         'fixada_em', 'fixada_por',
+        'funnel_stage_id', 'etapa_em',
         'ultima_msg_em', 'ultima_entrada_em', 'nao_lidas',
         'origem_tipo', 'origem_id', 'origem',
         'chatbot_id', 'chatbot_tentativas', 'chatbot_estado',
@@ -36,6 +37,7 @@ class Conversation extends Model
     protected $casts = [
         'pesquisa_enviada_em' => 'datetime',
         'fixada_em'           => 'datetime',
+        'etapa_em'            => 'datetime',
         'satisfacao_em'       => 'datetime',
         'satisfacao'          => 'integer',
         'ultima_msg_em'      => 'datetime',
@@ -282,6 +284,26 @@ class Conversation extends Model
     public function fixadaPara(?User $quem): bool
     {
         return $quem !== null && $this->fixada_em !== null && (int) $this->fixada_por === $quem->id;
+    }
+
+    public function funnelStage(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(FunnelStage::class, 'funnel_stage_id');
+    }
+
+    /**
+     * Move o cartao de coluna.
+     *
+     * Guarda QUANDO entrou na etapa, e nao so qual e. Sem a data nao da para responder "ha
+     * quanto tempo esse negocio esta parado em Negociacao?", que e a unica pergunta que faz
+     * um funil valer alguma coisa — sem ela, ele e uma lista bonita.
+     */
+    public function moverPara(?FunnelStage $etapa): void
+    {
+        $this->forceFill([
+            'funnel_stage_id' => $etapa?->id,
+            'etapa_em'        => $etapa ? now() : null,
+        ])->save();
     }
 
     public function marcarNaoLida(): void

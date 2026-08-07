@@ -69,14 +69,16 @@ it('a lista de contatos abre e mostra so os do proprio tenant', function () {
         ->assertDontSee('Do B');
 });
 
-it('paineis abre com aviso de que esta por vir', function () {
+it('Paineis deixou de ser tela reservada: virou o funil', function () {
     $u = usuarioMenu('mn5');
 
     $this->withoutExceptionHandling();
     $this->withSession(sessaoMenu($u))
         ->get('/admin/paineis')
         ->assertSuccessful()
-        ->assertSee('em constru');
+        ->assertDontSee('em constru')
+        // conta sem coluna nenhuma e convidada a criar, em vez de encarar um quadro em branco
+        ->assertSee('Seu funil ainda não tem colunas');
 });
 
 it('relatorios e barrado para atendente', function () {
