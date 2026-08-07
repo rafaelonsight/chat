@@ -133,6 +133,31 @@
             </label>
         </div>
 
+        {{-- pesquisa de satisfacao --}}
+        <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-gray-900">
+            <label class="flex items-start gap-3">
+                <input type="checkbox" wire:model.live="pesquisa_ativa"
+                       class="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600">
+                <span>
+                    <span class="block text-sm font-medium text-gray-800 dark:text-gray-100">Pesquisa de satisfação</span>
+                    <span class="block text-xs text-gray-500 dark:text-gray-400">
+                        Pergunta a nota de 1 a 5 quando o atendimento é encerrado. A resposta
+                        do cliente <strong>não cria conversa nova</strong>: ela é guardada no
+                        atendimento que acabou e a média aparece nos Relatórios.
+                        Não pergunta quando a janela de 24h do canal oficial está fechada.
+                    </span>
+                </span>
+            </label>
+
+            @if ($pesquisa_ativa)
+                <div class="mt-4">
+                    <textarea wire:model="pesquisa_texto" rows="2"
+                              class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100"></textarea>
+                    @error('pesquisa_texto') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+            @endif
+        </div>
+
         {{-- resposta automatica --}}
         <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-gray-900">
             <label class="flex items-start gap-3">

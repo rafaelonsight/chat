@@ -130,6 +130,10 @@ class ConversationWindow extends Component
         $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
         $conversa->arquivar();
 
+        // Depois de arquivar, nao antes: se a pergunta saisse primeiro, o cliente responderia
+        // numa conversa ainda aberta e a nota entraria como conversa normal.
+        app(\App\Services\PesquisaDeSatisfacao::class)->perguntar($conversa->refresh());
+
         $this->dispatch('conversa-atualizada');
     }
 

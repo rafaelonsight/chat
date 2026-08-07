@@ -65,6 +65,15 @@
                 ['Enviadas', $resumo['enviadas'], 'nossas'],
                 ['1a resposta (media)', \App\Filament\Pages\Relatorios::formatarDuracao($primeiraResposta['media']),
                  'base de '.$primeiraResposta['base'].' conversa(s)'.($emHorarioUtil ? ' · em horário útil' : '')],
+                // Comentario de PHP e nao {{-- --}}: isto esta DENTRO de um @php, e ali o
+                // Blade nao interpreta comentario dele — vira erro de sintaxe na view.
+                //
+                // A base vem junto do numero de proposito: 5,0 com duas respostas nao e a
+                // mesma coisa que 4,6 com duzentas, e media sozinha faz decidir por duas
+                // pessoas. Sem resposta nenhuma mostra um traco, nao um zero — zero seria
+                // lido como "nota zero".
+                ['Satisfação', $resumo['satisfacao'] !== null ? number_format($resumo['satisfacao'], 1, ',', '') : '—',
+                 $resumo['satisfacao_base'].' de '.$resumo['pesquisas_enviadas'].' responderam'],
             ];
         @endphp
         @foreach ($cartoes2 as [$titulo, $valor, $nota])

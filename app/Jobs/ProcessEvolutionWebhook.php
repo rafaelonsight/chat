@@ -145,6 +145,14 @@ class ProcessEvolutionWebhook implements ShouldQueue
             $this->baixarMidia($canal, $mensagem, $externalId);
         }
 
+        // A nota da pesquisa chega como conversa NOVA, porque a anterior foi encerrada. Se
+        // for nota, ela e gravada na conversa encerrada e esta aqui se fecha sozinha — senao a
+        // pesquisa geraria fila em Novos com conversas cujo unico conteudo e o numero 5.
+        if ($mensagem->wasRecentlyCreated
+            && app(\App\Services\PesquisaDeSatisfacao::class)->talvezRegistrar($mensagem)) {
+            return;
+        }
+
         if ($mensagem->wasRecentlyCreated) {
             broadcast(new MessageStored($mensagem->refresh()));
 

@@ -49,6 +49,11 @@ class HorarioAtendimento extends Page
     /** Poe o primeiro nome de quem respondeu na frente da mensagem que sai. */
     public bool $assinatura_ativa = false;
 
+    /** Pergunta a nota de 1 a 5 quando o atendimento e encerrado. */
+    public bool $pesquisa_ativa = false;
+
+    public string $pesquisa_texto = '';
+
     // excecao nova
     public string $ex_data = '';
 
@@ -72,6 +77,9 @@ class HorarioAtendimento extends Page
         $this->fuso_horario = (string) ($conta?->fuso_horario ?: 'America/Sao_Paulo');
         $this->resposta_ativa = (bool) $conta?->resposta_automatica_ativa;
         $this->assinatura_ativa = (bool) $conta?->assinatura_ativa;
+        $this->pesquisa_ativa = (bool) $conta?->pesquisa_ativa;
+        $this->pesquisa_texto = (string) ($conta?->pesquisa_texto
+            ?: \App\Services\PesquisaDeSatisfacao::TEXTO_PADRAO);
         $this->resposta_texto = (string) ($conta?->resposta_automatica_texto
             ?: 'Olá {{nome}}, no momento estamos fora do horário de atendimento. Voltamos {{proxima_abertura}}.');
 
@@ -212,6 +220,8 @@ class HorarioAtendimento extends Page
             'fuso_horario'              => $this->fuso_horario,
             'resposta_automatica_ativa' => $this->resposta_ativa,
             'assinatura_ativa'          => $this->assinatura_ativa,
+            'pesquisa_ativa'            => $this->pesquisa_ativa,
+            'pesquisa_texto'            => trim($this->pesquisa_texto) ?: null,
             'resposta_automatica_texto' => trim($this->resposta_texto) ?: null,
         ]);
 

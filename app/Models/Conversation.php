@@ -24,6 +24,7 @@ class Conversation extends Model
 
     protected $fillable = [
         'tenant_id', 'channel_id', 'contact_id', 'status', 'atendente_id', 'team_id',
+        'pesquisa_enviada_em', 'satisfacao', 'satisfacao_em',
         'ultima_msg_em', 'ultima_entrada_em', 'nao_lidas',
         'origem_tipo', 'origem_id', 'origem',
         'chatbot_id', 'chatbot_tentativas', 'chatbot_estado',
@@ -32,6 +33,9 @@ class Conversation extends Model
     ];
 
     protected $casts = [
+        'pesquisa_enviada_em' => 'datetime',
+        'satisfacao_em'       => 'datetime',
+        'satisfacao'          => 'integer',
         'ultima_msg_em'      => 'datetime',
         'ultima_entrada_em'  => 'datetime',
         'chatbot_respostas'  => 'array',

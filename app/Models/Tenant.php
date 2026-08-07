@@ -15,6 +15,7 @@ class Tenant extends Model
         'data_abertura', 'cnpj_consultado_em',
         'resposta_automatica_ativa', 'resposta_automatica_texto',
         'assinatura_ativa',
+        'pesquisa_ativa', 'pesquisa_texto',
     ];
 
     // data_abertura fica sem cast de proposito: a tela le e escreve o texto
@@ -25,11 +26,13 @@ class Tenant extends Model
     // 'operador' do User teve, e pelo mesmo motivo.
     protected $attributes = [
         'assinatura_ativa' => false,
+        'pesquisa_ativa'   => false,
     ];
 
     protected $casts = [
         'resposta_automatica_ativa' => 'boolean',
         'assinatura_ativa'          => 'boolean',
+        'pesquisa_ativa'            => 'boolean',
         'cnpj_consultado_em'        => 'datetime',
     ];
 

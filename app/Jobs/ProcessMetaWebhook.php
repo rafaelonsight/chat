@@ -163,6 +163,13 @@ class ProcessMetaWebhook implements ShouldQueue
             return; // reentrega: nao apita nem chama o bot de novo
         }
 
+        // A nota da pesquisa chega como conversa NOVA, porque a anterior foi encerrada. Sendo
+        // nota, ela e gravada na conversa encerrada e esta aqui se fecha sozinha — senao a
+        // pesquisa geraria fila em Novos com conversas cujo unico conteudo e o numero 5.
+        if (app(\App\Services\PesquisaDeSatisfacao::class)->talvezRegistrar($mensagem)) {
+            return;
+        }
+
         // De onde a pessoa veio. Antes do broadcast para o atendente ja abrir a conversa
         // vendo a origem.
         $this->guardarOrigem($mensagem->conversation, (array) data_get($bruta, 'referral', []));

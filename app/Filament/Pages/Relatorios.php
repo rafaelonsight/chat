@@ -192,6 +192,19 @@ class Relatorios extends Page
             'enviadas'   => $msgsPeriodo()->where('direcao', 'out')->count(),
         ];
 
+        // Satisfacao: media e QUANTAS responderam. A media sozinha engana — 5,0 com duas
+        // respostas nao e a mesma coisa que 4,6 com duzentas, e quem le so a media toma
+        // decisao com base em duas pessoas.
+        $notas = $doPeriodo()->whereNotNull('satisfacao');
+        $resumo['satisfacao_base'] = (clone $notas)->count();
+        $resumo['satisfacao'] = $resumo['satisfacao_base'] > 0
+            ? round((float) (clone $notas)->avg('satisfacao'), 1)
+            : null;
+
+        // Quantas pesquisas sairam, para dar o retorno: 3 respostas em 100 perguntas nao e
+        // "nota 5", e sim uma pesquisa que ninguem responde.
+        $resumo['pesquisas_enviadas'] = $doPeriodo()->whereNotNull('pesquisa_enviada_em')->count();
+
         $porCanal = $this->conversas()
             ->where('conversations.created_at', '>=', $desde)
             ->join('channels', 'channels.id', '=', 'conversations.channel_id')
