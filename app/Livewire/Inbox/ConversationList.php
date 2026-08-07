@@ -72,6 +72,7 @@ class ConversationList extends Component
             // Depois de marcar como nao lida, nenhuma conversa fica selecionada: senao a
             // linha continuaria destacada como se estivesse aberta.
             'fechar-conversa'     => 'limparSelecao',
+            'atalho-navegar'      => 'irParaVizinha',
             'conversa-atualizada' => '$refresh',
         ];
 
@@ -105,6 +106,40 @@ class ConversationList extends Component
         }
 
         return (int) $c->ultima_entrada_em->diffInMinutes(now());
+    }
+
+    /**
+     * Vai para a conversa de cima ou de baixo, na ordem que esta na tela.
+     *
+     * A vizinha e calculada no SERVIDOR porque so ele sabe a ordem real: balde, equipe,
+     * etiqueta, canal e a regra das fixadas mudam quem vem depois de quem. Descobrir isso
+     * contando linhas no navegador daria certo ate o primeiro filtro.
+     *
+     * Sem nada selecionado, entra na primeira — que e o que a pessoa quer ao apertar j numa
+     * lista parada.
+     */
+    public function irParaVizinha(int $passo): void
+    {
+        $ids = $this->aplicarRecortes($this->doBalde($this->balde))
+            ->orderByRaw('case when fixada_em is not null and fixada_por = ? then 0 else 1 end', [auth()->id()])
+            ->orderBy('ultima_msg_em', $this->ordemEfetiva() === 'antigos' ? 'asc' : 'desc')
+            ->limit($this->limite)
+            ->pluck('id')
+            ->all();
+
+        if ($ids === []) {
+            return;
+        }
+
+        $atual = array_search($this->selecionada, $ids, true);
+
+        // Nao da a volta de proposito: chegar ao fim e voltar ao topo sem aviso faz a pessoa
+        // reler o que ja leu achando que sao conversas novas.
+        $novo = $atual === false
+            ? 0
+            : max(0, min(count($ids) - 1, $atual + $passo));
+
+        $this->selecionar($ids[$novo]);
     }
 
     public function limparSelecao(): void

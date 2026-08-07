@@ -317,6 +317,82 @@ document.addEventListener('alpine:init', () => {
     }));
 });
 
+// ==================================================== atalhos de teclado ======
+
+/**
+ * Sete atalhos, e nenhum inventado.
+ *
+ * Todos vieram do Gmail — j, k, r, e, u, / e ? — porque quem atende o dia todo provavelmente
+ * ja tem esses no dedo de outro lugar. Atalho original obriga a decorar; atalho emprestado ja
+ * vem sabido.
+ *
+ * SETE E O LIMITE DE PROPOSITO. Uma tabela de trinta teclas vira documentacao que ninguem le,
+ * e cada tecla ocupada e uma tecla que nao da para dar a outra coisa depois.
+ *
+ * NAO DISPARA ENQUANTO SE ESCREVE. A checagem do campo em foco vem primeiro, senao digitar
+ * "reunião" no meio de uma frase encerraria a conversa no "e". A unica excecao e o Esc, que
+ * precisa funcionar justamente de dentro do campo — e o jeito de sair dele.
+ */
+const CAMPOS = ['INPUT', 'TEXTAREA', 'SELECT'];
+
+const escrevendo = (alvo) =>
+    CAMPOS.includes(alvo?.tagName) || alvo?.isContentEditable === true;
+
+const focar = (nome) => {
+    const el = document.querySelector(`[data-atalho="${nome}"]`);
+    if (el) { el.focus(); el.select?.(); return true; }
+    return false;
+};
+
+document.addEventListener('keydown', (e) => {
+    // Combinacoes do sistema continuam sendo do sistema: Ctrl+R recarrega, e nao responde.
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+    if (e.key === 'Escape') {
+        if (escrevendo(e.target)) { e.target.blur(); return; }
+        window.dispatchEvent(new CustomEvent('onchat-atalhos', { detail: { acao: 'fechar' } }));
+        window.Livewire?.dispatch('atalho-voltar');
+        return;
+    }
+
+    if (escrevendo(e.target)) return;
+
+    switch (e.key) {
+        case '/':
+            // A busca da lista vive escondida atras de um botao, e focar elemento oculto nao
+            // faz nada. Quem abre e o proprio Alpine da lista, que sabe do estado dela.
+            //
+            // preventDefault senao a barra entra no campo que acabou de receber o foco.
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent('onchat-abrir-busca'));
+            break;
+
+        case 'r':
+            if (focar('responder')) e.preventDefault();
+            break;
+
+        case 'j':
+            window.Livewire?.dispatch('atalho-navegar', { passo: 1 });
+            break;
+
+        case 'k':
+            window.Livewire?.dispatch('atalho-navegar', { passo: -1 });
+            break;
+
+        case 'e':
+            window.Livewire?.dispatch('atalho-finalizar');
+            break;
+
+        case 'u':
+            window.Livewire?.dispatch('atalho-nao-lida');
+            break;
+
+        case '?':
+            window.dispatchEvent(new CustomEvent('onchat-atalhos', { detail: { acao: 'alternar' } }));
+            break;
+    }
+});
+
 // =================================================== estado da conexao =========
 
 /**

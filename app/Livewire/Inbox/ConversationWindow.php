@@ -64,6 +64,11 @@ class ConversationWindow extends Component
 
             // Mensagem nova, vinda da ponte em resources/js/app.js.
             'mensagem-chegou' => 'talvezAtualizar',
+
+            // Os atalhos chamam os MESMOS metodos dos botoes. Um caminho separado para o
+            // teclado seria uma segunda regra para manter, e a primeira a ficar para tras.
+            'atalho-finalizar' => 'finalizar',
+            'atalho-nao-lida' => 'marcarNaoLida',
         ];
 
 

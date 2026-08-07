@@ -217,8 +217,12 @@
         </div>
 
         {{-- busca: dentro do mesmo escopo Alpine, senao o icone nao a alcanca --}}
-        <div x-show="busca" x-cloak class="px-2 pb-2">
-            <input type="text" wire:model.live.debounce.400ms="busca"
+        <div x-show="busca" x-cloak class="px-2 pb-2"
+             {{-- O atalho "/" avisa daqui de fora; abrir e focar tem de acontecer neste
+                  escopo, que e quem conhece o estado do campo. O nextTick espera o x-show
+                  soltar o display:none — focar antes disso nao faz nada. --}}
+             x-on:onchat-abrir-busca.window="busca = true; $nextTick(() => $refs.campoBusca?.focus())">
+            <input type="text" wire:model.live.debounce.400ms="busca" x-ref="campoBusca"
                    placeholder="Buscar nome, telefone ou mensagem"
                    x-on:keydown.escape="busca = false; $wire.set('busca', '')"
                    class="w-full rounded border border-gray-300 px-2 py-1.5 text-xs dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">

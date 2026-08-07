@@ -51,4 +51,58 @@
             <livewire:inbox.contact-details />
         </div>
     </div>
+
+    {{--
+        A LISTA DE ATALHOS, chamada por "?".
+
+        Atalho que ninguem conhece e codigo morto. Todo produto que tem atalho tem esta tela, e
+        sempre no mesmo lugar — a interrogacao — porque foi assim que as pessoas aprenderam a
+        procurar. O aviso discreto no rodape existe para quem nunca pensou em apertar "?".
+    --}}
+    <div x-data="{ aberta: false }"
+         x-on:onchat-atalhos.window="
+            if ($event.detail.acao === 'alternar') aberta = ! aberta;
+            if ($event.detail.acao === 'fechar') aberta = false;
+         ">
+        <p class="mt-2 hidden text-center text-[11px] text-gray-400 lg:block">
+            Aperte <kbd class="rounded border border-gray-300 px-1 font-sans dark:border-white/20">?</kbd>
+            para ver os atalhos de teclado
+        </p>
+
+        <div x-show="aberta" x-cloak x-on:click="aberta = false"
+             class="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+            <div x-on:click.stop
+                 class="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-gray-900">
+                <div class="mb-3 flex items-center justify-between">
+                    <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Atalhos de teclado</h2>
+                    <button type="button" x-on:click="aberta = false"
+                            class="rounded px-2 text-lg leading-none text-gray-400 hover:text-gray-700">&times;</button>
+                </div>
+
+                <dl class="space-y-2 text-sm">
+                    @foreach ([
+                        ['j', 'Próxima conversa'],
+                        ['k', 'Conversa anterior'],
+                        ['r', 'Responder — vai para o campo de escrever'],
+                        ['e', 'Encerrar o atendimento'],
+                        ['u', 'Marcar como não lida e voltar'],
+                        ['/', 'Buscar conversa'],
+                        ['Esc', 'Sair do campo, fechar isto'],
+                        ['?', 'Mostrar esta lista'],
+                    ] as [$tecla, $oque])
+                        <div class="flex items-center gap-3">
+                            <kbd class="grid min-w-8 place-items-center rounded border border-gray-300 bg-gray-50 px-1.5 py-0.5 font-sans text-xs text-gray-700 dark:border-white/20 dark:bg-white/5 dark:text-gray-200">{{ $tecla }}</kbd>
+                            <dd class="text-gray-600 dark:text-gray-300">{{ $oque }}</dd>
+                        </div>
+                    @endforeach
+                </dl>
+
+                <p class="mt-4 border-t border-gray-100 pt-3 text-xs text-gray-400 dark:border-white/5">
+                    Nenhum deles dispara enquanto você está escrevendo.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <span id="onchat-ajuda-atalhos" class="hidden"></span>
 </x-filament-panels::page>

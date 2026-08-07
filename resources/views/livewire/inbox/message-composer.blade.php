@@ -266,7 +266,7 @@
                  PARASSE de escrever, que e exatamente quando ele deixa de ser util. Tres
                  segundos e o intervalo entre avisos; o Baileys mantem o "digitando" aceso
                  nesse meio tempo. --}}
-            <input type="text" wire:model="corpo" autocomplete="off"
+            <input type="text" wire:model="corpo" autocomplete="off" data-atalho="responder"
                    x-on:input.throttle.3000ms="$wire.digitando(true)"
                    x-on:blur="$wire.digitando(false)"
                    placeholder="{{ $nota ? 'Nota interna, só a equipe vê' : ($anexo ? 'Legenda (opcional)' : 'Escreva uma mensagem') }}"
