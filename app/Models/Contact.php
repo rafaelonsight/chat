@@ -20,10 +20,16 @@ class Contact extends Model
         'tenant_id', 'jid', 'tipo', 'telefone_e164', 'nome', 'email', 'instagram',
         'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
         'arquivado_em', 'bloqueado_em', 'bloqueio_motivo',
+        // O opt-out entra aqui e nao so no forceFill: a importacao de contatos vai
+        // precisar dele no dia em que alguem trouxer uma lista com quem ja pediu saida,
+        // e campo fora do fillable e descartado em SILENCIO — ja me custou tres rodadas
+        // esta semana.
+        'opt_out_em', 'opt_out_motivo',
     ];
 
     protected $casts = [
         'anonimizado_em' => 'datetime',
+        'opt_out_em'     => 'datetime',
         'arquivado_em' => 'datetime',
         'bloqueado_em' => 'datetime',
     ];
@@ -76,6 +82,12 @@ class Contact extends Model
     }
 
     /** Os dados pessoais deste contato foram removidos a pedido dele. */
+    /** Pediu para nao receber mais campanha. */
+    public function saiuDaLista(): bool
+    {
+        return $this->opt_out_em !== null;
+    }
+
     public function anonimizado(): bool
     {
         return $this->anonimizado_em !== null;

@@ -145,6 +145,10 @@ class ProcessEvolutionWebhook implements ShouldQueue
             $this->baixarMidia($canal, $mensagem, $externalId);
         }
 
+        // "PARAR". O cliente que pede para sair da lista tem de sair na hora, e sem depender
+        // de alguem ler a mensagem: pedido ignorado vira denuncia, e denuncia derruba o numero.
+        $this->talvezSairDaLista($mensagem);
+
         // A nota da pesquisa chega como conversa NOVA, porque a anterior foi encerrada. Se
         // for nota, ela e gravada na conversa encerrada e esta aqui se fecha sozinha — senao a
         // pesquisa geraria fila em Novos com conversas cujo unico conteudo e o numero 5.
@@ -245,6 +249,37 @@ class ProcessEvolutionWebhook implements ShouldQueue
      * nivel evita uma lista de tipos que envelheceria calada — tipo novo entraria e a citacao
      * dele simplesmente nao apareceria, sem erro.
      */
+    /**
+     * O cliente pediu para sair da lista de campanhas.
+     *
+     * Registra tambem um evento na conversa: sem isso o atendente responderia normalmente sem
+     * saber que aquela pessoa acabou de pedir para nao ser mais incomodada.
+     */
+    private function talvezSairDaLista(Message $mensagem): void
+    {
+        $disparador = app(\App\Services\Disparador::class);
+
+        if (! $disparador->pedidoDeSaida($mensagem->corpo)) {
+            return;
+        }
+
+        $contato = $mensagem->conversation?->contact;
+
+        if (! $contato || $contato->saiuDaLista()) {
+            return;
+        }
+
+        $disparador->marcarSaida($contato);
+
+        \App\Models\ConversationEvent::create([
+            'tenant_id'       => $mensagem->tenant_id,
+            'conversation_id' => $mensagem->conversation_id,
+            'tipo'            => \App\Models\ConversationEvent::NOTA,
+            'descricao'       => 'O cliente pediu para sair da lista de campanhas. '
+                .'Não receberá mais disparos; a conversa normal continua.',
+        ]);
+    }
+
     /** O cliente reagiu a uma mensagem. text vazio quer dizer que ele TIROU a reacao. */
     private function registrarReacao(Channel $canal, array $reacao): void
     {

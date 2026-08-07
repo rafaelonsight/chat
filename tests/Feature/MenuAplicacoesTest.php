@@ -62,7 +62,8 @@ it('as telas ainda reservadas abrem para admin, com as decisoes listadas', funct
     $admin = usuarioApps('ap2');
     $chave = 'login_web_'.sha1('Illuminate\Auth\SessionGuard');
 
-    foreach (['/admin/campanhas', '/admin/funcionarios-digitais', '/admin/sequencias'] as $rota) {
+    // Campanhas saiu daqui: deixou de ser tela reservada e virou modulo de verdade.
+    foreach (['/admin/funcionarios-digitais', '/admin/sequencias'] as $rota) {
         $this->withSession([$chave => $admin->id])->get($rota)
             ->assertSuccessful()
             ->assertSee('em constru');
@@ -79,4 +80,19 @@ it('o Chatbot deixou de ser tela reservada', function () {
         ->assertSuccessful()
         ->assertDontSee('em constru')
         ->assertSee('Nenhum fluxo ainda');
+});
+
+it('Campanhas deixou de ser tela reservada', function () {
+    $conta = App\Models\Tenant::create(['nome' => 'T', 'slug' => 'menu-camp']);
+    App\Support\TenantContext::set($conta->id);
+
+    $admin = App\Models\User::create([
+        'tenant_id' => $conta->id, 'name' => 'A', 'email' => 'a@menu-camp.test',
+        'password' => 'segredo123', 'admin' => true,
+    ]);
+
+    $this->actingAs($admin)->get('/admin/campanhas')
+        ->assertSuccessful()
+        ->assertDontSee('em constru')
+        ->assertSee('Nova campanha');
 });

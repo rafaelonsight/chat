@@ -163,6 +163,9 @@ class ProcessMetaWebhook implements ShouldQueue
             return; // reentrega: nao apita nem chama o bot de novo
         }
 
+        // "PARAR": mesmo tratamento do canal por QR.
+        $this->talvezSairDaLista($mensagem);
+
         // A nota da pesquisa chega como conversa NOVA, porque a anterior foi encerrada. Sendo
         // nota, ela e gravada na conversa encerrada e esta aqui se fecha sozinha — senao a
         // pesquisa geraria fila em Novos com conversas cujo unico conteudo e o numero 5.
@@ -360,6 +363,32 @@ class ProcessMetaWebhook implements ShouldQueue
      *
      * @return array<string, mixed>|null
      */
+    /** O cliente pediu para sair da lista de campanhas. Mesmo tratamento do canal por QR. */
+    private function talvezSairDaLista(Message $mensagem): void
+    {
+        $disparador = app(\App\Services\Disparador::class);
+
+        if (! $disparador->pedidoDeSaida($mensagem->corpo)) {
+            return;
+        }
+
+        $contato = $mensagem->conversation?->contact;
+
+        if (! $contato || $contato->saiuDaLista()) {
+            return;
+        }
+
+        $disparador->marcarSaida($contato);
+
+        \App\Models\ConversationEvent::create([
+            'tenant_id'       => $mensagem->tenant_id,
+            'conversation_id' => $mensagem->conversation_id,
+            'tipo'            => \App\Models\ConversationEvent::NOTA,
+            'descricao'       => 'O cliente pediu para sair da lista de campanhas. '
+                .'Não receberá mais disparos; a conversa normal continua.',
+        ]);
+    }
+
     /** O cliente reagiu a uma mensagem nossa. Emoji vazio quer dizer que ele TIROU a reacao. */
     private function reacao(Channel $canal, array $bruta): void
     {
