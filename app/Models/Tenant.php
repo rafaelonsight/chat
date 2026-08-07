@@ -14,13 +14,22 @@ class Tenant extends Model
         'natureza_juridica', 'cnae_principal', 'situacao_cadastral', 'porte',
         'data_abertura', 'cnpj_consultado_em',
         'resposta_automatica_ativa', 'resposta_automatica_texto',
+        'assinatura_ativa',
     ];
 
     // data_abertura fica sem cast de proposito: a tela le e escreve o texto
     // 'AAAA-MM-DD' que a Receita devolve, e converter para Carbon aqui faria a
     // volta gravar '... 00:00:00' no campo.
+    // Sem isto, uma conta recem-criada responde NULL a ->assinatura_ativa: o padrao existe no
+    // BANCO, e o objeto em memoria so o conheceria depois de um refresh. Mesma aresta que o
+    // 'operador' do User teve, e pelo mesmo motivo.
+    protected $attributes = [
+        'assinatura_ativa' => false,
+    ];
+
     protected $casts = [
         'resposta_automatica_ativa' => 'boolean',
+        'assinatura_ativa'          => 'boolean',
         'cnpj_consultado_em'        => 'datetime',
     ];
 

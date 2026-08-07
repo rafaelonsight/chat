@@ -111,6 +111,28 @@
             @error('fuso_horario') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
 
+        {{--
+            A assinatura mora ao lado da resposta automatica porque as duas sao a mesma
+            familia: coisas que o sistema escreve no lugar da pessoa. Nao tem a ver com
+            horario, mas separar em outra tela por pureza faria o dono procurar em dois
+            lugares o que ele pensa como um assunto so.
+        --}}
+        <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-gray-900">
+            <label class="flex items-start gap-3">
+                <input type="checkbox" wire:model="assinatura_ativa"
+                       class="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600">
+                <span>
+                    <span class="block text-sm font-medium text-gray-800 dark:text-gray-100">Assinar as mensagens</span>
+                    <span class="block text-xs text-gray-500 dark:text-gray-400">
+                        Põe o primeiro nome de quem respondeu em negrito, na primeira linha.
+                        O cliente vê <strong>um número só</strong> — sem isso, três pessoas
+                        diferentes respondendo parecem a mesma pessoa mudando de ideia.
+                        Não vale para nota interna nem para resposta automática.
+                    </span>
+                </span>
+            </label>
+        </div>
+
         {{-- resposta automatica --}}
         <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-gray-900">
             <label class="flex items-start gap-3">

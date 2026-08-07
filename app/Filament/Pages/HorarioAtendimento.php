@@ -46,6 +46,9 @@ class HorarioAtendimento extends Page
 
     public string $resposta_texto = '';
 
+    /** Poe o primeiro nome de quem respondeu na frente da mensagem que sai. */
+    public bool $assinatura_ativa = false;
+
     // excecao nova
     public string $ex_data = '';
 
@@ -68,6 +71,7 @@ class HorarioAtendimento extends Page
 
         $this->fuso_horario = (string) ($conta?->fuso_horario ?: 'America/Sao_Paulo');
         $this->resposta_ativa = (bool) $conta?->resposta_automatica_ativa;
+        $this->assinatura_ativa = (bool) $conta?->assinatura_ativa;
         $this->resposta_texto = (string) ($conta?->resposta_automatica_texto
             ?: 'Olá {{nome}}, no momento estamos fora do horário de atendimento. Voltamos {{proxima_abertura}}.');
 
@@ -207,6 +211,7 @@ class HorarioAtendimento extends Page
         $conta->update([
             'fuso_horario'              => $this->fuso_horario,
             'resposta_automatica_ativa' => $this->resposta_ativa,
+            'assinatura_ativa'          => $this->assinatura_ativa,
             'resposta_automatica_texto' => trim($this->resposta_texto) ?: null,
         ]);
 

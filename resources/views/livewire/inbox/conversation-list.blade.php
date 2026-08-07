@@ -80,6 +80,21 @@
                     </svg>
                 </button>
 
+                {{-- Aviso do sistema operacional. Aparece por cima de qualquer janela, que
+                     e o caso que som e titulo nao cobrem: navegador minimizado porque a pessoa
+                     foi ao ERP ou a planilha. Tambem por maquina, pelo mesmo motivo do som. --}}
+                <button type="button"
+                        x-data="{ ligado: true }"
+                        x-init="ligado = window.onchatAvisoLigado ? window.onchatAvisoLigado() : true"
+                        x-on:click="ligado = window.onchatAlternarAviso ? await window.onchatAlternarAviso() : ligado"
+                        x-bind:title="ligado ? 'Avisos na tela ligados — clique para desligar' : 'Avisos na tela desligados — clique para ligar'"
+                        x-bind:class="ligado ? 'text-gray-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'"
+                        class="rounded p-1.5 transition hover:bg-gray-100 dark:hover:bg-white/5">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6Z" />
+                    </svg>
+                </button>
+
                 {{-- Som do alerta. Vive no navegador (localStorage) e nao no banco: e
                      escolha da MAQUINA, nao da pessoa — o mesmo atendente quer som no
                      posto de atendimento e silencio no notebook de casa. --}}

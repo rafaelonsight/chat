@@ -92,6 +92,39 @@ class MessageComposer extends Component
         $this->respondendoA = null;
     }
 
+    /**
+     * Poe o nome de quem escreveu na frente da mensagem, quando a conta pede.
+     *
+     * Existe porque o cliente ve UM numero, nao uma equipe: sem assinatura, tres pessoas
+     * diferentes respondendo parecem a mesma pessoa mudando de ideia.
+     *
+     * O nome entra no CORPO e nao num campo separado. Isso e proposital: e o que o cliente
+     * recebe, e o historico daqui tem de mostrar exatamente o texto que chegou la. Guardar
+     * separado faria a bolha e o aparelho do cliente contarem historias diferentes.
+     *
+     * Nota interna nao assina: ninguem de fora le, e o autor ja aparece do lado.
+     */
+    private function assinar(string $texto): string
+    {
+        if ($this->nota || trim($texto) === '') {
+            return $texto;
+        }
+
+        $conta = \App\Models\Tenant::find(auth()->user()?->tenant_id);
+
+        if (! $conta?->assinatura_ativa) {
+            return $texto;
+        }
+
+        $nome = trim((string) auth()->user()?->name);
+
+        // O asterisco e negrito no WhatsApp. Primeiro nome so: "Ana Paula Rodrigues da Silva"
+        // ocupando uma linha inteira antes de cada resposta cansa em cinco mensagens.
+        $primeiro = $nome === '' ? '' : explode(' ', $nome)[0];
+
+        return $primeiro === '' ? $texto : '*'.$primeiro.'*'.PHP_EOL.$texto;
+    }
+
     public function mensagemCitada(): ?Message
     {
         return $this->respondendoA ? Message::find($this->respondendoA) : null;
@@ -185,7 +218,7 @@ class MessageComposer extends Component
             'direcao'         => 'out',
             'tipo'            => 'text',
             'responde_a_id'            => $this->respondendoA,
-            'corpo'           => $this->corpo,
+            'corpo'           => $this->assinar($this->corpo),
             'status'          => Message::STATUS_QUEUED,
         ]);
 
@@ -224,7 +257,7 @@ class MessageComposer extends Component
             'direcao'         => 'out',
             'tipo'            => $meta['tipo'],
             'responde_a_id'   => $this->respondendoA,
-            'legenda'         => trim($this->corpo) !== '' ? trim($this->corpo) : null,
+            'legenda'         => trim($this->corpo) !== '' ? $this->assinar(trim($this->corpo)) : null,
             'media_path'      => $meta['path'],
             'media_mime'      => $meta['mime'],
             'media_nome'      => $meta['nome'],
