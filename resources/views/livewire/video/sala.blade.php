@@ -202,16 +202,20 @@
                                 <div class="relative aspect-video overflow-hidden rounded-xl bg-gray-900 ring-1"
                                      :class="p.falando ? 'ring-amber-400' : 'ring-white/10'">
 
+                                    {{-- -scale-x-100 vira o quadro na horizontal: a pessoa
+                                         se ve como num espelho, que e como ela se conhece. Só
+                                         na própria câmera — nunca no outro lado nem na tela
+                                         compartilhada. --}}
                                     <video autoplay playsinline
                                            :muted="p.souEu"
                                            x-effect="plugarVideo($el, p)"
                                            class="h-full w-full object-cover"
-                                           :class="{ 'opacity-0': ! (p.video || p.tela) }"></video>
+                                           :class="{ 'opacity-0': ! p.temImagem, '-scale-x-100': p.espelhar }"></video>
 
                                     <audio autoplay x-effect="plugarAudio($el, p)" class="hidden"></audio>
 
                                     {{-- sem câmera: as iniciais, para o quadro não virar um buraco preto --}}
-                                    <template x-if="! (p.video || p.tela)">
+                                    <template x-if="! p.temImagem">
                                         <div class="absolute inset-0 grid place-items-center">
                                             <span class="grid h-16 w-16 place-items-center rounded-full bg-amber-500/20 text-xl font-semibold text-amber-300"
                                                   x-text="p.nome.trim().charAt(0).toUpperCase()"></span>
