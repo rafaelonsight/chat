@@ -230,19 +230,19 @@ class ConversationWindow extends Component
      * Chama o cliente por video, de dentro da conversa.
      *
      * O CASO REAL E O ATENDIMENTO QUE EMPACOU NO TEXTO. Alguem descreve por quinze minutos um
-     * problema que a camera resolveria em trinta segundos — "me mostra o aparelho" — e hoje a
-     * saida e pedir o telefone e ligar, saindo do sistema e do registro.
+     * problema que a camera resolveria em trinta segundos — "me mostra o aparelho" — e a saida
+     * era pedir o telefone e ligar, saindo do sistema e do registro.
      *
      * O LINK VAI PELA CONVERSA, e nao por e-mail: a pessoa ja esta com o WhatsApp aberto, e
      * link que chega em outro lugar e link que ela abre amanha. Isso tambem deixa a chamada
      * REGISTRADA no historico do atendimento, como qualquer outra coisa que foi dita.
      *
-     * FALHA AO AVISAR NAO DESMANCHA A SALA: a sala existe, o atendente ja esta indo para ela,
-     * e o link continua na tela dele para mandar do jeito que der.
+     * AS REGRAS MORAM NO SERVICO, e nao aqui: a tela de Reunioes abre sala pelas mesmas
+     * regras, e duas copias divergiriam na primeira correcao.
      */
-    public function chamarPorVideo(\App\Services\Video\Livekit $livekit): void
+    public function chamarPorVideo(\App\Services\Video\Chamada $chamada): void
     {
-        if (! $livekit->configurado()) {
+        if (! $chamada->disponivel()) {
             $this->addError('video', 'A chamada de vídeo não está configurada neste servidor.');
 
             return;
@@ -250,63 +250,23 @@ class ConversationWindow extends Component
 
         $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
 
-        // Uma sala aberta por vez na mesma conversa: duas salas simultaneas fariam o cliente
-        // entrar numa e o atendente esperar na outra.
-        $reuniao = \App\Models\Meeting::abertas()
-            ->where('conversation_id', $conversa->id)
-            ->latest('id')
-            ->first();
+        $reuniao = $chamada->paraConversa($conversa, auth()->id());
 
-        if (! $reuniao || $reuniao->expirada()) {
-            $reuniao = \App\Models\Meeting::abrir([
-                'tenant_id'       => $conversa->tenant_id,
-                'criada_por'      => auth()->id(),
-                'contact_id'      => $conversa->contact_id,
-                'conversation_id' => $conversa->id,
-                'titulo'          => 'Atendimento — '.($conversa->contact?->nomeExibicao() ?: 'chamada'),
-            ]);
-        }
-
-        $this->avisarDoVideo($conversa, $reuniao);
+        match ($chamada->avisar($reuniao)) {
+            \App\Services\Video\Chamada::JANELA_FECHADA => $this->addError(
+                'video',
+                'A janela de 24 horas fechou: copie o link e mande por fora — '.$reuniao->url(),
+            ),
+            \App\Services\Video\Chamada::FALHOU => $this->addError(
+                'video',
+                'Não consegui mandar o link pela conversa. Copie e mande por fora: '.$reuniao->url(),
+            ),
+            default => $this->dispatch('conversa-atualizada'),
+        };
 
         // Nova aba: a conversa fica aberta atras. Trocar a tela do atendente pela sala faria
         // ele perder de vista o que o cliente escreveu ate agora.
         $this->dispatch('abrir-sala', url: $reuniao->url());
-    }
-
-    /** Manda o link pela propria conversa, se der. */
-    private function avisarDoVideo(\App\Models\Conversation $conversa, \App\Models\Meeting $reuniao): void
-    {
-        // No canal oficial, fora da janela de 24h so sai template aprovado. Enfileirar assim
-        // mesmo daria bolha vermelha e o cliente sem link nenhum.
-        if (! $conversa->podeEnviarLivre()) {
-            $this->addError('video', 'A janela de 24 horas fechou: copie o link e mande por fora — '.$reuniao->url());
-
-            return;
-        }
-
-        try {
-            $mensagem = \App\Models\Message::create([
-                'tenant_id'       => $conversa->tenant_id,
-                'conversation_id' => $conversa->id,
-                'channel_id'      => $conversa->channel_id,
-                'direcao'         => 'out',
-                'tipo'            => 'text',
-                'corpo'           => "Vamos falar por vídeo? É só tocar no link, não precisa instalar nada:\n"
-                    .$reuniao->url(),
-                'status'          => \App\Models\Message::STATUS_QUEUED,
-            ]);
-
-            \App\Jobs\SendTextMessage::dispatch($mensagem->id);
-
-            $conversa->update(['ultima_msg_em' => now()]);
-
-            $this->dispatch('conversa-atualizada');
-        } catch (\Throwable $e) {
-            report($e);
-
-            $this->addError('video', 'Não consegui mandar o link pela conversa. Copie e mande por fora: '.$reuniao->url());
-        }
     }
 
     public function reabrir(): void

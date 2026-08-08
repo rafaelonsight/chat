@@ -1,5 +1,6 @@
 <?php
 
+use App\Filament\Pages\Reunioes;
 use App\Livewire\Inbox\ConversationWindow;
 use App\Livewire\Video\Sala;
 use App\Models\{Channel, Contact, Conversation, Meeting, MeetingParticipant, Message, Tenant, User};
@@ -422,4 +423,143 @@ it('nao mistura conta', function () {
     TenantContext::set($outra->id);
 
     expect(Meeting::count())->toBe(0);
+});
+
+// ------------------------------------------------------------ a tela do menu
+
+it('fica em CRM e a tela abre', function () {
+    expect(Reunioes::getNavigationGroup())->toBe('CRM');
+
+    $this->withoutExceptionHandling();
+    $this->withSession(['login_web_'.sha1('Illuminate\Auth\SessionGuard') => $this->pessoa->id])
+        ->get('/admin/reunioes')
+        ->assertSuccessful()
+        ->assertSee('Nova reunião');
+});
+
+it('o numero no menu conta so as salas abertas', function () {
+    // Sala aberta e sala que pode ter alguem esperando dentro; e o unico numero que pede acao.
+    expect(Reunioes::getNavigationBadge())->toBeNull();
+
+    $r = reuniaoDe($this);
+
+    expect(Reunioes::getNavigationBadge())->toBe('1');
+
+    $r->encerrar();
+
+    expect(Reunioes::getNavigationBadge())->toBeNull();
+});
+
+it('sala vencida nao acende o menu', function () {
+    // O link dela ja nao abre: dizer que esta aberta seria mentira.
+    reuniaoDe($this)->update(['comecou_em' => now()->subHours(Meeting::HORAS_ATE_EXPIRAR + 1)]);
+
+    expect(Reunioes::getNavigationBadge())->toBeNull();
+});
+
+it('sem credencial o menu nao acende nem promete nada', function () {
+    reuniaoDe($this);
+    config()->set('services.livekit', ['url' => null, 'key' => null, 'secret' => null]);
+
+    expect(Reunioes::getNavigationBadge())->toBeNull();
+
+    Livewire::actingAs($this->pessoa)->test(Reunioes::class)
+        ->assertViewHas('disponivel', false)
+        ->assertSee('desligada');
+});
+
+it('abre sala avulsa pelo menu, sem conversa nenhuma', function () {
+    Livewire::actingAs($this->pessoa)->test(Reunioes::class)
+        ->set('titulo', 'Reunião de equipe')
+        ->call('abrir')
+        ->assertDispatched('abrir-sala');
+
+    $r = Meeting::first();
+
+    expect($r->titulo)->toBe('Reunião de equipe')
+        ->and($r->conversation_id)->toBeNull()
+        ->and($r->criada_por)->toBe($this->pessoa->id);
+
+    // Sem cliente do outro lado, nao ha conversa para mandar link nenhum.
+    expect(Message::count())->toBe(0);
+});
+
+it('sala sem assunto ainda tem nome', function () {
+    Livewire::actingAs($this->pessoa)->test(Reunioes::class)->call('abrir');
+
+    expect(Meeting::first()->titulo)->toBe('Reunião');
+});
+
+it('com contato escolhido, o link sai pela conversa dele', function () {
+    // Mesmo caminho do botao dentro do atendimento, pelas mesmas regras.
+    Livewire::actingAs($this->pessoa)->test(Reunioes::class)
+        ->set('buscaContato', 'Cliente')
+        ->assertViewHas('candidatos', fn ($c) => $c->count() === 1)
+        ->call('escolherContato', $this->contato->id)
+        ->call('abrir')
+        ->assertDispatched('abrir-sala');
+
+    $r = Meeting::first();
+
+    expect($r->conversation_id)->toBe($this->conversa->id);
+
+    expect(Message::where('direcao', 'out')->latest('id')->first()->corpo)
+        ->toContain($r->token_convidado);
+});
+
+it('contato sem conversa aberta ganha sala avulsa, e nao conversa nova', function () {
+    // Abrir conversa por conta propria poria na caixa de entrada um atendimento que ninguem
+    // pediu.
+    $this->conversa->update(['status' => Conversation::ARQUIVADA]);
+
+    Livewire::actingAs($this->pessoa)->test(Reunioes::class)
+        ->call('escolherContato', $this->contato->id)
+        ->call('abrir');
+
+    expect(Meeting::first()->conversation_id)->toBeNull()
+        ->and(Conversation::count())->toBe(1)
+        ->and(Message::count())->toBe(0);
+});
+
+it('reaproveita a sala que ja estava aberta na conversa', function () {
+    $tela = Livewire::actingAs($this->pessoa)->test(Reunioes::class);
+
+    $tela->call('escolherContato', $this->contato->id)->call('abrir');
+    $tela->call('escolherContato', $this->contato->id)->call('abrir');
+
+    expect(Meeting::count())->toBe(1);
+});
+
+it('a tela separa o que esta aberto do que ja passou', function () {
+    $aberta = reuniaoDe($this, ['titulo' => 'Agora']);
+    $velha = reuniaoDe($this, ['titulo' => 'Ontem']);
+    $velha->encerrar();
+
+    Livewire::actingAs($this->pessoa)->test(Reunioes::class)
+        ->assertViewHas('abertas', fn ($a) => $a->count() === 1 && $a->first()->id === $aberta->id)
+        ->assertViewHas('passadas', fn ($p) => $p->count() === 1 && $p->first()->id === $velha->id);
+});
+
+it('encerrar pela tela fecha o link', function () {
+    $r = reuniaoDe($this);
+
+    Livewire::actingAs($this->pessoa)->test(Reunioes::class)->call('encerrar', $r->id);
+
+    expect($r->refresh()->aberta())->toBeFalse()
+        ->and($r->podeEntrar())->toBeFalse();
+});
+
+it('nao encerra reuniao de outra conta nem sabendo o id', function () {
+    // A defesa esta na consulta, e nao no menu: o id chega de fora.
+    $outra = Tenant::create(['nome' => 'Outra', 'slug' => 'video-menu']);
+
+    $alheia = Meeting::withoutGlobalScope('tenant')->create([
+        'tenant_id' => $outra->id, 'sala' => 'sala_alheia',
+        'token_convidado' => 'token-alheio-com-tamanho-suficiente', 'titulo' => 'Alheia',
+        'comecou_em' => now(),
+    ]);
+
+    Livewire::actingAs($this->pessoa)->test(Reunioes::class)->call('encerrar', $alheia->id);
+
+    expect($alheia->refresh()->aberta())->toBeTrue();
 });
