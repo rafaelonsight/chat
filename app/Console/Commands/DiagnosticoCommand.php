@@ -57,8 +57,8 @@ class DiagnosticoCommand extends Command
             Cache::put($chave, true, now()->addMinutes($minutos));
 
             $p['nivel'] === Diagnostico::CRITICO
-                ? Log::error('[OnChat] '.$p['mensagem'], ['chave' => $p['chave']])
-                : Log::warning('[OnChat] '.$p['mensagem'], ['chave' => $p['chave']]);
+                ? Log::error('['.config('app.name').'] '.$p['mensagem'], ['chave' => $p['chave']])
+                : Log::warning('['.config('app.name').'] '.$p['mensagem'], ['chave' => $p['chave']]);
 
             $this->porWhatsapp($p);
         }
@@ -84,7 +84,7 @@ class DiagnosticoCommand extends Command
             app(EvolutionService::class)->sendText(
                 $canal->instance_name,
                 $destino,
-                '[OnChat] '.strtoupper($problema['nivel']).': '.$problema['mensagem'],
+                '['.config('app.name').'] '.strtoupper($problema['nivel']).': '.$problema['mensagem'],
             );
         } catch (\Throwable $e) {
             Log::warning('Nao consegui alertar por WhatsApp', ['erro' => $e->getMessage()]);

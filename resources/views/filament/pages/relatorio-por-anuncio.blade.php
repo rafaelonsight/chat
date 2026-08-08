@@ -17,7 +17,7 @@
             </p>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Esta tela se enche sozinha quando alguém clica num anúncio Click-to-WhatsApp:
-                a Meta informa qual anúncio junto da primeira mensagem, e o OnChat guarda.
+                a Meta informa qual anúncio junto da primeira mensagem, e o {{ config('app.name') }} guarda.
                 Nada para configurar aqui.
             </p>
         </div>

@@ -53,7 +53,7 @@ class ListMetaTemplates extends ListRecords
 
                         $linhas[] = $canal->nome.': '.$r['total'].' template(s)'
                             .($r['novos'] ? ', '.$r['novos'].' novo(s)' : '')
-                            .($r['nao_suportados'] ? ', '.$r['nao_suportados'].' sem envio pelo OnChat' : '')
+                            .($r['nao_suportados'] ? ', '.$r['nao_suportados'].' sem envio pelo '.config('app.name') : '')
                             .($r['apagados'] ? ', '.$r['apagados'].' removido(s)' : '');
                     }
 

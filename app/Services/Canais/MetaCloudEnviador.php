@@ -339,7 +339,10 @@ class MetaCloudEnviador implements Enviador
         $arquivo = $this->cliente($canal)
             // Sem asJson aqui: a resposta e binaria. E com User-Agent porque o
             // lookaside recusa cliente sem identificacao com 403.
-            ->withHeaders(['User-Agent' => 'OnChat/1.0'])
+            // Sai do nome do produto, e nao escrito a mao: quando o nome muda, esta linha muda
+            // com ele — e User-Agent com o nome antigo e o tipo de coisa que ninguem lembra de
+            // procurar depois.
+            ->withHeaders(['User-Agent' => \Illuminate\Support\Str::remove(' ', config('app.name')).'/1.0'])
             ->get($url)
             ->throw();
 

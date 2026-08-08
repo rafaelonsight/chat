@@ -283,7 +283,7 @@ class Diagnostico
         $carimbo = '/var/lib/onchat/ultimo-backup';
 
         if (! is_readable($carimbo)) {
-            return $this->problema('backup', self::AVISO, 'Nunca rodou backup do OnChat');
+            return $this->problema('backup', self::AVISO, 'Nunca rodou backup do '.config('app.name'));
         }
 
         $quando = (int) trim((string) @file_get_contents($carimbo));

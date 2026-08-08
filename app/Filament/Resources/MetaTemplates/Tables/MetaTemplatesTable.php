@@ -56,7 +56,7 @@ class MetaTemplatesTable
                 // A coluna que importa: da para usar, e se nao da, POR QUE. "Indisponivel"
                 // sem motivo vira pergunta para o suporte no dia seguinte.
                 TextColumn::make('suportado')
-                    ->label('Envio pelo OnChat')
+                    ->label('Envio pelo '.config('app.name'))
                     ->badge()
                     ->formatStateUsing(fn ($state, MetaTemplate $record) => $record->podeEnviar()
                         ? 'disponível'

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="noindex">
-    <title>Sessão bloqueada — OnChat</title>
+    <title>Sessão bloqueada — {{ config('app.name') }}</title>
 
     {{-- Estilo inline de proposito: esta tela precisa funcionar mesmo se o build do
          CSS estiver quebrado. Tela de bloqueio que nao renderiza deixa a pessoa
@@ -51,7 +51,7 @@
 </head>
 <body>
     <div class="cartao">
-        <p class="marca">OnChat</p>
+        <p class="marca">{{ config('app.name') }}</p>
 
         <div class="avatar">{{ $iniciais }}</div>
         <p class="nome">{{ $nome }}</p>

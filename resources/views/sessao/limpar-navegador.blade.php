@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="robots" content="noindex">
-    <title>Limpando dados locais — OnChat</title>
+    <title>Limpando dados locais — {{ config('app.name') }}</title>
     <style>
         body {
             margin: 0; min-height: 100vh; display: grid; place-items: center;
