@@ -129,6 +129,21 @@ class ConversationWindow extends Component
                 ->get()
             : collect();
 
+        /*
+         * A REUNIAO TAMBEM ENTRA NO FIO.
+         *
+         * O bate-papo da sala fica gravado, mas ate agora ninguem via depois que a chamada
+         * acabava: o numero de serie que o cliente digitou existia no banco e nao existia na
+         * tela. Aqui ele volta para onde a pessoa vai procurar — no meio do atendimento, na
+         * hora em que a chamada aconteceu.
+         */
+        $reunioes = ($conversa && $procurado === '')
+            ? $conversa->meetings()
+                ->with(['messages', 'criador'])
+                ->when($desde, fn ($q) => $q->where('created_at', '>=', $desde))
+                ->get()
+            : collect();
+
         // Mensagem e evento no mesmo fio: nota e transferencia fora do lugar
         // cronologico nao servem para entender o que aconteceu.
         // Chave composta, e nao sortBy([...]): com array de closures o Laravel
@@ -137,10 +152,15 @@ class ConversationWindow extends Component
         // Zeros a esquerda para o texto ordenar igual a numero.
         $linha = $mensagens
             ->concat($eventos)
+            ->concat($reunioes)
             ->sortBy(fn ($item) => sprintf(
                 '%011d-%d-%011d',
                 $item->created_at?->getTimestamp() ?? 0,
-                $item instanceof \App\Models\Message ? 0 : 1,
+                match (true) {
+                    $item instanceof \App\Models\Message => 0,
+                    $item instanceof \App\Models\ConversationEvent => 1,
+                    default => 2,
+                },
                 $item->id,
             ))
             ->values();

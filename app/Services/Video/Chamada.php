@@ -34,6 +34,19 @@ class Chamada
     /** Conversa nenhuma para avisar — reuniao aberta pelo menu, sem cliente do outro lado. */
     public const SEM_CONVERSA = 'sem_conversa';
 
+    /**
+     * A linha sobre abrir no navegador.
+     *
+     * No iPhone, link tocado dentro do WhatsApp abre numa janela embutida que a Apple nao
+     * autoriza a usar camera nem microfone. Nao ha o que a pagina faca a respeito — so avisar
+     * antes. E como o link deste produto viaja pelo WhatsApp por projeto, quase todo convidado
+     * chega exatamente por esse caminho.
+     *
+     * Curta de proposito: mensagem de WhatsApp longa ninguem le ate o fim, e a parte nao lida
+     * seria justamente esta.
+     */
+    public const AVISO_DO_NAVEGADOR = 'Se a câmera não funcionar, abra o link no navegador (Safari ou Chrome).';
+
     public function __construct(private readonly Livekit $livekit) {}
 
     public function disponivel(): bool
@@ -163,8 +176,13 @@ class Chamada
                 'channel_id'      => $conversa->channel_id,
                 'direcao'         => 'out',
                 'tipo'            => 'text',
+                // O aviso da janela do WhatsApp vai junto de proposito: no iPhone, link
+                // aberto por dentro do aplicativo cai numa janela que a Apple nao autoriza a
+                // usar camera. Sem a linha, cada convidado descobre isso sozinho no meio da
+                // chamada — e conclui que o sistema nao funciona.
                 'corpo'           => $texto ?: "Vamos falar por vídeo? É só tocar no link, não precisa instalar nada:\n"
-                    .$reuniao->url(),
+                    .$reuniao->url()
+                    ."\n\n".self::AVISO_DO_NAVEGADOR,
                 'status'          => Message::STATUS_QUEUED,
             ]);
 
@@ -196,6 +214,8 @@ class Chamada
             '',
             'No horário, é só tocar aqui — não precisa instalar nada:',
             $reuniao->url(),
+            '',
+            self::AVISO_DO_NAVEGADOR,
         ];
 
         return implode("\n", $linhas);

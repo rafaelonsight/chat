@@ -156,6 +156,8 @@ class Reserva
             $linhas[] = '';
             $linhas[] = 'É por vídeo. No horário, toque aqui — não precisa instalar nada:';
             $linhas[] = $reuniao->url();
+            $linhas[] = '';
+            $linhas[] = \App\Services\Video\Chamada::AVISO_DO_NAVEGADOR;
         }
 
         $linhas[] = '';

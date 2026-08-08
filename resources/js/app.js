@@ -264,6 +264,57 @@ if (tenant) {
     });
 }
 
+// ======================================== alguem esperando numa sala de video ====
+
+/**
+ * O aviso de que tem gente na porta de uma reuniao.
+ *
+ * A fila da portaria so existe DENTRO da sala; quem mandou o link e voltou para o atendimento
+ * nao veria nada. Este aviso e o que faz a espera funcionar quando o anfitriao ainda nem
+ * entrou — que e o caso comum de reuniao marcada com hora.
+ *
+ * NAO SOME SOZINHO, ao contrario da torrada de mensagem nova: do outro lado ha uma pessoa
+ * parada olhando para uma tela de espera, e um aviso que evapora em quatro segundos enquanto o
+ * atendente estava digitando deixa ela la ate desistir.
+ */
+if (tenant) {
+    window.Echo.private(`tenant.${tenant}.conversations`)
+        .listen('.sala.esperando', (e) => {
+            bipe();
+
+            const caixa = document.getElementById('onchat-avisos') ?? (() => {
+                const nova = document.createElement('div');
+                nova.id = 'onchat-avisos';
+                nova.style.cssText = 'position:fixed;z-index:9999;right:1rem;bottom:1rem;display:flex;flex-direction:column;gap:.5rem';
+                document.body.appendChild(nova);
+                return nova;
+            })();
+
+            const aviso = document.createElement('div');
+            aviso.style.cssText = 'background:#1f2937;color:#fff;padding:.75rem .9rem;border-radius:.7rem;font:400 13px/1.4 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);max-width:20rem;border:1px solid rgba(245,158,11,.4)';
+
+            const texto = document.createElement('p');
+            texto.style.cssText = 'margin:0 0 .5rem';
+            texto.textContent = `${e.nome} está esperando para entrar em "${e.titulo}".`;
+
+            const abrir = document.createElement('a');
+            abrir.href = e.url;
+            abrir.target = '_blank';
+            abrir.rel = 'noopener';
+            abrir.textContent = 'Abrir a sala e liberar';
+            abrir.style.cssText = 'display:inline-block;background:#f59e0b;color:#111827;padding:.35rem .7rem;border-radius:.45rem;text-decoration:none;font-weight:600;font-size:12px';
+
+            const fechar = document.createElement('button');
+            fechar.type = 'button';
+            fechar.textContent = 'dispensar';
+            fechar.style.cssText = 'margin-left:.6rem;background:none;border:0;color:#9ca3af;font-size:12px;cursor:pointer';
+            fechar.onclick = () => aviso.remove();
+
+            aviso.append(texto, abrir, fechar);
+            caixa.appendChild(aviso);
+        });
+}
+
 // ============================================ quem mais esta nesta conversa ====
 
 /**

@@ -421,6 +421,18 @@ class Conversation extends Model
         return $this->belongsTo(Team::class);
     }
 
+    /**
+     * As reunioes por video que sairam desta conversa.
+     *
+     * Elas entram na linha do tempo do atendimento junto com as mensagens: a chamada aconteceu
+     * num ponto do tempo, e o que foi combinado nela — inclusive o que foi digitado no
+     * bate-papo da sala — faz parte do atendimento como qualquer outra coisa que foi dita.
+     */
+    public function meetings(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Meeting::class);
+    }
+
     public function events(): HasMany
     {
         return $this->hasMany(ConversationEvent::class);

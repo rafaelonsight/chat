@@ -60,7 +60,10 @@ class ConviteDeCompromisso extends Notification implements ShouldQueue
         if ($this->linkDaSala) {
             $mensagem
                 ->line('A reunião é por vídeo. No horário, use o botão abaixo — não precisa instalar nada.')
-                ->action('Entrar na reunião', $this->linkDaSala);
+                ->action('Entrar na reunião', $this->linkDaSala)
+                // No e-mail o risco e o mesmo: quem abre pelo aplicativo do celular tambem cai
+                // numa janela embutida sem camera.
+                ->line(\App\Services\Video\Chamada::AVISO_DO_NAVEGADOR);
         }
 
         /*

@@ -406,6 +406,13 @@
                     @continue
                 @endif
 
+                @if ($item instanceof \App\Models\Meeting)
+                    <div wire:key="reu-{{ $item->id }}">
+                        @include('livewire.inbox.partials.reuniao', ['r' => $item])
+                    </div>
+                    @continue
+                @endif
+
                 @php $m = $item; $entrada = $m->entrada(); @endphp
                 <div wire:key="msg-{{ $m->id }}" class="group flex items-end gap-1 {{ $entrada ? 'justify-start' : 'justify-end' }}">
                     {{--

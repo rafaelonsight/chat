@@ -141,6 +141,16 @@ class Sala extends Component
             $this->pedidoId = $pedido->id;
             $this->aguardando = true;
 
+            // Avisa a equipe que tem gente na porta, mesmo que ninguem esteja dentro da sala.
+            // Sem isto, o convidado que chega antes espera por alguem que nao sabe que ele
+            // chegou — e numa reuniao marcada com hora esse e o caso comum.
+            broadcast(new \App\Events\AlguemEsperandoNaSala(
+                $reuniao->tenant_id,
+                trim($this->nome),
+                $reuniao->titulo ?: 'Reunião',
+                $reuniao->url(),
+            ));
+
             return;
         }
 
