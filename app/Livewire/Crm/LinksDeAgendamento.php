@@ -1,16 +1,13 @@
 <?php
 
-namespace App\Filament\Pages;
+namespace App\Livewire\Crm;
 
 use App\Models\BookingPage;
 use App\Models\Channel;
 use App\Models\User;
 use App\Support\DataPtBr;
-use BackedEnum;
-use Filament\Pages\Page;
-use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Str;
-use UnitEnum;
+use Livewire\Component;
 
 /**
  * Os links de agendamento: onde se decide o que o cliente vai poder escolher.
@@ -21,22 +18,13 @@ use UnitEnum;
  * MAIS DE UM LINK POR CONTA, de proposito. "Visita tecnica, 1h" e "Retorno, 15min" tem
  * duracao, texto e ate dono diferentes; com um link so, a primeira vez que alguem precisasse
  * do segundo teria de desmontar o primeiro.
+ *
+ * DENTRO DA AGENDA, e nao ao lado dela. Configurar quando se aceita visita e olhar a semana
+ * sao a mesma cabeca no mesmo minuto; separar em dois itens de menu faria a pessoa procurar
+ * num lugar o que ela estava vendo no outro.
  */
-class Reservas extends Page
+class LinksDeAgendamento extends Component
 {
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedLink;
-
-    protected static string|UnitEnum|null $navigationGroup = 'CRM';
-
-    protected static ?string $navigationLabel = 'Link de agendamento';
-
-    protected static ?string $title = 'Link de agendamento';
-
-    protected static ?int $navigationSort = 4;
-
-    protected static ?string $slug = 'reservas';
-
-    protected string $view = 'filament.pages.reservas';
 
     public bool $formAberto = false;
 
@@ -193,14 +181,14 @@ class Reservas extends Page
 
     // ----------------------------------------------------------------- dados
 
-    public function getViewData(): array
+    public function render()
     {
-        return [
+        return view('livewire.crm.links-de-agendamento', [
             'paginas' => BookingPage::with(['user', 'channel'])->orderBy('titulo')->get(),
             'pessoas' => User::orderBy('name')->get(),
             'canais'  => Channel::orderBy('nome')->get(),
             'dias'    => DataPtBr::DIAS_LONGOS,
-        ];
+        ]);
     }
 
     // ---------------------------------------------------------- conversao

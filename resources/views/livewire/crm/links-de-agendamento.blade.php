@@ -1,4 +1,4 @@
-<x-filament-panels::page>
+<div class="space-y-6">
     @if (! $formAberto)
         <div class="flex justify-end">
             <x-filament::button wire:click="novo" icon="heroicon-o-plus">Novo link</x-filament::button>
@@ -230,4 +230,4 @@
             </div>
         @endunless
     @endforelse
-</x-filament-panels::page>
+</div>

@@ -59,7 +59,11 @@ class Agenda extends Page
         'semana' => 'Semana',
         'dia'    => 'Dia',
         'lista'  => 'Lista',
+        'link'   => 'Link',
     ];
+
+    /** Visoes que nao sao calendario: sem seta de periodo, sem filtro de pessoa. */
+    public const SEM_PERIODO = ['lista', 'link'];
 
     // Os mesmos nomes da pagina publica de reserva: duas listas de meses divergem no dia em
     // que alguem corrigir um acento numa so.
@@ -331,6 +335,18 @@ class Agenda extends Page
 
     public function getViewData(): array
     {
+        // A aba do link nao e calendario: nao ha periodo para varrer, e varrer assim mesmo
+        // seria uma consulta por nada em cada clique dentro dela.
+        if ($this->visao === 'link') {
+            return [
+                'rotulo' => $this->rotulo(),
+                'semanas' => [], 'colunas' => [], 'grupos' => [],
+                'pessoas' => User::orderBy('name')->get(),
+                'candidatos' => collect(),
+                'agora' => now(),
+            ];
+        }
+
         [$de, $ate] = $this->periodo();
 
         $doPeriodo = $this->consulta()
@@ -406,6 +422,10 @@ class Agenda extends Page
 
         if ($this->visao === 'lista') {
             return 'O que está por vir';
+        }
+
+        if ($this->visao === 'link') {
+            return 'Link de agendamento';
         }
 
         $de = $d->copy()->startOfWeek(Carbon::SUNDAY);

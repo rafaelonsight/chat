@@ -61,9 +61,11 @@
     >
         {{-- ------------------------------------------------------------ barra --}}
         <div class="flex flex-wrap items-center gap-2">
-            <x-filament::button wire:click="novo" icon="heroicon-o-plus">Novo</x-filament::button>
+            @unless ($this->visao === 'link')
+                <x-filament::button wire:click="novo" icon="heroicon-o-plus">Novo</x-filament::button>
+            @endunless
 
-            @unless ($this->visao === 'lista')
+            @unless (in_array($this->visao, \App\Filament\Pages\Agenda::SEM_PERIODO, true))
                 <x-filament::button color="gray" size="sm" wire:click="hoje">Hoje</x-filament::button>
 
                 <div class="flex">
@@ -78,13 +80,15 @@
 
             {{-- Agenda de quem. Sem filtro e a equipe inteira, que e o que faz o calendario
                  valer alguma coisa: saber que o colega ja esta na rua as 14h. --}}
-            <select wire:model.live="quem"
-                    class="h-8 rounded-lg border-gray-300 py-0 text-xs dark:border-white/20 dark:bg-gray-800">
-                <option value="">Equipe toda</option>
-                @foreach ($pessoas as $p)
-                    <option value="{{ $p->id }}">{{ $p->name }}</option>
-                @endforeach
-            </select>
+            @unless ($this->visao === 'link')
+                <select wire:model.live="quem"
+                        class="h-8 rounded-lg border-gray-300 py-0 text-xs dark:border-white/20 dark:bg-gray-800">
+                    <option value="">Equipe toda</option>
+                    @foreach ($pessoas as $p)
+                        <option value="{{ $p->id }}">{{ $p->name }}</option>
+                    @endforeach
+                </select>
+            @endunless
 
             <div class="flex overflow-hidden rounded-lg border border-gray-300 dark:border-white/20">
                 @foreach (\App\Filament\Pages\Agenda::VISOES as $chave => $nome)
@@ -101,7 +105,7 @@
         </div>
 
         {{-- ------------------------------------------------------------ form --}}
-        @if ($formAberto)
+        @if ($formAberto && $this->visao !== 'link')
             @include('filament.pages.agenda.form')
         @endif
 
@@ -110,11 +114,15 @@
             @include('filament.pages.agenda.mes')
         @elseif ($this->visao === 'lista')
             @include('filament.pages.agenda.lista')
+        @elseif ($this->visao === 'link')
+            {{-- Componente proprio, e nao mais uma pagina ao lado: configurar quando se aceita
+                 visita e olhar a semana sao a mesma cabeca no mesmo minuto. --}}
+            @livewire(\App\Livewire\Crm\LinksDeAgendamento::class)
         @else
             @include('filament.pages.agenda.grade')
         @endif
 
-        @unless ($this->visao === 'lista')
+        @unless (in_array($this->visao, \App\Filament\Pages\Agenda::SEM_PERIODO, true))
             <p class="text-xs text-gray-400">
                 Clique num espaço vazio para marcar. Arraste para remarcar.
                 <span class="inline-block h-2 w-2 rounded-sm bg-indigo-400 align-middle"></span> compromisso ·

@@ -1,6 +1,7 @@
 <?php
 
-use App\Filament\Pages\Reservas;
+use App\Filament\Pages\Agenda;
+use App\Livewire\Crm\LinksDeAgendamento;
 use App\Livewire\Publico\Reservar;
 use App\Models\{Appointment, BookingPage, Channel, Contact, Conversation, Message, Tenant, User};
 use App\Services\Agendamento\Reserva;
@@ -407,18 +408,22 @@ it('link fechado avisa em vez de sumir', function () {
 
 // ------------------------------------------------------------- o painel
 
-it('fica dentro de CRM e a tela abre', function () {
-    expect(Reservas::getNavigationGroup())->toBe('CRM');
+it('mora dentro da Agenda, e nao num item de menu proprio', function () {
+    // Configurar quando se aceita visita e olhar a semana sao a mesma cabeca no mesmo minuto.
+    expect(Agenda::VISOES)->toHaveKey('link')
+        ->and(class_exists('App\\Filament\\Pages\\Reservas'))->toBeFalse();
 
     $this->withoutExceptionHandling();
-    $this->withSession(['login_web_'.sha1('Illuminate\Auth\SessionGuard') => $this->dono->id])
-        ->get('/admin/reservas')
+    $this->withSession([
+        'login_web_'.sha1('Illuminate\Auth\SessionGuard') => $this->dono->id,
+        'agenda.visao' => 'link',
+    ])->get('/admin/agenda')
         ->assertSuccessful()
         ->assertSee('Visita técnica');
 });
 
 it('cria o link com horario comercial e slug legivel', function () {
-    Livewire::actingAs($this->dono)->test(Reservas::class)
+    Livewire::actingAs($this->dono)->test(LinksDeAgendamento::class)
         ->call('novo')
         ->set('titulo', 'Reunião de orçamento')
         ->call('salvar')
@@ -434,7 +439,7 @@ it('cria o link com horario comercial e slug legivel', function () {
 
 it('dois links com o mesmo nome nao brigam pelo endereco', function () {
     // O slug e unico no banco inteiro: a URL nao tem tenant dentro dela.
-    Livewire::actingAs($this->dono)->test(Reservas::class)
+    Livewire::actingAs($this->dono)->test(LinksDeAgendamento::class)
         ->call('novo')->set('titulo', 'Visita técnica')->call('salvar');
 
     expect(BookingPage::where('slug', 'visita-tecnica-2')->exists())->toBeTrue();
@@ -442,7 +447,7 @@ it('dois links com o mesmo nome nao brigam pelo endereco', function () {
 
 it('link sem nenhum dia marcado nao e salvo', function () {
     // Link que nao oferece nada e pior que link nenhum: o cliente abre e acha que quebrou.
-    $tela = Livewire::actingAs($this->dono)->test(Reservas::class)->call('novo')->set('titulo', 'Vazio');
+    $tela = Livewire::actingAs($this->dono)->test(LinksDeAgendamento::class)->call('novo')->set('titulo', 'Vazio');
 
     foreach (range(0, 6) as $dia) {
         $tela->set("horarios.$dia.ativo", false);
@@ -455,7 +460,7 @@ it('link sem nenhum dia marcado nao e salvo', function () {
 
 it('editar nao troca o endereco sozinho', function () {
     // Trocar o slug sozinho quebraria o link que ja esta na assinatura de e-mail de alguem.
-    Livewire::actingAs($this->dono)->test(Reservas::class)
+    Livewire::actingAs($this->dono)->test(LinksDeAgendamento::class)
         ->call('editar', $this->pagina->id)
         ->set('titulo', 'Visita técnica agendada')
         ->call('salvar');
@@ -465,10 +470,10 @@ it('editar nao troca o endereco sozinho', function () {
 });
 
 it('fecha e reabre o link', function () {
-    Livewire::actingAs($this->dono)->test(Reservas::class)->call('alternarAtiva', $this->pagina->id);
+    Livewire::actingAs($this->dono)->test(LinksDeAgendamento::class)->call('alternarAtiva', $this->pagina->id);
     expect($this->pagina->refresh()->ativa)->toBeFalse();
 
-    Livewire::actingAs($this->dono)->test(Reservas::class)->call('alternarAtiva', $this->pagina->id);
+    Livewire::actingAs($this->dono)->test(LinksDeAgendamento::class)->call('alternarAtiva', $this->pagina->id);
     expect($this->pagina->refresh()->ativa)->toBeTrue();
 });
 
@@ -485,7 +490,7 @@ it('nao mexe no link de outra conta', function () {
         'disponibilidade' => [['dia' => 1, 'de' => '09:00', 'ate' => '10:00']],
     ]);
 
-    Livewire::actingAs($this->dono)->test(Reservas::class)->call('excluir', $alheia->id);
+    Livewire::actingAs($this->dono)->test(LinksDeAgendamento::class)->call('excluir', $alheia->id);
 
     expect(BookingPage::withoutGlobalScope('tenant')->whereKey($alheia->id)->exists())->toBeTrue();
 });
