@@ -149,6 +149,11 @@ document.addEventListener('alpine:init', () => {
                     await this.ligarMidia();
                     await this.listarDispositivos();
 
+                    // O som e preparado agora, logo depois do clique que trouxe a pessoa para
+                    // ca. Deixar para criar o AudioContext no primeiro apito e criar ele longe
+                    // de qualquer gesto — e navegador nao libera audio assim.
+                    this.prepararAudio();
+
                     this.recontar();
                 } catch (e) {
                     // Aqui e falha de CONEXAO, e ai nao ha sala para ficar.
@@ -400,11 +405,35 @@ document.addEventListener('alpine:init', () => {
              * pagina — a pessoa clicou em entrar e esta ouvindo os outros —, entao aqui nao ha
              * o problema do gesto.
              */
-            apitar() {
+            /**
+             * Deixa o audio pronto enquanto o gesto da pessoa ainda vale.
+             *
+             * Navegador nasce com o audio suspenso e so libera perto de um clique. Chamado do
+             * entrar(), que roda logo depois do botao, ele pega essa janela.
+             */
+            prepararAudio() {
                 try {
                     audio = audio ?? new (window.AudioContext ?? window.webkitAudioContext)();
 
                     if (audio.state === 'suspended') audio.resume();
+                } catch (e) {
+                    // sem audio o aviso visual continua valendo
+                }
+            },
+
+            async apitar() {
+                try {
+                    audio = audio ?? new (window.AudioContext ?? window.webkitAudioContext)();
+
+                    /*
+                     * ESPERAR O RESUME, e nao so pedir.
+                     *
+                     * resume() e assincrono: sem o await, o relogio do audio ainda esta parado
+                     * no zero quando os tons sao agendados, e eles sao marcados para um
+                     * instante que ja passou. O apito nao toca e nao da erro nenhum -- o pior
+                     * tipo de falha, porque nao ha o que investigar.
+                     */
+                    if (audio.state === 'suspended') await audio.resume();
 
                     const agora = audio.currentTime;
 

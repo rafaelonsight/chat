@@ -612,6 +612,15 @@
                                         Reconectar câmera e microfone
                                     </button>
 
+                                    {{-- O alerta da mão levantada só toca para a mão dos OUTROS,
+                                         então sozinho não dá para saber se ele funciona. Este
+                                         item existe para responder isso sem precisar de um
+                                         segundo aparelho e de uma segunda pessoa. --}}
+                                    <button type="button" @click="apitar()"
+                                            class="block w-full px-3 py-2 text-left text-xs text-gray-200 hover:bg-white/10">
+                                        Testar o som do alerta
+                                    </button>
+
                                     @if ($this->souDaEquipe())
                                         {{-- Serve para a reunião aberta — treinamento,
                                              apresentação — em que liberar um por um vira
