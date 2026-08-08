@@ -5,6 +5,7 @@ namespace App\Livewire\Video;
 use App\Models\Meeting;
 use App\Models\MeetingMessage;
 use App\Models\MeetingParticipant;
+use App\Models\MeetingRequest;
 use App\Services\Video\Livekit;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\RateLimiter;
@@ -39,6 +40,21 @@ class Sala extends Component
     public ?string $urlDeVideo = null;
 
     public ?string $recado = null;
+
+    // ------------------------------------------------------- a sala de espera
+    /** Bateu na porta e esta do lado de fora. */
+    public bool $aguardando = false;
+
+    public ?int $pedidoId = null;
+
+    /**
+     * O historico do bate-papo, congelado no momento de entrar.
+     *
+     * Guardado numa propriedade em vez de consultado a cada desenho: com a espera ligada a
+     * tela se redesenha de tres em tres segundos, e uma consulta por desenho seria uma
+     * consulta a cada tres segundos por pessoa na sala, para reentregar o que ja esta na tela.
+     */
+    public array $historicoInicial = [];
 
     public function mount(string $token): void
     {
@@ -107,6 +123,77 @@ class Sala extends Component
             return;
         }
 
+        /*
+         * A PORTARIA.
+         *
+         * Quem e da conta entra direto: o atendente que abriu a sala nao vai pedir licenca
+         * para entrar nela. A espera existe contra quem esta fora — link de reuniao circula em
+         * grupo de WhatsApp, e sem ela basta um encaminhamento para alguem entrar sem que
+         * ninguem perceba.
+         */
+        if (! $this->souDaEquipe() && $reuniao->sala_de_espera) {
+            $pedido = MeetingRequest::create([
+                'tenant_id'  => $reuniao->tenant_id,
+                'meeting_id' => $reuniao->id,
+                'nome'       => trim($this->nome),
+            ]);
+
+            $this->pedidoId = $pedido->id;
+            $this->aguardando = true;
+
+            return;
+        }
+
+        $this->abrirPorta($livekit);
+    }
+
+    /**
+     * De tres em tres segundos, enquanto espera.
+     *
+     * Sondagem e nao aviso empurrado de proposito: quem espera nao tem conta, nao tem sessao e
+     * nao pode assinar canal privado nenhum. Uma pergunta a cada tres segundos, por uma pessoa
+     * que esta parada olhando para a tela, e barata; a alternativa seria abrir um canal de
+     * tempo real para desconhecido, que e superficie que ninguem precisa.
+     */
+    public function verificarPedido(Livekit $livekit): void
+    {
+        if (! $this->aguardando || ! $this->pedidoId) {
+            return;
+        }
+
+        $pedido = MeetingRequest::withoutGlobalScope('tenant')->find($this->pedidoId);
+
+        if (! $pedido) {
+            $this->aguardando = false;
+
+            return;
+        }
+
+        if ($pedido->recusado()) {
+            $this->aguardando = false;
+            $this->recado = 'Quem organiza a reunião não liberou sua entrada.';
+
+            return;
+        }
+
+        if ($pedido->vencido()) {
+            $this->aguardando = false;
+            $this->recado = 'Ninguém respondeu a tempo. Tente entrar de novo.';
+
+            return;
+        }
+
+        if ($pedido->aceito()) {
+            $this->aguardando = false;
+            $this->abrirPorta($livekit);
+        }
+    }
+
+    /** Emite o token e coloca a pessoa dentro. */
+    private function abrirPorta(Livekit $livekit): void
+    {
+        $reuniao = $this->reuniao();
+
         try {
             // A sala e criada com o teto, e o teto so vale porque quem o cumpre e o servidor
             // que aceita a conexao. Contar aqui antes nao fecharia corrida nenhuma: dois
@@ -138,7 +225,71 @@ class Sala extends Component
         ]);
 
         $this->urlDeVideo = $livekit->url();
+        $this->historicoInicial = $this->historico();
         $this->entrou = true;
+    }
+
+    // ----------------------------------------------------------- do lado de dentro
+
+    /**
+     * Quem esta batendo na porta agora.
+     *
+     * So para quem e da conta: a lista tem o nome de quem esta esperando, e nome de terceiro
+     * nao se mostra para outro terceiro.
+     */
+    public function pedidos()
+    {
+        if (! $this->souDaEquipe() || ! $this->entrou) {
+            return collect();
+        }
+
+        return $this->reuniao()->requests()->pendentes()->orderBy('id')->get();
+    }
+
+    public function aceitar(int $id): void
+    {
+        $this->decidirPedido($id, MeetingRequest::ACEITO);
+    }
+
+    public function recusar(int $id): void
+    {
+        $this->decidirPedido($id, MeetingRequest::RECUSADO);
+    }
+
+    private function decidirPedido(int $id, string $status): void
+    {
+        if (! $this->souDaEquipe()) {
+            return;
+        }
+
+        $pedido = $this->reuniao()->requests()->whereKey($id)->first();
+
+        $pedido?->decidir($status, auth()->id());
+    }
+
+    /**
+     * Liga e desliga a portaria no meio da reuniao.
+     *
+     * Serve para o caso real de uma reuniao aberta — treinamento, apresentacao — em que
+     * liberar um por um vira trabalho de porteiro e ninguem consegue prestar atencao no que
+     * esta sendo dito.
+     */
+    public function alternarSalaDeEspera(): void
+    {
+        if (! $this->souDaEquipe()) {
+            return;
+        }
+
+        $reuniao = $this->reuniao();
+
+        $reuniao->update(['sala_de_espera' => ! $reuniao->sala_de_espera]);
+
+        // Desligar a portaria libera quem ja estava na fila: deixar gente esperando por uma
+        // porta que acabou de ser destrancada seria esquecimento, nao decisao.
+        if (! $reuniao->sala_de_espera) {
+            $reuniao->requests()->pendentes()->get()
+                ->each(fn (MeetingRequest $p) => $p->decidir(MeetingRequest::ACEITO, auth()->id()));
+        }
     }
 
     /** Encerra para todo mundo. So quem e da conta. */

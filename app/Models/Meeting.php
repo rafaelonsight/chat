@@ -30,16 +30,28 @@ class Meeting extends Model
     protected $fillable = [
         'tenant_id', 'criada_por', 'contact_id', 'conversation_id', 'appointment_id',
         'sala', 'token_convidado', 'titulo', 'status', 'max_participantes',
-        'comecou_em', 'encerrada_em',
+        'comecou_em', 'encerrada_em', 'sala_de_espera',
     ];
 
     protected $casts = [
         'comecou_em'        => 'datetime',
         'encerrada_em'      => 'datetime',
         'max_participantes' => 'integer',
+        'sala_de_espera'    => 'boolean',
     ];
 
-    protected $attributes = ['status' => self::EM_ANDAMENTO];
+    /*
+     * O padrao vive TAMBEM no objeto, e nao so no banco.
+     *
+     * create() nao volta ao banco para reler o que ele preencheu: o modelo recem-criado fica
+     * com null onde a coluna tem default. Isso nao e detalhe — a sala aberta e usada na MESMA
+     * requisicao que a criou, e null e falso: a portaria simplesmente nao valeria na sala
+     * recem-aberta, que e justamente quando o link acaba de ser mandado para alguem.
+     */
+    protected $attributes = [
+        'status'         => self::EM_ANDAMENTO,
+        'sala_de_espera' => true,
+    ];
 
     public function criador(): BelongsTo
     {
@@ -64,6 +76,11 @@ class Meeting extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(MeetingMessage::class)->orderBy('id');
+    }
+
+    public function requests(): HasMany
+    {
+        return $this->hasMany(MeetingRequest::class);
     }
 
     public function scopeAbertas(Builder $q): Builder

@@ -3,7 +3,7 @@
 use App\Filament\Pages\Reunioes;
 use App\Livewire\Inbox\ConversationWindow;
 use App\Livewire\Video\Sala;
-use App\Models\{Channel, Contact, Conversation, Meeting, MeetingMessage, MeetingParticipant, Message, Tenant, User};
+use App\Models\{Channel, Contact, Conversation, Meeting, MeetingMessage, MeetingParticipant, MeetingRequest, Message, Tenant, User};
 use App\Services\Video\Livekit;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\Http;
@@ -230,7 +230,8 @@ it('token que nao existe da pagina nao encontrada', function () {
 });
 
 it('o convidado entra, e a entrada dele fica registrada', function () {
-    $r = reuniaoDe($this);
+    // Sem portaria: este teste e sobre registrar quem entrou, e nao sobre quem libera.
+    $r = reuniaoDe($this, ['sala_de_espera' => false]);
 
     auth()->logout();
     TenantContext::forget();
@@ -248,7 +249,7 @@ it('o convidado entra, e a entrada dele fica registrada', function () {
 });
 
 it('sem nome nao entra', function () {
-    $r = reuniaoDe($this);
+    $r = reuniaoDe($this, ['sala_de_espera' => false]);
 
     auth()->logout();
     TenantContext::forget();
@@ -573,7 +574,7 @@ it('o recado da sala fica gravado', function () {
      * endereco que ele corrigiu. Chat que evapora ao fechar a aba faz a pessoa pedir tudo de
      * novo depois -- ou pior, nao pedir e errar a visita.
      */
-    $r = reuniaoDe($this);
+    $r = reuniaoDe($this, ['sala_de_espera' => false]);
 
     auth()->logout();
     TenantContext::forget();
@@ -677,4 +678,204 @@ it('o recado morre junto com a reuniao', function () {
     $r->delete();
 
     expect(MeetingMessage::withoutGlobalScope('tenant')->count())->toBe(0);
+});
+
+// --------------------------------------------------------- a sala de espera
+
+it('o convidado bate na porta e fica do lado de fora', function () {
+    /*
+     * O link e a credencial, e link de reuniao circula em grupo de WhatsApp: sem a portaria,
+     * basta um encaminhamento para alguem entrar sem que ninguem perceba. Com ela, entrar
+     * deixa de ser silencioso.
+     */
+    $r = reuniaoDe($this);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    Livewire::test(Sala::class, ['token' => $r->token_convidado])
+        ->set('nome', 'Joana')
+        ->call('entrar')
+        ->assertSet('aguardando', true)
+        ->assertSet('entrou', false)
+        // sem token nenhum emitido enquanto ninguem liberou
+        ->assertSet('tokenDeVideo', null)
+        ->assertSee('Esperando liberarem');
+
+    $pedido = MeetingRequest::withoutGlobalScope('tenant')->first();
+
+    expect($pedido->nome)->toBe('Joana')
+        ->and($pedido->aguardando())->toBeTrue()
+        // ainda nao entrou: participante so existe do lado de dentro
+        ->and(MeetingParticipant::withoutGlobalScope('tenant')->count())->toBe(0);
+});
+
+it('quem e da equipe nao pede licenca', function () {
+    // O atendente que abriu a sala nao vai bater na porta dela.
+    $r = reuniaoDe($this);
+
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->assertSet('aguardando', false)
+        ->assertSet('entrou', true);
+
+    expect(MeetingRequest::count())->toBe(0);
+});
+
+it('liberado, o convidado entra sozinho na proxima olhada', function () {
+    $r = reuniaoDe($this);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    $fora = Livewire::test(Sala::class, ['token' => $r->token_convidado])
+        ->set('nome', 'Joana')
+        ->call('entrar');
+
+    // o anfitriao libera
+    TenantContext::set($this->conta->id);
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->call('aceitar', MeetingRequest::first()->id);
+    TenantContext::forget();
+
+    $fora->call('verificarPedido')
+        ->assertSet('aguardando', false)
+        ->assertSet('entrou', true);
+
+    expect(MeetingParticipant::withoutGlobalScope('tenant')->where('nome', 'Joana')->exists())->toBeTrue();
+});
+
+it('recusado, o convidado sabe que foi recusado', function () {
+    // "Ainda nao responderam" e "recusaram" pedem coisas diferentes de quem esta esperando.
+    $r = reuniaoDe($this);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    $fora = Livewire::test(Sala::class, ['token' => $r->token_convidado])
+        ->set('nome', 'Joana')
+        ->call('entrar');
+
+    TenantContext::set($this->conta->id);
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->call('recusar', MeetingRequest::first()->id);
+    TenantContext::forget();
+
+    $fora->call('verificarPedido')
+        ->assertSet('aguardando', false)
+        ->assertSet('entrou', false)
+        ->assertSee('não liberou');
+});
+
+it('pedido esquecido vence, e a fila nao enche de quem desistiu', function () {
+    // Quem bateu na porta e foi almocar nao pode ser aceito uma hora depois e cair numa sala
+    // onde ninguem o espera.
+    $r = reuniaoDe($this);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    $fora = Livewire::test(Sala::class, ['token' => $r->token_convidado])
+        ->set('nome', 'Joana')
+        ->call('entrar');
+
+    $this->travel(MeetingRequest::MINUTOS_ATE_VENCER + 1)->minutes();
+
+    $fora->call('verificarPedido')
+        ->assertSet('aguardando', false)
+        ->assertSee('Ninguém respondeu a tempo');
+
+    TenantContext::set($this->conta->id);
+
+    expect(MeetingRequest::pendentes()->count())->toBe(0);
+});
+
+it('a fila so aparece para quem e da equipe', function () {
+    // A lista tem o nome de quem espera, e nome de terceiro nao se mostra para outro terceiro.
+    $r = reuniaoDe($this);
+
+    MeetingRequest::create([
+        'tenant_id' => $this->conta->id, 'meeting_id' => $r->id, 'nome' => 'Joana',
+    ]);
+
+    $daEquipe = Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar');
+
+    expect($daEquipe->instance()->pedidos())->toHaveCount(1);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    $deFora = Livewire::test(Sala::class, ['token' => $r->token_convidado]);
+
+    expect($deFora->instance()->pedidos())->toHaveCount(0);
+});
+
+it('quem esta de fora nao libera ninguem, nem sabendo o id', function () {
+    // A defesa esta no metodo, e nao no botao escondido.
+    $r = reuniaoDe($this);
+
+    $pedido = MeetingRequest::create([
+        'tenant_id' => $this->conta->id, 'meeting_id' => $r->id, 'nome' => 'Joana',
+    ]);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    Livewire::test(Sala::class, ['token' => $r->token_convidado])->call('aceitar', $pedido->id);
+
+    TenantContext::set($this->conta->id);
+
+    expect($pedido->refresh()->aguardando())->toBeTrue();
+});
+
+it('desligar a portaria libera quem ja estava na fila', function () {
+    // Deixar gente esperando por uma porta que acabou de ser destrancada seria esquecimento,
+    // nao decisao.
+    $r = reuniaoDe($this);
+
+    MeetingRequest::create([
+        'tenant_id' => $this->conta->id, 'meeting_id' => $r->id, 'nome' => 'Joana',
+    ]);
+
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->call('alternarSalaDeEspera');
+
+    expect($r->refresh()->sala_de_espera)->toBeFalse()
+        ->and(MeetingRequest::first()->aceito())->toBeTrue();
+});
+
+it('com a portaria desligada o convidado entra direto', function () {
+    $r = reuniaoDe($this, ['sala_de_espera' => false]);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    Livewire::test(Sala::class, ['token' => $r->token_convidado])
+        ->set('nome', 'Joana')
+        ->call('entrar')
+        ->assertSet('aguardando', false)
+        ->assertSet('entrou', true);
+});
+
+it('quem esta de fora nao destranca a porta', function () {
+    $r = reuniaoDe($this);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    Livewire::test(Sala::class, ['token' => $r->token_convidado])->call('alternarSalaDeEspera');
+
+    TenantContext::set($this->conta->id);
+
+    expect($r->refresh()->sala_de_espera)->toBeTrue();
+});
+
+it('a portaria nasce ligada', function () {
+    // Quem esquece de ligar uma protecao descobre o problema pelo estrago; quem acha a espera
+    // chata desliga no primeiro uso e nunca mais pensa nisso.
+    expect(reuniaoDe($this)->sala_de_espera)->toBeTrue();
 });

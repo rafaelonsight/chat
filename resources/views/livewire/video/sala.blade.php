@@ -23,15 +23,41 @@
         </div>
     </header>
 
-    <main class="flex min-h-0 flex-1 flex-col">
+    <main class="relative flex min-h-0 flex-1 flex-col">
         @if ($recado)
             <div class="border-b border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
                 {{ $recado }}
             </div>
         @endif
 
+        {{--
+            A SALA DE ESPERA, do lado de fora.
+
+            wire:poll e nao aviso empurrado: quem espera nao tem conta, nao tem sessao e nao
+            pode assinar canal privado nenhum. Uma pergunta a cada tres segundos, feita por
+            alguem que esta parado olhando para a tela, e barata — abrir canal de tempo real
+            para desconhecido seria superficie que ninguem precisa.
+        --}}
+        @if ($aguardando)
+            <div class="flex flex-1 items-center justify-center p-6" wire:poll.3s="verificarPedido">
+                <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-gray-900 p-6 text-center">
+                    <div class="mx-auto grid h-12 w-12 animate-pulse place-items-center rounded-full bg-amber-500/20 text-2xl">
+                        &#9203;
+                    </div>
+
+                    <h1 class="mt-4 text-lg font-semibold">Esperando liberarem sua entrada</h1>
+
+                    <p class="mt-2 text-sm text-gray-400">
+                        Avisamos quem organiza a reunião que você está aqui. Assim que liberarem,
+                        você entra sozinho — pode deixar esta tela aberta.
+                    </p>
+
+                    <p class="mt-4 text-xs text-gray-500">Você entrará como <strong>{{ $nome }}</strong>.</p>
+                </div>
+            </div>
+
         {{-- ---------------------------------------------------- antes de entrar --}}
-        @if (! $entrou)
+        @elseif (! $entrou)
             <div class="flex flex-1 items-center justify-center overflow-y-auto p-6">
                 <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-gray-900 p-6">
                     @if (! $reuniao->aberta())
@@ -157,6 +183,45 @@
         @else
             {{-- ------------------------------------------------------- dentro --}}
             {{--
+                A FILA DA PORTARIA.
+
+                Fica FORA do wire:ignore de proposito: ela precisa ser redesenhada a cada
+                sondagem, e o bloco da chamada precisa nao ser. Por cima do video e nao ao lado,
+                porque liberar quem esta esperando e a coisa mais urgente que aparece na tela —
+                e porque quem esta em chamada nao pode ter o proprio quadro empurrado por um
+                aviso.
+            --}}
+            @if ($this->souDaEquipe() && $entrou)
+                <div wire:poll.3s class="pointer-events-none absolute inset-x-0 top-0 z-40 flex justify-center px-3 pt-3">
+                    <div class="pointer-events-auto w-full max-w-sm space-y-2">
+                        @foreach ($this->pedidos() as $pedido)
+                            <div wire:key="pd-{{ $pedido->id }}"
+                                 class="flex items-center gap-3 rounded-xl bg-gray-800 p-3 shadow-xl ring-1 ring-white/10">
+                                <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-500/20 text-sm font-semibold text-amber-300">
+                                    {{ mb_strtoupper(mb_substr($pedido->nome, 0, 1)) }}
+                                </span>
+
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-medium text-gray-100">{{ $pedido->nome }}</p>
+                                    <p class="text-[11px] text-gray-400">quer entrar</p>
+                                </div>
+
+                                <button type="button" wire:click="recusar({{ $pedido->id }})"
+                                        class="rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:bg-white/5 hover:text-gray-200">
+                                    Recusar
+                                </button>
+
+                                <button type="button" wire:click="aceitar({{ $pedido->id }})"
+                                        class="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-gray-950 hover:bg-amber-400">
+                                    Liberar
+                                </button>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            {{--
                 wire:ignore: DEPOIS DE CONECTAR, O LIVEWIRE NAO ENCOSTA MAIS AQUI.
 
                 Gravar um recado e uma ida ao servidor, e toda ida ao servidor faz o Livewire
@@ -168,8 +233,15 @@
             <div
                 wire:ignore
                 x-data="salaDeVideo()"
-                x-init="entrar(@js($tokenDeVideo), @js($urlDeVideo), @js($this->historico()))"
-                class="flex flex-1 flex-col"
+                x-init="entrar(@js($tokenDeVideo), @js($urlDeVideo), @js($historicoInicial))"
+                {{-- min-h-0 em TODO elo da corrente, e nao so no ultimo.
+
+                     Filho de flex nunca fica menor que o proprio conteudo, a menos que se diga
+                     que pode. Basta UM elo sem essa permissao para a altura do video empurrar
+                     tudo para baixo e a barra de controles sair da tela -- foi exatamente o que
+                     aconteceu aqui: os elos de dentro tinham, este nao, e o defeito continuou
+                     igual depois do primeiro conserto. --}}
+                class="flex min-h-0 flex-1 flex-col overflow-hidden"
             >
                 {{-- Aviso, e nao lapide: se a pessoa esta dentro, a sala continua embaixo
                      dele. Vermelho de tela cheia faria ela fechar a aba achando que quebrou. --}}
@@ -526,6 +598,23 @@
                                     <button type="button" @click="tentarMidia(); aberto = false"
                                             class="block w-full px-3 py-2 text-left text-xs text-gray-200 hover:bg-white/10">
                                         Reconectar câmera e microfone
+                                    </button>
+
+                                    @if ($this->souDaEquipe())
+                                        {{-- Serve para a reunião aberta — treinamento,
+                                             apresentação — em que liberar um por um vira
+                                             trabalho de porteiro e ninguém consegue prestar
+                                             atenção no que está sendo dito. Desligar libera
+                                             quem já estava na fila. --}}
+                                        <button type="button" wire:click="alternarSalaDeEspera"
+                                                class="block w-full px-3 py-2 text-left text-xs text-gray-200 hover:bg-white/10">
+                                            {{ $this->reuniao()->sala_de_espera
+                                                ? 'Deixar qualquer um entrar direto'
+                                                : 'Pedir minha permissão para entrar' }}
+                                        </button>
+                                    @endif
+
+                                    <button type="button" class="hidden">
                                     </button>
 
                                     @if ($this->souDaEquipe())
