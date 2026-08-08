@@ -63,6 +63,22 @@ class ConviteDeCompromisso extends Notification implements ShouldQueue
                 ->action('Entrar na reunião', $this->linkDaSala);
         }
 
+        /*
+         * A RESPOSTA VAI PARA QUEM MARCOU, e nao para a caixa do sistema.
+         *
+         * O convidado que nao pode comparecer responde ao e-mail — e o comportamento mais
+         * previsivel que existe. Sem isto, a resposta cai numa caixa que ninguem le: a pessoa
+         * acha que avisou, e quem marcou descobre na hora da reuniao.
+         *
+         * O remetente continua sendo o do produto, e nao o e-mail do usuario: o SPF do dominio
+         * dele nao autoriza este servidor, e o convite iria direto para o spam.
+         */
+        if ($dono = $this->compromisso->user) {
+            if (filled($dono->email)) {
+                $mensagem->replyTo($dono->email, $dono->name);
+            }
+        }
+
         return $mensagem
             ->line('Se não puder comparecer, responda a quem te convidou para remarcar.')
             ->salutation('— '.config('app.name'));
