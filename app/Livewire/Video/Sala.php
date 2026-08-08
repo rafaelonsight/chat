@@ -246,6 +246,62 @@ class Sala extends Component
         return $this->reuniao()->requests()->pendentes()->orderBy('id')->get();
     }
 
+    /**
+     * Cala o microfone de um participante.
+     *
+     * So quem e da conta. E a defesa mora AQUI e nao no botao: a identidade chega do navegador,
+     * e navegador e do outro lado.
+     */
+    public function silenciar(string $identidade, Livekit $livekit): void
+    {
+        if (! $this->souDaEquipe() || ! $this->entrou) {
+            return;
+        }
+
+        try {
+            $achou = $livekit->silenciarParticipante($this->reuniao()->sala, $identidade);
+
+            $this->recado = $achou
+                ? null
+                : 'Essa pessoa já está sem microfone ligado.';
+        } catch (\Throwable $e) {
+            report($e);
+
+            $this->recado = 'Não consegui silenciar agora. Tente de novo.';
+        }
+    }
+
+    /**
+     * Tira alguem da sala.
+     *
+     * E DERRUBA O LINK JUNTO quando quem sai e convidado de fora. Sem isso, a pessoa que
+     * acabou de ser removida abre o mesmo endereco e volta — e quem removeu descobre que a
+     * acao nao valia nada. Com a portaria ligada, ela ao menos volta para a fila; sem
+     * portaria, voltaria direto.
+     */
+    public function remover(string $identidade, Livekit $livekit): void
+    {
+        if (! $this->souDaEquipe() || ! $this->entrou) {
+            return;
+        }
+
+        try {
+            $livekit->removerParticipante($this->reuniao()->sala, $identidade);
+        } catch (\Throwable $e) {
+            report($e);
+
+            $this->recado = 'Não consegui tirar a pessoa da sala agora.';
+
+            return;
+        }
+
+        // Convidado removido volta a precisar de licenca. Quem e da equipe nao: tirar um colega
+        // da sala nao pode trancar o sistema para ele.
+        if (! str_starts_with($identidade, 'equipe_')) {
+            $this->reuniao()->update(['sala_de_espera' => true]);
+        }
+    }
+
     public function aceitar(int $id): void
     {
         $this->decidirPedido($id, MeetingRequest::ACEITO);

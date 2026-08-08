@@ -280,7 +280,11 @@
 
                 <template x-if="saiu">
                     <div class="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-                        <p class="text-lg font-semibold">Você saiu da chamada</p>
+                        {{-- "Você saiu" para quem foi retirado e quase uma mentira: ela não
+                             saiu, foi tirada. E quem caiu porque encerraram fica tentando
+                             voltar para uma sala que não existe mais. --}}
+                        <p class="text-lg font-semibold"
+                           x-text="motivoDaSaida || 'Você saiu da chamada'"></p>
                         <button type="button" wire:click="$refresh"
                                 class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-amber-400">
                             Entrar de novo
@@ -354,6 +358,79 @@
                             </template>
                         </div>
 
+
+                        {{--
+                            QUEM ESTA NA SALA.
+
+                            Painel proprio e nao menu em cima de cada quadro: no celular o quadro
+                            e pequeno e o dedo e grande, e um menu que abre em cima do rosto de
+                            alguem e onde o toque errado acontece. Aqui cada nome tem a sua linha,
+                            e o botao de tirar da sala fica longe do de calar.
+                        --}}
+                        <div x-show="painel === 'gente'" x-cloak
+                             class="absolute inset-0 z-30 flex flex-col bg-gray-900 sm:relative sm:inset-auto sm:z-auto sm:w-80 sm:shrink-0 sm:border-l sm:border-white/10">
+
+                            <div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                                <p class="text-sm font-medium text-gray-100">
+                                    Na sala <span class="text-gray-500" x-text="'(' + pessoas.length + ')'"></span>
+                                </p>
+                                <button type="button" @click="abrirPainel('')"
+                                        class="grid h-8 w-8 place-items-center rounded-full text-gray-400 hover:bg-white/10 hover:text-white">&times;</button>
+                            </div>
+
+                            <div class="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+                                <template x-for="p in pessoas" :key="p.id">
+                                    <div class="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-white/5">
+                                        <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-amber-500/20 text-xs font-semibold text-amber-300"
+                                              x-text="p.nome.trim().charAt(0).toUpperCase()"></span>
+
+                                        <span class="min-w-0 flex-1">
+                                            <span class="block truncate text-sm text-gray-100">
+                                                <span x-text="p.nome"></span>
+                                                <template x-if="p.souEu"><span class="text-gray-500"> (você)</span></template>
+                                            </span>
+                                            <span class="flex items-center gap-1.5 text-[11px]">
+                                                <template x-if="p.semSom"><span class="text-red-400">sem som</span></template>
+                                                <template x-if="! p.semSom"><span class="text-gray-500">com som</span></template>
+                                                <template x-if="p.mao"><span class="text-amber-400">· pediu a vez</span></template>
+                                            </span>
+                                        </span>
+
+                                        @if ($this->souDaEquipe())
+                                            {{-- Só para os outros: calar a si mesmo já é o botão
+                                                 da barra, e tirar-se da sala é o botão vermelho. --}}
+                                            <template x-if="! p.souEu">
+                                                <span class="flex shrink-0 gap-1">
+                                                    <button type="button"
+                                                            x-show="! p.semSom"
+                                                            @click="$wire.silenciar(p.id)"
+                                                            title="Calar o microfone"
+                                                            class="rounded-lg px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10">
+                                                        Calar
+                                                    </button>
+
+                                                    <button type="button"
+                                                            @click="if (confirm('Tirar ' + p.nome + ' da chamada?')) $wire.remover(p.id)"
+                                                            title="Tirar da chamada"
+                                                            class="rounded-lg px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/10">
+                                                        Tirar
+                                                    </button>
+                                                </span>
+                                            </template>
+                                        @endif
+                                    </div>
+                                </template>
+                            </div>
+
+                            @if ($this->souDaEquipe())
+                                <p class="border-t border-white/10 px-4 py-3 text-[11px] text-gray-500">
+                                    Calar não é definitivo: a pessoa pode ligar o microfone de novo.
+                                    Tirar da chamada derruba na hora e volta a exigir sua permissão
+                                    para entrar.
+                                </p>
+                            @endif
+                        </div>
+
                         {{--
                             O BATE-PAPO DA SALA.
 
@@ -366,7 +443,7 @@
                             que o cliente leu do aparelho, o endereco que ele corrigiu, o link
                             que o tecnico colou.
                         --}}
-                        <div x-show="painel" x-cloak
+                        <div x-show="painel === 'chat'" x-cloak
                              class="absolute inset-0 z-30 flex flex-col bg-gray-900 sm:relative sm:inset-auto sm:z-auto sm:w-80 sm:shrink-0 sm:border-l sm:border-white/10">
 
                             <div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
@@ -374,7 +451,7 @@
                                     <p class="text-sm font-medium text-gray-100">Conversa</p>
                                     <p class="text-[11px] text-gray-500">Fica gravada no atendimento</p>
                                 </div>
-                                <button type="button" @click="abrirPainel(false)"
+                                <button type="button" @click="abrirPainel('')"
                                         class="grid h-8 w-8 place-items-center rounded-full text-gray-400 hover:bg-white/10 hover:text-white">&times;</button>
                             </div>
 
@@ -569,10 +646,23 @@
                                 </div>
                             </div>
 
-                            {{-- ------------------------------------------------------------------ chat --}}
-    <button type="button" @click="abrirPainel(! painel)" title="Conversa"
+                            {{-- ----------------------------------------------------------------- gente --}}
+    <button type="button" @click="abrirPainel('gente')" title="Quem está na sala"
             class="relative grid h-11 w-11 place-items-center rounded-full"
-            :class="painel ? 'bg-amber-500 text-gray-950' : 'bg-white/10 text-white hover:bg-white/15'">
+            :class="painel === 'gente' ? 'bg-amber-500 text-gray-950' : 'bg-white/10 text-white hover:bg-white/15'">
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+        </svg>
+
+        <span class="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-white/20 px-1 text-[10px] font-bold text-white"
+              x-text="pessoas.length"></span>
+    </button>
+
+    {{-- ------------------------------------------------------------------ chat --}}
+    <button type="button" @click="abrirPainel('chat')" title="Conversa"
+            class="relative grid h-11 w-11 place-items-center rounded-full"
+            :class="painel === 'chat' ? 'bg-amber-500 text-gray-950' : 'bg-white/10 text-white hover:bg-white/15'">
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round"
                   d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />

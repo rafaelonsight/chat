@@ -93,6 +93,63 @@ class Livekit
         $this->chamar('DeleteRoom', ['room' => $sala], sala: $sala, tolerarSumida: true);
     }
 
+    /**
+     * Cala o microfone de alguem.
+     *
+     * QUEM CALA E O SERVIDOR DE MIDIA, e nao um recado para o navegador da pessoa. A diferenca
+     * importa: pedir por mensagem depende do outro lado obedecer, e o caso em que isto e usado
+     * — microfone aberto num ambiente barulhento, alguem que esqueceu que estava ligado — e
+     * justamente quando a pessoa nao esta olhando para a tela.
+     *
+     * O silencio nao e definitivo: quem foi calado pode ligar o microfone de novo. Isso e de
+     * proposito — a ferramenta e para resolver barulho, nao para tirar a voz de alguem.
+     */
+    public function silenciarParticipante(string $sala, string $identidade): bool
+    {
+        $r = $this->chamar('ListParticipants', ['room' => $sala], sala: $sala, tolerarSumida: true);
+
+        foreach ($r['participants'] ?? [] as $p) {
+            if (($p['identity'] ?? null) !== $identidade) {
+                continue;
+            }
+
+            foreach ($p['tracks'] ?? [] as $faixa) {
+                // MICROPHONE e nao AUDIO: audio tambem e o som de uma tela compartilhada, e
+                // calar a apresentacao de alguem achando que era o microfone dele seria pior
+                // que nao fazer nada.
+                if (($faixa['source'] ?? null) !== 'MICROPHONE' || empty($faixa['sid'])) {
+                    continue;
+                }
+
+                $this->chamar('MutePublishedTrack', [
+                    'room'      => $sala,
+                    'identity'  => $identidade,
+                    'track_sid' => $faixa['sid'],
+                    'muted'     => true,
+                ], sala: $sala, tolerarSumida: true);
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Tira alguem da sala.
+     *
+     * A pessoa cai na hora e o token dela nao serve mais para aquela sessao — mas o LINK
+     * continua valendo. Quem chama precisa saber disso: tirar alguem que nao devia estar ali e
+     * so metade do trabalho se o link ainda abre a porta.
+     */
+    public function removerParticipante(string $sala, string $identidade): void
+    {
+        $this->chamar('RemoveParticipant', [
+            'room'     => $sala,
+            'identity' => $identidade,
+        ], sala: $sala, tolerarSumida: true);
+    }
+
     public function contarParticipantes(string $sala): int
     {
         $r = $this->chamar('ListParticipants', ['room' => $sala], sala: $sala, tolerarSumida: true);

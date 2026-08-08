@@ -30,7 +30,23 @@ beforeEach(function () {
         'secret' => 'segredo-de-teste-com-tamanho-suficiente',
     ]);
 
-    Http::fake(['*' => Http::response([], 200)]);
+    /*
+     * O STUB LE DE UMA PROPRIEDADE, e nao e redefinido no teste.
+     *
+     * Http::fake chamado uma segunda vez NAO substitui o primeiro: a definicao original vence
+     * e a nova e ignorada em silencio. Esta e a sexta vez que essa armadilha me pega neste
+     * projeto — desta vez o teste do "calar" nao via participante nenhum e nao havia erro
+     * nenhum para investigar. O aviso ja estava escrito no tests/Pest.php.
+     */
+    $this->participantes = [];
+
+    Http::fake(['*' => function ($pedido) {
+        if (str_contains($pedido->url(), 'ListParticipants')) {
+            return Http::response(['participants' => $this->participantes]);
+        }
+
+        return Http::response([], 200);
+    }]);
 
     $this->conta = Tenant::create(['nome' => 'Conta', 'slug' => 'video']);
     TenantContext::set($this->conta->id);
@@ -878,4 +894,104 @@ it('a portaria nasce ligada', function () {
     // Quem esquece de ligar uma protecao descobre o problema pelo estrago; quem acha a espera
     // chata desliga no primeiro uso e nunca mais pensa nisso.
     expect(reuniaoDe($this)->sala_de_espera)->toBeTrue();
+});
+
+// ------------------------------------------------------- o anfitriao modera
+
+it('calar alguem pede ao servidor de midia, e pela faixa do microfone', function () {
+    /*
+     * QUEM CALA E O SERVIDOR, e nao um recado para o navegador da pessoa. Pedir por mensagem
+     * dependeria de o outro lado obedecer, e o caso em que isto e usado — microfone aberto num
+     * ambiente barulhento — e justamente quando a pessoa nao esta olhando para a tela.
+     */
+    $this->participantes = [
+        ['identity' => 'convidado_abc', 'tracks' => [
+            ['sid' => 'TR_tela', 'source' => 'SCREEN_SHARE'],
+            ['sid' => 'TR_mic', 'source' => 'MICROPHONE'],
+        ]],
+    ];
+
+    $r = reuniaoDe($this);
+
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->call('silenciar', 'convidado_abc');
+
+    Http::assertSent(function ($pedido) {
+        // MICROPHONE e nao qualquer faixa de audio: calar a apresentacao de alguem achando que
+        // era o microfone seria pior que nao fazer nada.
+        return str_contains($pedido->url(), 'MutePublishedTrack')
+            && $pedido['track_sid'] === 'TR_mic'
+            && $pedido['identity'] === 'convidado_abc'
+            && $pedido['muted'] === true;
+    });
+});
+
+it('quem esta de fora nao cala ninguem, nem sabendo a identidade', function () {
+    // A defesa mora no metodo: a identidade chega do navegador, e navegador e do outro lado.
+    $r = reuniaoDe($this, ['sala_de_espera' => false]);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    Livewire::test(Sala::class, ['token' => $r->token_convidado])
+        ->set('nome', 'Joana')
+        ->call('entrar')
+        ->call('silenciar', 'equipe_1_xyz');
+
+    Http::assertNotSent(fn ($p) => str_contains($p->url(), 'MutePublishedTrack'));
+});
+
+it('tirar da sala derruba e volta a exigir licenca', function () {
+    // Sem isso, quem acabou de ser removido abre o mesmo link e volta -- e quem removeu
+    // descobre que a acao nao valia nada.
+    $r = reuniaoDe($this, ['sala_de_espera' => false]);
+
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->call('remover', 'convidado_abc');
+
+    Http::assertSent(fn ($p) => str_contains($p->url(), 'RemoveParticipant')
+        && $p['identity'] === 'convidado_abc');
+
+    expect($r->refresh()->sala_de_espera)->toBeTrue();
+});
+
+it('tirar um colega da sala nao tranca o sistema para ele', function () {
+    // Portaria e contra quem esta fora. Ligar a espera porque um colega saiu seria punir a
+    // equipe por uma decisao interna.
+    $r = reuniaoDe($this, ['sala_de_espera' => false]);
+
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->call('remover', 'equipe_9_abc');
+
+    expect($r->refresh()->sala_de_espera)->toBeFalse();
+});
+
+it('quem esta de fora nao tira ninguem da sala', function () {
+    $r = reuniaoDe($this, ['sala_de_espera' => false]);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    Livewire::test(Sala::class, ['token' => $r->token_convidado])
+        ->set('nome', 'Joana')
+        ->call('entrar')
+        ->call('remover', 'equipe_1_xyz');
+
+    Http::assertNotSent(fn ($p) => str_contains($p->url(), 'RemoveParticipant'));
+});
+
+it('calar quem ja esta sem microfone avisa, em vez de fingir que fez', function () {
+    $this->participantes = [
+        ['identity' => 'convidado_abc', 'tracks' => []],
+    ];
+
+    $r = reuniaoDe($this);
+
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->call('silenciar', 'convidado_abc')
+        ->assertSee('já está sem microfone');
 });

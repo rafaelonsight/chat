@@ -52,6 +52,7 @@ document.addEventListener('alpine:init', () => {
             entrando: false,
             dentro: false,
             saiu: false,
+            motivoDaSaida: '',
             erro: '',
 
             /*
@@ -94,7 +95,13 @@ document.addEventListener('alpine:init', () => {
             /** @type {Array<{nome: string, corpo: string, hora: string, daEquipe: boolean}>} */
             recados: [],
 
-            painel: false,
+            /**
+             * Qual painel esta aberto: '', 'chat' ou 'gente'.
+             *
+             * Um de cada vez de proposito. Em celular os dois ocupam a tela inteira, e mesmo no
+             * computador dois paineis abertos deixariam o video numa tira no meio.
+             */
+            painel: '',
 
             /**
              * Quantos chegaram com o painel fechado.
@@ -319,7 +326,7 @@ document.addEventListener('alpine:init', () => {
             guardarRecado(recado) {
                 this.recados.push(recado);
 
-                if (! this.painel) this.naoLidos++;
+                if (this.painel !== 'chat') this.naoLidos++;
 
                 this.$nextTick(() => this.rolarRecados());
             },
@@ -330,10 +337,12 @@ document.addEventListener('alpine:init', () => {
                 if (caixa) caixa.scrollTop = caixa.scrollHeight;
             },
 
-            abrirPainel(sim) {
-                this.painel = sim;
+            abrirPainel(qual) {
+                // Clicar de novo no mesmo botao fecha: e o que o dedo espera de um botao que
+                // fica aceso enquanto o painel esta aberto.
+                this.painel = this.painel === qual ? '' : qual;
 
-                if (sim) {
+                if (this.painel === 'chat') {
                     this.naoLidos = 0;
                     this.$nextTick(() => this.rolarRecados());
                 }
@@ -561,6 +570,10 @@ document.addEventListener('alpine:init', () => {
                     .on(RoomEvent.TrackUnsubscribed, () => this.recontar())
                     .on(RoomEvent.ParticipantConnected, () => this.recontar())
                     .on(RoomEvent.ParticipantDisconnected, () => this.recontar())
+                    // Calado pelo anfitriao: sem ouvir isto, o proprio botao continuaria
+                    // aceso dizendo que o microfone esta ligado.
+                    .on(RoomEvent.TrackMuted, () => this.recontar())
+                    .on(RoomEvent.TrackUnmuted, () => this.recontar())
                     .on(RoomEvent.LocalTrackPublished, () => this.recontar())
                     .on(RoomEvent.LocalTrackUnpublished, () => this.recontar())
                     .on(RoomEvent.ActiveSpeakersChanged, () => this.recontar())
@@ -573,9 +586,22 @@ document.addEventListener('alpine:init', () => {
                             // dado estranho no canal: ignora, nao e motivo para quebrar a sala
                         }
                     })
-                    .on(RoomEvent.Disconnected, () => {
+                    .on(RoomEvent.Disconnected, (motivo) => {
                         this.dentro = false;
                         this.saiu = true;
+
+                        /*
+                         * POR QUE A PESSOA SAIU.
+                         *
+                         * "Você saiu da chamada" para quem foi removido e quase uma mentira: ela
+                         * nao saiu, foi tirada. E quem cai porque o anfitriao encerrou fica
+                         * tentando voltar para uma sala que nao existe mais. O numero vem do
+                         * servidor de midia; comparo por valor para nao depender de o nome da
+                         * constante continuar igual na proxima versao do cliente.
+                         */
+                        if (motivo === 5) this.motivoDaSaida = 'Você foi retirado da chamada.';
+                        else if (motivo === 6) this.motivoDaSaida = 'A chamada foi encerrada por quem organizou.';
+                        else this.motivoDaSaida = '';
                     });
             },
 
@@ -620,6 +646,10 @@ document.addEventListener('alpine:init', () => {
                     monta(sala.localParticipant, true),
                     ...Array.from(sala.remoteParticipants.values()).map((p) => monta(p, false)),
                 ];
+
+                // A verdade sobre os proprios botoes mora no servidor de midia, nao aqui.
+                this.microfone = sala.localParticipant.isMicrophoneEnabled;
+                this.camera = sala.localParticipant.isCameraEnabled;
             },
 
             /**
@@ -684,15 +714,25 @@ document.addEventListener('alpine:init', () => {
 
             // ---------------------------------------------------------------- controles
 
+            /*
+             * O ESTADO DOS BOTOES VEM DO SERVIDOR DE MIDIA, e nao de uma variavel nossa.
+             *
+             * Desde que o anfitriao pode calar o microfone de alguem, a nossa variavel deixou
+             * de ser a verdade: a pessoa seria calada e o botao continuaria dizendo "Microfone
+             * ligado". Botao que mente sobre microfone e a origem do "achei que voces estavam
+             * me ouvindo".
+             */
             async alternarMicrofone() {
-                this.microfone = ! this.microfone;
-                await sala?.localParticipant.setMicrophoneEnabled(this.microfone);
+                if (! sala) return;
+
+                await sala.localParticipant.setMicrophoneEnabled(! sala.localParticipant.isMicrophoneEnabled);
                 this.recontar();
             },
 
             async alternarCamera() {
-                this.camera = ! this.camera;
-                await sala?.localParticipant.setCameraEnabled(this.camera);
+                if (! sala) return;
+
+                await sala.localParticipant.setCameraEnabled(! sala.localParticipant.isCameraEnabled);
                 this.recontar();
             },
 
