@@ -70,7 +70,9 @@ class ProcessEvolutionWebhook implements ShouldQueue
         $data = Arr::get($payload, 'data', []);
 
         if (Arr::get($data, 'key.fromMe')) {
-            return; // eco do que nos mesmos enviamos
+            $this->mensagemEnviadaPorFora($canal, $data);
+
+            return;
         }
 
         $externalId = Arr::get($data, 'key.id');
@@ -566,6 +568,102 @@ class ProcessEvolutionWebhook implements ShouldQueue
     // JID. Em grupo o remoteJid identifica o GRUPO e quem falou vem em
     // key.participant — sem separar isso, cada participante viraria um contato
     // e a conversa do grupo se estilhacaria.
+    /**
+     * A mensagem que saiu do NOSSO numero sem passar por aqui.
+     *
+     * O atendente abriu o WhatsApp no proprio celular e respondeu de la. Ate agora isso era
+     * jogado fora como "eco", e o sistema perdia metade da conversa: no painel o atendimento
+     * ficava parado na pergunta do cliente, e quem abrisse depois concluiria que ele estava
+     * sem resposta — e responderia de novo.
+     *
+     * O QUE SEPARA ECO DE MENSAGEM NOVA E O BANCO, e nao o payload. Toda mensagem que saiu por
+     * aqui foi gravada com o id do provedor antes de existir eco; se o id ja e conhecido, o
+     * evento e o eco e nao ha nada a fazer. Se nao e, alguem falou por fora.
+     */
+    private function mensagemEnviadaPorFora(Channel $canal, array $data): void
+    {
+        $externalId = Arr::get($data, 'key.id');
+
+        if (! $externalId || Message::acharPorExternalId($canal->id, $externalId)) {
+            return;
+        }
+
+        /*
+         * SEM O pushName.
+         *
+         * Em mensagem nossa ele e o NOSSO nome, e o resolverOrigem usa esse campo para batizar
+         * contato novo. Mandar mensagem do celular para um numero desconhecido criaria o
+         * contato com o nome do proprio atendente — e o erro so apareceria semanas depois,
+         * numa lista cheia de contatos chamados "Rafael".
+         */
+        $origem = $this->resolverOrigem($canal, Arr::except($data, ['pushName']));
+
+        if (! $origem) {
+            return;
+        }
+
+        // Reacao dada pelo celular tambem nao vira balao na conversa.
+        if ($reacao = Arr::get($data, 'message.reactionMessage')) {
+            $this->registrarReacao($canal, $reacao);
+
+            return;
+        }
+
+        $conteudo = $this->identificarConteudo(Arr::get($data, 'message', []));
+
+        if (! $conteudo) {
+            return;
+        }
+
+        $citadoExternalId = $this->citado($data);
+
+        $mensagem = DB::transaction(function () use ($canal, $origem, $externalId, $conteudo, $citadoExternalId) {
+            $conversa = Conversation::abertaOuNova($canal->id, $origem['contato']->id, $canal->tenant_id);
+
+            $mensagem = Message::updateOrCreate(
+                ['channel_id' => $canal->id, 'external_id' => $externalId],
+                [
+                    'tenant_id'       => $canal->tenant_id,
+                    'conversation_id' => $conversa->id,
+                    'direcao'         => 'out',
+                    'tipo'            => $conteudo['tipo'],
+                    'corpo'           => $conteudo['corpo'] ?? null,
+                    'responde_a_id'   => Message::acharPorExternalId($canal->id, $citadoExternalId)?->id,
+                    'legenda'         => $conteudo['legenda'] ?? null,
+                    'media_mime'      => $conteudo['mime'] ?? null,
+                    'media_nome'      => $conteudo['nome'] ?? null,
+                    'media_duracao'   => $conteudo['duracao'] ?? null,
+                    // Ja saiu: quem entregou foi o WhatsApp do aparelho, e nao a nossa fila.
+                    'status'          => Message::STATUS_DELIVERED,
+                    'enviada_em'      => now(),
+                    'por_fora'        => true,
+                ],
+            );
+
+            if ($mensagem->wasRecentlyCreated) {
+                /*
+                 * ultima_msg_em SIM, ultima_entrada_em NAO, e nao_lidas nem encosta.
+                 *
+                 * A conversa sobe na lista porque houve movimento. Mas a janela de 24h pertence
+                 * a quem PROCUROU, e quem falou aqui fomos nos. E nao lidas conta mensagem de
+                 * cliente: somar a nossa propria resposta faria o contador acusar trabalho que
+                 * nao existe.
+                 */
+                $conversa->update(['ultima_msg_em' => now()]);
+            }
+
+            return $mensagem;
+        });
+
+        if ($conteudo['tipo'] !== 'text' && $mensagem->wasRecentlyCreated) {
+            $this->baixarMidia($canal, $mensagem, $externalId);
+        }
+
+        if ($mensagem->wasRecentlyCreated) {
+            broadcast(new MessageStored($mensagem->refresh()));
+        }
+    }
+
     private function resolverOrigem(Channel $canal, array $data): ?array
     {
         $bruto = Arr::get($data, 'key.remoteJid');

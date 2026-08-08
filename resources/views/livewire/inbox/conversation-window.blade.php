@@ -604,6 +604,11 @@
                             {{ $m->created_at?->format('H:i') }}
                             @unless ($entrada) &middot; {{ $m->status }} @endunless
                             @if ($m->automatica) &middot; automática @endif
+                            {{-- Sem este selo, a mensagem apareceria como saída normal sem nome
+                                 de atendente, e a diferença entre "o sistema mandou" e "alguém
+                                 respondeu por fora" — que muda o que a equipe faz a seguir —
+                                 ficaria invisível. --}}
+                            @if ($m->por_fora) &middot; pelo celular @endif
                         </div>
 
                         @if ($m->erro)
