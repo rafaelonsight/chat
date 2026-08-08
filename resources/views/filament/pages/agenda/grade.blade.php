@@ -66,6 +66,10 @@
                                  'ring-1 ring-red-500' => $a->atrasado(),
                              ])>
                             <span class="font-medium">{{ $a->comeca_em->format('H:i') }}</span>
+                            @if ($a->ehPorVideo())
+                                {{-- A camera no quadro diz, sem abrir nada, que este e por video. --}}
+                                <span title="Reunião por vídeo">&#127909;</span>
+                            @endif
                             {{ $a->titulo }}
                             @if ($a->contact)
                                 <span class="block truncate opacity-70">{{ $a->contact->nomeExibicao() }}</span>

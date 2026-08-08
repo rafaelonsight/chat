@@ -20,12 +20,13 @@ class BookingPage extends Model
     protected $fillable = [
         'tenant_id', 'user_id', 'channel_id', 'slug', 'titulo', 'descricao', 'local',
         'duracao_min', 'intervalo_min', 'antecedencia_horas', 'janela_dias', 'limite_dia',
-        'disponibilidade', 'ativa',
+        'disponibilidade', 'ativa', 'por_video',
     ];
 
     protected $casts = [
         'disponibilidade'    => 'array',
         'ativa'              => 'boolean',
+        'por_video'          => 'boolean',
         'duracao_min'        => 'integer',
         'intervalo_min'      => 'integer',
         'antecedencia_horas' => 'integer',

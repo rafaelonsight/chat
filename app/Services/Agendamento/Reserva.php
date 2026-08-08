@@ -74,7 +74,13 @@ class Reserva
                 throw $e;
             }
 
-            $this->confirmarNoWhatsapp($pagina, $compromisso, $contato);
+            // A sala nasce ANTES da confirmacao: o link precisa estar pronto para entrar na
+            // mensagem, senao o cliente recebe "confirmado" e nenhum jeito de participar.
+            $reuniao = $pagina->por_video
+                ? app(\App\Services\Video\Chamada::class)->paraCompromisso($compromisso->refresh())
+                : null;
+
+            $this->confirmarNoWhatsapp($pagina, $compromisso, $contato, $reuniao);
 
             return $compromisso;
         });
@@ -90,8 +96,12 @@ class Reserva
      * Falha aqui nao desmancha a reserva. O horario esta marcado de verdade; a mensagem e um
      * agrado, e agrado que falha nao pode levar embora o compromisso.
      */
-    private function confirmarNoWhatsapp(BookingPage $pagina, Appointment $compromisso, Contact $contato): void
-    {
+    private function confirmarNoWhatsapp(
+        BookingPage $pagina,
+        Appointment $compromisso,
+        Contact $contato,
+        ?\App\Models\Meeting $reuniao = null,
+    ): void {
         if (! $pagina->channel_id) {
             return;
         }
@@ -111,7 +121,7 @@ class Reserva
                 'channel_id'      => $pagina->channel_id,
                 'direcao'         => 'out',
                 'tipo'            => 'text',
-                'corpo'           => $this->texto($pagina, $compromisso),
+                'corpo'           => $this->texto($pagina, $compromisso, $reuniao),
                 'automatica'      => true,
                 'status'          => Message::STATUS_QUEUED,
             ]);
@@ -124,8 +134,11 @@ class Reserva
         }
     }
 
-    private function texto(BookingPage $pagina, Appointment $compromisso): string
-    {
+    private function texto(
+        BookingPage $pagina,
+        Appointment $compromisso,
+        ?\App\Models\Meeting $reuniao = null,
+    ): string {
         $linhas = [
             'Tudo certo! Seu horário está confirmado.',
             '',
@@ -135,6 +148,14 @@ class Reserva
 
         if ($pagina->local) {
             $linhas[] = '📍 '.$pagina->local;
+        }
+
+        // O link entra na MESMA mensagem da confirmacao, e nao numa segunda: duas mensagens
+        // seguidas viram duas conversas na cabeca de quem le, e a segunda e a que se perde.
+        if ($reuniao) {
+            $linhas[] = '';
+            $linhas[] = 'É por vídeo. No horário, toque aqui — não precisa instalar nada:';
+            $linhas[] = $reuniao->url();
         }
 
         $linhas[] = '';

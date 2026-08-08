@@ -39,6 +39,9 @@ class Reservar extends Component
 
     public ?string $confirmado = null;
 
+    /** O link da sala, quando a reserva e por video. */
+    public ?string $linkDoVideo = null;
+
     public ?string $recado = null;
 
     public function mount(string $slug): void
@@ -126,6 +129,10 @@ class Reservar extends Component
         }
 
         $this->confirmado = $marcado->comeca_em->toDateTimeString();
+
+        // Mostrado na tela tambem, e nao so mandado no WhatsApp: a pagina pode nao ter canal
+        // configurado, e ai a tela e o unico lugar onde o link existe.
+        $this->linkDoVideo = $marcado->meeting?->url();
     }
 
     public function render()

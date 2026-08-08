@@ -3,6 +3,7 @@
 namespace App\Services\Video;
 
 use App\Jobs\SendTextMessage;
+use App\Models\Appointment;
 use App\Models\Conversation;
 use App\Models\Meeting;
 use App\Models\Message;
@@ -66,6 +67,65 @@ class Chamada
         ]);
     }
 
+    /**
+     * A sala de um compromisso marcado.
+     *
+     * O `comecou_em` DA SALA E O HORARIO DO COMPROMISSO, e nao agora. Sem isso, marcar uma
+     * visita para semana que vem criaria um link que vence hoje a noite: as doze horas de
+     * validade contam de quando a sala vale, e a sala de uma reuniao de quinta vale na quinta.
+     *
+     * Entrar ANTES do horario continua liberado de proposito — quem chega dez minutos mais
+     * cedo esperando na sala e o comportamento normal de reuniao, e barrar isso so criaria
+     * gente batendo na porta.
+     */
+    public function paraCompromisso(Appointment $compromisso): Meeting
+    {
+        $conversa = $this->conversaDoContato($compromisso->contact_id);
+
+        return Meeting::abrir([
+            'tenant_id'       => $compromisso->tenant_id,
+            'criada_por'      => $compromisso->criado_por,
+            'contact_id'      => $compromisso->contact_id,
+            'conversation_id' => $conversa?->id,
+            'appointment_id'  => $compromisso->id,
+            'titulo'          => $compromisso->titulo,
+            'comecou_em'      => $compromisso->comeca_em,
+        ]);
+    }
+
+    /**
+     * Remarcou o compromisso: a sala anda com ele.
+     *
+     * Sem isto, arrastar a visita de terca para quinta deixaria o link vencendo na terca — e o
+     * cliente descobriria isso na quinta, na hora de entrar.
+     */
+    public function sincronizarHorario(Appointment $compromisso): void
+    {
+        $reuniao = $compromisso->meeting;
+
+        if ($reuniao && ! $reuniao->comecou_em->equalTo($compromisso->comeca_em)) {
+            $reuniao->update(['comecou_em' => $compromisso->comeca_em]);
+        }
+    }
+
+    /**
+     * A conversa aberta daquele contato, se houver.
+     *
+     * Nao abre conversa nova: se nao ha nenhuma, o link vai a mao. Abrir por conta propria
+     * poria na caixa de entrada um atendimento que ninguem pediu.
+     */
+    public function conversaDoContato(?int $contactId): ?Conversation
+    {
+        if (! $contactId) {
+            return null;
+        }
+
+        return Conversation::where('contact_id', $contactId)
+            ->where('status', '!=', Conversation::ARQUIVADA)
+            ->latest('ultima_msg_em')
+            ->first();
+    }
+
     /** Uma sala sem cliente do outro lado: reuniao de equipe, ou link para mandar a mao. */
     public function avulsa(?string $titulo = null, ?int $criadaPor = null): Meeting
     {
@@ -82,7 +142,7 @@ class Chamada
      * continua na tela para mandar do jeito que der. Aviso que falha nao pode levar embora o
      * compromisso que ele so ia anunciar.
      */
-    public function avisar(Meeting $reuniao): string
+    public function avisar(Meeting $reuniao, ?string $texto = null): string
     {
         $conversa = $reuniao->conversation;
 
@@ -103,7 +163,7 @@ class Chamada
                 'channel_id'      => $conversa->channel_id,
                 'direcao'         => 'out',
                 'tipo'            => 'text',
-                'corpo'           => "Vamos falar por vídeo? É só tocar no link, não precisa instalar nada:\n"
+                'corpo'           => $texto ?: "Vamos falar por vídeo? É só tocar no link, não precisa instalar nada:\n"
                     .$reuniao->url(),
                 'status'          => Message::STATUS_QUEUED,
             ]);
@@ -118,6 +178,27 @@ class Chamada
         }
 
         return self::AVISADO;
+    }
+
+    /**
+     * O convite de uma reuniao MARCADA.
+     *
+     * Texto diferente do "vamos falar agora" de proposito: quem recebe "e so tocar no link"
+     * para uma reuniao de quinta toca na quinta-feira que nao existe — toca agora, entra numa
+     * sala vazia e conclui que nao funciona.
+     */
+    public function convite(Meeting $reuniao): string
+    {
+        $quando = $reuniao->comecou_em;
+
+        $linhas = [
+            'Sua reunião está marcada para '.$quando->format('d/m').' às '.$quando->format('H:i').'.',
+            '',
+            'No horário, é só tocar aqui — não precisa instalar nada:',
+            $reuniao->url(),
+        ];
+
+        return implode("\n", $linhas);
     }
 
     /** Encerra para todos: fecha o link e derruba quem estiver dentro. */

@@ -101,6 +101,12 @@ class Agenda extends Page
 
     public string $buscaContato = '';
 
+    /** Compromisso por video: abre sala e manda o link para quem foi convidado. */
+    public bool $por_video = false;
+
+    /** O que aconteceu com o convite, para a tela contar. */
+    public ?string $recadoDoVideo = null;
+
     /**
      * O numero vermelho no menu: o que ESTA ATRASADO.
      *
@@ -187,7 +193,7 @@ class Agenda extends Page
 
     public function novo(): void
     {
-        $this->reset(['editando', 'titulo', 'descricao', 'contact_id', 'buscaContato']);
+        $this->reset(['editando', 'titulo', 'descricao', 'contact_id', 'buscaContato', 'por_video', 'recadoDoVideo']);
         $this->tipo = Appointment::COMPROMISSO;
         $this->duracao_min = 60;
         $this->user_id = auth()->id();
@@ -228,6 +234,8 @@ class Agenda extends Page
         $this->user_id = $a->user_id;
         $this->contact_id = $a->contact_id;
         $this->buscaContato = (string) $a->contact?->nomeExibicao();
+        $this->por_video = $a->ehPorVideo();
+        $this->recadoDoVideo = null;
         $this->formAberto = true;
     }
 
@@ -258,13 +266,16 @@ class Agenda extends Page
         ];
 
         if ($this->editando) {
-            Appointment::visivelPara(auth()->user())->findOrFail($this->editando)->update($dados);
+            $compromisso = Appointment::visivelPara(auth()->user())->findOrFail($this->editando);
+            $compromisso->update($dados);
         } else {
-            Appointment::create($dados + [
+            $compromisso = Appointment::create($dados + [
                 'tenant_id'  => auth()->user()->tenant_id,
                 'criado_por' => auth()->id(),
             ]);
         }
+
+        $this->cuidarDoVideo($compromisso->refresh());
 
         // O calendario anda ate onde a coisa foi marcada: salvar e nao ver o que salvou parece
         // que nao salvou.
@@ -272,6 +283,57 @@ class Agenda extends Page
 
         $this->formAberto = false;
         $this->editando = null;
+    }
+
+    /**
+     * A sala do compromisso: abre, remarca ou desmarca conforme a caixinha.
+     *
+     * LEMBRETE NAO TEM SALA. Ele e um bilhete para si mesmo — abrir uma sala de video para
+     * "ligar para o contador" nao faz sentido nenhum, e ainda mandaria link para o contador.
+     *
+     * O CONVITE SAI UMA VEZ, quando a sala nasce. Salvar o compromisso de novo para corrigir um
+     * acento nao pode mandar o link outra vez: quem recebe dois convites da mesma reuniao fica
+     * sem saber qual vale.
+     */
+    private function cuidarDoVideo(Appointment $compromisso): void
+    {
+        $chamada = app(\App\Services\Video\Chamada::class);
+        $existente = $compromisso->meeting;
+
+        // Desmarcou a caixinha, ou virou lembrete: a sala vai embora.
+        if (! $this->por_video || $compromisso->ehLembrete()) {
+            if ($existente) {
+                $chamada->encerrar($existente);
+                $this->recadoDoVideo = 'A sala de vídeo deste compromisso foi encerrada.';
+            }
+
+            return;
+        }
+
+        if (! $chamada->disponivel()) {
+            $this->recadoDoVideo = 'A chamada de vídeo não está configurada neste servidor.';
+
+            return;
+        }
+
+        // Ja tinha sala: so acompanha o horario, e nao convida de novo.
+        if ($existente) {
+            $chamada->sincronizarHorario($compromisso);
+
+            return;
+        }
+
+        $reuniao = $chamada->paraCompromisso($compromisso);
+
+        $this->recadoDoVideo = match ($chamada->avisar($reuniao, $chamada->convite($reuniao))) {
+            \App\Services\Video\Chamada::AVISADO => 'Convite com o link enviado no WhatsApp de '
+                .$compromisso->contact?->nomeExibicao().'.',
+            \App\Services\Video\Chamada::JANELA_FECHADA => 'A janela de 24 horas fechou neste canal: '
+                .'copie o link do compromisso e mande por fora.',
+            \App\Services\Video\Chamada::SEM_CONVERSA => 'Sala criada. Copie o link no compromisso '
+                .'e mande para quem vai participar.',
+            default => 'Sala criada, mas não consegui mandar o link. Copie no compromisso e mande por fora.',
+        };
     }
 
     public function escolherContato(int $id): void
@@ -314,6 +376,11 @@ class Agenda extends Page
         $a->update([
             'comeca_em' => Carbon::parse($dia)->startOfDay()->addMinutes(max(0, min(1439, $minutos))),
         ]);
+
+        // A sala anda com o compromisso. Sem isto, arrastar a visita de terca para quinta
+        // deixaria o link vencendo na terca — e o cliente descobriria isso na quinta, na hora
+        // de entrar.
+        app(\App\Services\Video\Chamada::class)->sincronizarHorario($a->refresh());
     }
 
     public function concluir(int $id): void
@@ -325,13 +392,56 @@ class Agenda extends Page
 
     public function excluir(int $id): void
     {
-        Appointment::visivelPara(auth()->user())->find($id)?->delete();
+        $a = Appointment::visivelPara(auth()->user())->find($id);
+
+        if (! $a) {
+            return;
+        }
+
+        // A sala morre com o compromisso: link de reuniao desmarcada que continua abrindo e
+        // gente entrando numa sala que ninguem mais vai atender.
+        if ($reuniao = $a->meeting) {
+            app(\App\Services\Video\Chamada::class)->encerrar($reuniao);
+        }
+
+        $a->delete();
 
         $this->formAberto = false;
         $this->editando = null;
     }
 
     // ------------------------------------------------------------ dados
+
+    /**
+     * Outro compromisso da mesma pessoa em cima deste horario.
+     *
+     * AVISA, e nao impede. O horario ja fica travado onde importa — o link publico de
+     * agendamento nao oferece vaga ocupada, e ninguem de fora consegue marcar em cima. Aqui
+     * dentro, marcar duas coisas na mesma hora as vezes e proposital (a visita e a ligacao que
+     * cabe no caminho), e recusar obrigaria a pessoa a mentir o horario para conseguir anotar.
+     */
+    public function conflitos(): \Illuminate\Support\Collection
+    {
+        if ($this->tipo === Appointment::LEMBRETE || ! $this->quando) {
+            return collect();
+        }
+
+        $inicio = Carbon::parse($this->quando);
+        $fim = $inicio->copy()->addMinutes(max(5, (int) ($this->duracao_min ?: 30)));
+
+        return Appointment::query()
+            ->where('user_id', $this->user_id ?: auth()->id())
+            ->where('tipo', Appointment::COMPROMISSO)
+            ->when($this->editando, fn ($q) => $q->whereKeyNot($this->editando))
+            ->whereDate('comeca_em', $inicio->toDateString())
+            ->get()
+            ->filter(function (Appointment $a) use ($inicio, $fim) {
+                $outroFim = $a->comeca_em->copy()->addMinutes(max(5, (int) ($a->duracao_min ?: 30)));
+
+                return $a->comeca_em->lt($fim) && $outroFim->gt($inicio);
+            })
+            ->values();
+    }
 
     public function getViewData(): array
     {

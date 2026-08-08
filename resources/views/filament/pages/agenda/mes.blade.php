@@ -39,7 +39,7 @@
                                      'bg-amber-100 text-amber-900 dark:bg-amber-500/25 dark:text-amber-100' => $a->ehLembrete(),
                                      'opacity-60 line-through' => $a->concluido(),
                                  ])>
-                                <span class="font-medium">{{ $a->comeca_em->format('H:i') }}</span> {{ $a->titulo }}
+                                <span class="font-medium">{{ $a->comeca_em->format('H:i') }}</span>@if ($a->ehPorVideo())<span title="Reunião por vídeo">&#127909;</span>@endif {{ $a->titulo }}
                             </div>
                         @endforeach
 

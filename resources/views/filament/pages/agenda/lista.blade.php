@@ -27,6 +27,12 @@
                                 <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600 dark:bg-white/10 dark:text-gray-300"
                                       title="Só você vê">lembrete</span>
                             @endif
+
+                            @if ($a->ehPorVideo())
+                                <a href="{{ $a->meeting->url() }}" target="_blank" rel="noopener"
+                                   class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-200"
+                                   title="Entrar na reunião">por vídeo</a>
+                            @endif
                         </div>
 
                         <p class="mt-0.5 text-xs text-gray-500">

@@ -54,6 +54,9 @@ class LinksDeAgendamento extends Component
 
     public bool $ativa = true;
 
+    /** Todo compromisso deste link e por video. */
+    public bool $por_video = false;
+
     /** 0..6 => ['ativo' => bool, 'de1', 'ate1', 'de2', 'ate2'] */
     public array $horarios = [];
 
@@ -67,7 +70,7 @@ class LinksDeAgendamento extends Component
 
     public function novo(): void
     {
-        $this->reset(['editando', 'titulo', 'slugPublico', 'descricao', 'local', 'channel_id', 'limite_dia']);
+        $this->reset(['editando', 'titulo', 'slugPublico', 'descricao', 'local', 'channel_id', 'limite_dia', 'por_video']);
 
         $this->user_id = auth()->id();
         $this->duracao_min = 30;
@@ -100,6 +103,7 @@ class LinksDeAgendamento extends Component
         $this->janela_dias = $p->janela_dias;
         $this->limite_dia = $p->limite_dia;
         $this->ativa = $p->ativa;
+        $this->por_video = $p->por_video;
         $this->horarios = $this->deFaixas($p->disponibilidade ?? []);
         $this->formAberto = true;
     }
@@ -139,6 +143,7 @@ class LinksDeAgendamento extends Component
             'limite_dia'         => $this->limite_dia ?: null,
             'disponibilidade'    => $faixas,
             'ativa'              => $this->ativa,
+            'por_video'          => $this->por_video,
         ];
 
         if ($this->editando) {

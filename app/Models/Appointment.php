@@ -58,6 +58,22 @@ class Appointment extends Model
         return $this->belongsTo(BookingPage::class);
     }
 
+    /**
+     * A sala de video deste compromisso, quando ele e por video.
+     *
+     * O vinculo mora na reuniao e nao aqui: uma sala sabe de que compromisso ela e, e ha sala
+     * que nao e de compromisso nenhum — a que o atendente abre no meio da conversa.
+     */
+    public function meeting(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Meeting::class)->where('status', Meeting::EM_ANDAMENTO);
+    }
+
+    public function ehPorVideo(): bool
+    {
+        return $this->meeting !== null;
+    }
+
     /** Marcado pelo proprio cliente, e nao pela equipe. */
     public function veioDoLink(): bool
     {

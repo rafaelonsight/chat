@@ -71,6 +71,24 @@ class Meeting extends Model
         return $this->status === self::EM_ANDAMENTO;
     }
 
+    /** Marcada para depois: a sala existe, mas a hora dela ainda nao chegou. */
+    public function agendada(): bool
+    {
+        return $this->comecou_em->isFuture();
+    }
+
+    /**
+     * A janela dela e AGORA: aberta, dentro da validade, e a hora ja chegou.
+     *
+     * E a unica que pode ter alguem esperando dentro — e por isso a unica que o numero do menu
+     * conta. Reuniao de semana que vem acendendo a insignia por sete dias e insignia que se
+     * aprende a ignorar.
+     */
+    public function acontecendo(): bool
+    {
+        return $this->podeEntrar() && ! $this->agendada();
+    }
+
     /**
      * O link vencido nao depende de alguem ter lembrado de encerrar.
      *

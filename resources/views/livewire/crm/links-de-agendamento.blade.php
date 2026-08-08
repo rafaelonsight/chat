@@ -139,6 +139,18 @@
                     </p>
                 </div>
 
+                <label class="flex items-start gap-2">
+                    <input type="checkbox" wire:model="por_video"
+                           class="mt-0.5 rounded border-gray-300 text-amber-600 focus:ring-amber-500 dark:border-white/20">
+                    <span>
+                        <span class="text-sm text-gray-700 dark:text-gray-200">Reunião por vídeo</span>
+                        <span class="block text-xs text-gray-400">
+                            Toda reserva feita por este link abre uma sala em {{ config('app.name') }},
+                            e o link da sala vai na mesma mensagem de confirmação.
+                        </span>
+                    </span>
+                </label>
+
                 <label class="flex items-center gap-2">
                     <input type="checkbox" wire:model="ativa" class="rounded border-gray-300 dark:border-white/20">
                     <span class="text-sm text-gray-700 dark:text-gray-200">Link aceitando reservas</span>
@@ -190,6 +202,7 @@
 
                     <p class="mt-0.5 text-xs text-gray-500">
                         {{ $p->user?->name }} · {{ $p->duracao_min }} min
+                        @if ($p->por_video) · por vídeo @endif
                         @if ($p->intervalo_min) · {{ $p->intervalo_min }} min de folga @endif
                         @if ($p->channel_id) · confirma por {{ $p->channel?->nome }} @endif
                     </p>

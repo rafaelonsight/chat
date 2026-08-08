@@ -8,6 +8,7 @@
             <p class="mt-1 text-sm text-gray-500">
                 com {{ $pagina->user?->name }}
                 · {{ $pagina->duracao_min }} min
+                @if ($pagina->por_video) · por vídeo @endif
                 @if ($pagina->local) · {{ $pagina->local }} @endif
             </p>
 
@@ -28,6 +29,20 @@
                 <p class="mt-1 text-base text-gray-700">
                     {{ \App\Support\DataPtBr::porExtenso($q) }} às <strong>{{ $q->format('H:i') }}</strong>
                 </p>
+
+                @if ($linkDoVideo)
+                    {{-- O link fica na tela tambem: a pagina pode nao ter canal de WhatsApp, e
+                         ai esta e a unica vez que a pessoa ve o endereco da sala. --}}
+                    <div class="mx-auto mt-5 max-w-sm rounded-xl border border-gray-200 p-4 text-left">
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-400">É por vídeo</p>
+                        <p class="mt-1 text-sm text-gray-600">
+                            No horário, toque no link abaixo. Não precisa instalar nada.
+                        </p>
+                        <a href="{{ $linkDoVideo }}" class="mt-2 block break-all text-xs text-gray-900 underline">
+                            {{ $linkDoVideo }}
+                        </a>
+                    </div>
+                @endif
 
                 @if ($pagina->channel_id)
                     <p class="mt-3 text-sm text-gray-500">
