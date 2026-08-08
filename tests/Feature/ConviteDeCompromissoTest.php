@@ -421,3 +421,72 @@ it('nao mistura conta', function () {
 
     expect(AppointmentGuest::count())->toBe(0);
 });
+
+// ------------------------------------------------- convidar sem salvar antes
+
+it('convidar e mandar o e-mail sem salvar antes ainda alcança quem está na tela', function () {
+    /*
+     * A ARMADILHA QUE ISTO FECHA.
+     *
+     * A lista de convidados vive em memoria ate salvar, e os botoes de convite agiam sobre o
+     * que estava no BANCO. Quem adicionava um convidado e clicava em "enviar" sem salvar antes
+     * mandava para a lista velha — ou para ninguem — e a tela respondia "adicione convidados"
+     * com dois nomes na frente da pessoa.
+     *
+     * Aconteceu de verdade no primeiro uso: tres convidados gravados e nenhum e-mail enviado.
+     */
+    $a = compromisso($this);
+
+    Livewire::actingAs($this->eu)->test(Agenda::class)
+        ->call('editar', $a->id)
+        ->call('convidarContato', $this->joana->id)
+        // sem passar por salvar
+        ->call('enviarPorEmail')
+        ->assertSee('1 convidado');
+
+    expect(AppointmentGuest::count())->toBe(1)
+        ->and(AppointmentGuest::first()->email_em)->not->toBeNull();
+
+    Notification::assertCount(1);
+});
+
+it('avisar no WhatsApp sem salvar antes tambem vale', function () {
+    $a = compromisso($this);
+
+    Livewire::actingAs($this->eu)->test(Agenda::class)
+        ->call('editar', $a->id)
+        ->call('convidarContato', $this->pedro->id)
+        ->call('abrirAviso')
+        ->assertSet('paraAvisar', [$this->pedro->id])
+        ->call('avisarPorWhatsapp');
+
+    expect(Message::where('direcao', 'out')->count())->toBe(1)
+        ->and(AppointmentGuest::count())->toBe(1);
+});
+
+it('clicar em enviar sem compromisso salvo diz o que fazer, em vez de nao fazer nada', function () {
+    // Silencio era o pior desfecho: a pessoa clicava e nada acontecia na tela.
+    Livewire::actingAs($this->eu)->test(Agenda::class)
+        ->call('novo')
+        ->set('titulo', 'Ainda não salvo')
+        ->call('convidarContato', $this->joana->id)
+        ->call('enviarPorEmail')
+        ->assertSee('Salve o compromisso antes');
+
+    Notification::assertNothingSent();
+});
+
+it('tirar da tela e mandar nao alcança quem saiu', function () {
+    // O botao age sobre o que a pessoa esta vendo, e nao sobre o que sobrou no banco.
+    $a = compromisso($this);
+    convidar($this, $a, $this->joana);
+
+    Livewire::actingAs($this->eu)->test(Agenda::class)
+        ->call('editar', $a->id)
+        ->call('tirarConvidado', 0)
+        ->call('enviarPorEmail')
+        ->assertSee('Adicione convidados');
+
+    expect(AppointmentGuest::count())->toBe(0);
+    Notification::assertNothingSent();
+});

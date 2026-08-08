@@ -356,7 +356,13 @@ class Agenda extends Page
 
     // -------------------------------------------------------------- avisar
 
-    /** O bloco de texto do convite, para a tela oferecer o copiar. */
+    /**
+     * O bloco de texto do convite, para a tela oferecer o copiar.
+     *
+     * Le do banco de proposito, sem gravar nada: isto roda a cada desenho da tela, e gravar
+     * dentro de um metodo que so devolve texto e como escrita aparece onde ninguem procura.
+     * O que ele mostra e o compromisso salvo — que e justamente o que o convite descreve.
+     */
     public function textoDoConvite(): string
     {
         if (! $this->editando) {
@@ -368,15 +374,46 @@ class Agenda extends Page
         return $compromisso ? app(\App\Services\Agendamento\Convite::class)->texto($compromisso) : '';
     }
 
-    public function enviarPorEmail(): void
+    /**
+     * O compromisso que os botoes de convite agem sobre, com a lista da TELA ja gravada.
+     *
+     * AQUI MORAVA UMA ARMADILHA. A lista de convidados vive em memoria ate salvar; os botoes
+     * agiam sobre o que estava no BANCO. Quem adicionava um convidado e clicava em "enviar"
+     * sem salvar antes mandava para a lista velha — ou para ninguem — e a tela dizia
+     * "adicione convidados" com dois nomes na frente da pessoa. Fazer o botao agir sobre o que
+     * esta na tela e o unico comportamento que nao mente.
+     *
+     * Devolve null quando nao ha compromisso salvo, e quem chama conta o porque.
+     */
+    private function paraConvidar_compromisso(): ?Appointment
     {
+        if (! $this->editando) {
+            return null;
+        }
+
         $compromisso = Appointment::visivelPara(auth()->user())->find($this->editando);
 
         if (! $compromisso) {
+            return null;
+        }
+
+        $this->gravarConvidados($compromisso);
+
+        return $compromisso->refresh();
+    }
+
+    public function enviarPorEmail(): void
+    {
+        $compromisso = $this->paraConvidar_compromisso();
+
+        if (! $compromisso) {
+            // Silencio aqui era o pior desfecho: a pessoa clicava e nada acontecia na tela.
+            $this->recadoDoVideo = 'Salve o compromisso antes de enviar o convite.';
+
             return;
         }
 
-        $r = app(\App\Services\Agendamento\Convite::class)->porEmail($compromisso->refresh());
+        $r = app(\App\Services\Agendamento\Convite::class)->porEmail($compromisso);
 
         if ($r['enviados'] === 0) {
             $this->recadoDoVideo = $r['sem_email'] > 0
@@ -429,9 +466,12 @@ class Agenda extends Page
 
     public function avisarPorWhatsapp(): void
     {
-        $compromisso = Appointment::visivelPara(auth()->user())->find($this->editando);
+        $compromisso = $this->paraConvidar_compromisso();
 
         if (! $compromisso) {
+            $this->recadoDoVideo = 'Salve o compromisso antes de enviar o convite.';
+            $this->avisando = false;
+
             return;
         }
 
@@ -454,7 +494,7 @@ class Agenda extends Page
         }
 
         $r = app(\App\Services\Agendamento\Convite::class)
-            ->porWhatsapp($compromisso->refresh(), $canal, $this->paraAvisar);
+            ->porWhatsapp($compromisso, $canal, $this->paraAvisar);
 
         $this->recadoDoVideo = $r['enviados'] === 1
             ? 'Convite enviado no WhatsApp de 1 contato.'
