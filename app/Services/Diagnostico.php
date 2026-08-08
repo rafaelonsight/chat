@@ -42,6 +42,7 @@ class Diagnostico
         'redis'          => 'Redis no ar (a fila depende dele)',
         'reverb'         => 'Reverb no ar (a tela atualiza sozinha)',
         'whisper'        => 'Whisper no ar (transcrição de áudio)',
+        'video'          => 'Servidor de vídeo no ar (chamadas)',
         'banco'          => 'Banco de dados acessível',
         'email'          => 'Envio de e-mail configurado',
         'webhook_parado' => 'Mensagem recebida sem processar',
@@ -62,6 +63,11 @@ class Diagnostico
             $this->porta('redis', 6379, self::CRITICO, 'Redis fora do ar: a fila para'),
             $this->porta('reverb', 8080, self::AVISO, 'Reverb fora do ar: a tela para de atualizar sozinha'),
             $this->porta('whisper', 9090, self::AVISO, 'Whisper fora do ar: audio nao e transcrito'),
+            // So olha quando ha credencial: servidor sem video configurado nao esta com
+            // defeito, e alerta que acende sempre e alerta que se aprende a ignorar.
+            app(\App\Services\Video\Livekit::class)->configurado()
+                ? $this->porta('video', 7880, self::AVISO, 'Servidor de video fora do ar: chamada por video nao abre')
+                : null,
             $this->banco(),
             $this->email(),
             $this->webhookParado($limites['webhook_parado_minutos']),

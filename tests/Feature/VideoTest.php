@@ -1,0 +1,425 @@
+<?php
+
+use App\Livewire\Inbox\ConversationWindow;
+use App\Livewire\Video\Sala;
+use App\Models\{Channel, Contact, Conversation, Meeting, MeetingParticipant, Message, Tenant, User};
+use App\Services\Video\Livekit;
+use App\Support\TenantContext;
+use Illuminate\Support\Facades\Http;
+use Livewire\Livewire;
+
+/*
+ * Reuniao por video.
+ *
+ * O CASO QUE MANDA E O ATENDIMENTO QUE EMPACOU NO TEXTO: alguem descreve por quinze minutos um
+ * problema que a camera resolve em trinta segundos. Por isso a chamada nasce DENTRO da
+ * conversa e o link sai por onde a pessoa ja estava falando.
+ *
+ * O LINK E A CREDENCIAL. Quem o tem entra sem login, entao ele e aleatorio, unico no banco
+ * inteiro e VENCE — porque encerrar e acao de quem convidou, e quem convida esquece.
+ *
+ * ANFITRIAO SE DECIDE NO TOKEN, e nao na tela: botao escondido qualquer um faz aparecer. Quem
+ * cumpre e o servidor de midia.
+ */
+
+beforeEach(function () {
+    config()->set('services.livekit', [
+        'url'    => 'wss://video.teste',
+        'key'    => 'chave-de-teste',
+        'secret' => 'segredo-de-teste-com-tamanho-suficiente',
+    ]);
+
+    Http::fake(['*' => Http::response([], 200)]);
+
+    $this->conta = Tenant::create(['nome' => 'Conta', 'slug' => 'video']);
+    TenantContext::set($this->conta->id);
+
+    $this->pessoa = User::create([
+        'tenant_id' => $this->conta->id, 'name' => 'Atendente',
+        'email' => 'atendente@video.test', 'password' => 'segredo123', 'admin' => true,
+    ]);
+
+    $this->canal = Channel::create([
+        'tenant_id' => $this->conta->id, 'nome' => 'Canal',
+        'tipo' => 'evolution', 'status' => 'open', 'instance_name' => 'vid',
+    ]);
+
+    $this->contato = Contact::create([
+        'tenant_id' => $this->conta->id, 'nome' => 'Cliente',
+        'telefone_e164' => '+5541966660000', 'jid' => '5541966660000@s.whatsapp.net',
+    ]);
+
+    $this->conversa = Conversation::create([
+        'tenant_id' => $this->conta->id, 'channel_id' => $this->canal->id,
+        'contact_id' => $this->contato->id, 'status' => Conversation::EM_ATENDIMENTO,
+        'atendente_id' => $this->pessoa->id, 'ultima_msg_em' => now(),
+        'ultima_entrada_em' => now(),
+    ]);
+
+    $this->actingAs($this->pessoa);
+});
+
+afterEach(fn () => TenantContext::forget());
+
+function reuniaoDe($ctx, array $extra = []): Meeting
+{
+    return Meeting::abrir($extra + [
+        'tenant_id'  => $ctx->conta->id,
+        'criada_por' => $ctx->pessoa->id,
+        'contact_id' => $ctx->contato->id,
+        'titulo'     => 'Chamada',
+    ]);
+}
+
+// ------------------------------------------------------------------ o token
+
+it('o token e um JWT assinado com o segredo do servidor de midia', function () {
+    $token = app(Livekit::class)->tokenDeSala('sala_x', 'convidado_1', 'Fulano');
+
+    [$cabecalho, $carga, $assinatura] = explode('.', $token);
+
+    $decodificar = fn ($p) => json_decode(base64_decode(strtr($p, '-_', '+/')), true);
+
+    expect($decodificar($cabecalho)['alg'])->toBe('HS256');
+
+    $dados = $decodificar($carga);
+
+    expect($dados['iss'])->toBe('chave-de-teste')
+        ->and($dados['sub'])->toBe('convidado_1')
+        ->and($dados['name'])->toBe('Fulano')
+        ->and($dados['video']['room'])->toBe('sala_x')
+        ->and($dados['video']['roomJoin'])->toBeTrue();
+
+    // a assinatura fecha com o segredo, senao o servidor de midia recusa sem dizer por que
+    $esperada = rtrim(strtr(base64_encode(
+        hash_hmac('sha256', $cabecalho.'.'.$carga, 'segredo-de-teste-com-tamanho-suficiente', true)
+    ), '+/', '-_'), '=');
+
+    expect($assinatura)->toBe($esperada);
+});
+
+it('so o anfitriao ganha o direito de encerrar para todos', function () {
+    // A diferenca mora no token: botao escondido qualquer um faz aparecer.
+    $carga = fn (string $t) => json_decode(base64_decode(strtr(explode('.', $t)[1], '-_', '+/')), true);
+
+    $convidado = $carga(app(Livekit::class)->tokenDeSala('s', 'i', 'n', anfitriao: false));
+    $anfitriao = $carga(app(Livekit::class)->tokenDeSala('s', 'i', 'n', anfitriao: true));
+
+    expect($convidado['video'])->not->toHaveKey('roomAdmin')
+        ->and($anfitriao['video']['roomAdmin'])->toBeTrue();
+});
+
+it('o token vence, porque link vazado nao pode valer para sempre', function () {
+    $carga = json_decode(base64_decode(strtr(
+        explode('.', app(Livekit::class)->tokenDeSala('s', 'i', 'n'))[1], '-_', '+/'
+    )), true);
+
+    expect($carga['exp'] - time())->toBeLessThanOrEqual(Livekit::MINUTOS_DO_TOKEN * 60)
+        ->and($carga['exp'])->toBeGreaterThan(time())
+        // nbf no passado: relogio de servidor e de cliente nunca batem no milissegundo
+        ->and($carga['nbf'])->toBeLessThan(time() + 1);
+});
+
+it('sem credenciais o video simplesmente nao existe', function () {
+    // Chamada de video e recurso a mais: nao pode impedir ninguem de atender pelo chat.
+    config()->set('services.livekit', ['url' => null, 'key' => null, 'secret' => null]);
+
+    expect(app(Livekit::class)->configurado())->toBeFalse();
+});
+
+it('a sala e criada com teto e tempo de sala vazia', function () {
+    // Sem isto o servidor cria a sala no primeiro participante, sem teto nenhum.
+    app(Livekit::class)->criarSala('sala_y', 8);
+
+    Http::assertSent(function ($pedido) {
+        return str_contains($pedido->url(), '/twirp/livekit.RoomService/CreateRoom')
+            // wss:// vira https:// — a API de administracao fala HTTP no mesmo host
+            && str_starts_with($pedido->url(), 'https://video.teste')
+            && $pedido['name'] === 'sala_y'
+            && $pedido['maxParticipants'] === 8
+            && $pedido['emptyTimeout'] === Livekit::SEGUNDOS_SALA_VAZIA
+            && $pedido['departureTimeout'] === Livekit::SEGUNDOS_SALA_VAZIA;
+    });
+});
+
+it('mexer numa sala existente exige o nome dela no token', function () {
+    /*
+     * Criar sala e permissao geral; apagar e listar quem esta dentro e permissao POR SALA.
+     * Sem o nome no token o servidor responde "permissions denied" sem dizer qual permissao
+     * faltou — e foi exatamente assim que a primeira versao disto quebrou em producao.
+     */
+    $lk = app(Livekit::class);
+
+    $lk->criarSala('sala_w', 8);
+    $lk->contarParticipantes('sala_w');
+
+    $escopo = function ($pedido) {
+        $carga = json_decode(base64_decode(strtr(
+            explode('.', substr($pedido->header('Authorization')[0], 7))[1], '-_', '+/'
+        )), true);
+
+        return $carga['video'];
+    };
+
+    Http::assertSent(function ($pedido) use ($escopo) {
+        if (! str_contains($pedido->url(), 'ListParticipants')) {
+            return false;
+        }
+
+        return ($escopo($pedido)['room'] ?? null) === 'sala_w'
+            && $escopo($pedido)['roomAdmin'] === true;
+    });
+});
+
+it('sala que ninguem abriu nao e erro', function () {
+    // Sala so existe no servidor de midia depois que alguem conecta.
+    Http::fake(['*' => Http::response(['code' => 'not_found', 'msg' => 'room not found'], 404)]);
+
+    app(Livekit::class)->encerrarSala('sala_z');
+
+    expect(app(Livekit::class)->contarParticipantes('sala_z'))->toBe(0);
+});
+
+// ------------------------------------------------------------------ a sala
+
+it('a sala nasce com nome e link aleatorios', function () {
+    $a = reuniaoDe($this);
+    $b = reuniaoDe($this);
+
+    expect($a->sala)->not->toBe($b->sala)
+        ->and($a->token_convidado)->not->toBe($b->token_convidado)
+        ->and(strlen($a->token_convidado))->toBeGreaterThanOrEqual(32)
+        // Nao e o id nem o nome da sala: o link circula em grupo de WhatsApp, e adivinhar um
+        // deles nao pode dar acesso ao outro.
+        ->and($a->token_convidado)->not->toBe((string) $a->id)
+        ->and($a->token_convidado)->not->toBe($a->sala)
+        ->and(ctype_digit($a->token_convidado))->toBeFalse();
+});
+
+it('o link vence em doze horas, mesmo sem ninguem encerrar', function () {
+    // Encerrar e acao de quem convidou, e quem convida esquece.
+    $r = reuniaoDe($this);
+
+    expect($r->podeEntrar())->toBeTrue();
+
+    $r->update(['comecou_em' => now()->subHours(Meeting::HORAS_ATE_EXPIRAR + 1)]);
+
+    expect($r->refresh()->expirada())->toBeTrue()
+        ->and($r->podeEntrar())->toBeFalse()
+        // continua "aberta": expirou nao e a mesma coisa que encerrada
+        ->and($r->aberta())->toBeTrue();
+});
+
+it('a tela publica abre sem login', function () {
+    $r = reuniaoDe($this);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    $this->withoutExceptionHandling();
+    $this->get('/sala/'.$r->token_convidado)
+        ->assertSuccessful()
+        ->assertSee('Entrar na chamada');
+});
+
+it('token que nao existe da pagina nao encontrada', function () {
+    TenantContext::forget();
+
+    $this->get('/sala/nao-existe')->assertNotFound();
+});
+
+it('o convidado entra, e a entrada dele fica registrada', function () {
+    $r = reuniaoDe($this);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    Livewire::test(Sala::class, ['token' => $r->token_convidado])
+        ->set('nome', 'Joana')
+        ->call('entrar')
+        ->assertSet('entrou', true);
+
+    $p = MeetingParticipant::withoutGlobalScope('tenant')->first();
+
+    expect($p->nome)->toBe('Joana')
+        ->and($p->user_id)->toBeNull()
+        ->and($p->tenant_id)->toBe($this->conta->id);
+});
+
+it('sem nome nao entra', function () {
+    $r = reuniaoDe($this);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    Livewire::test(Sala::class, ['token' => $r->token_convidado])
+        ->set('nome', '')
+        ->call('entrar')
+        ->assertHasErrors('nome')
+        ->assertSet('entrou', false);
+});
+
+it('quem e da equipe entra como anfitriao', function () {
+    $r = reuniaoDe($this);
+
+    $tela = Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado]);
+
+    expect($tela->instance()->souDaEquipe())->toBeTrue();
+
+    // o nome ja vem preenchido: pedir de novo a quem estamos logados e trabalho de graça
+    $tela->assertSet('nome', 'Atendente');
+
+    $tela->call('entrar')->assertSet('entrou', true);
+
+    expect(MeetingParticipant::first()->user_id)->toBe($this->pessoa->id);
+});
+
+it('gente de outra conta nao vira anfitria', function () {
+    $r = reuniaoDe($this);
+
+    $outra = Tenant::create(['nome' => 'Outra', 'slug' => 'video-outra']);
+    TenantContext::set($outra->id);
+    $dela = User::create([
+        'tenant_id' => $outra->id, 'name' => 'Dela',
+        'email' => 'dela@video.test', 'password' => 'segredo123',
+    ]);
+    TenantContext::forget();
+
+    $tela = Livewire::actingAs($dela)->test(Sala::class, ['token' => $r->token_convidado]);
+
+    expect($tela->instance()->souDaEquipe())->toBeFalse();
+});
+
+it('reuniao encerrada nao deixa mais ninguem entrar', function () {
+    $r = reuniaoDe($this);
+    $r->encerrar();
+
+    auth()->logout();
+    TenantContext::forget();
+
+    Livewire::test(Sala::class, ['token' => $r->token_convidado])
+        ->set('nome', 'Joana')
+        ->call('entrar')
+        ->assertSet('entrou', false)
+        ->assertSee('já foi encerrada');
+});
+
+it('link expirado avisa diferente de encerrado', function () {
+    // Para quem recebeu o link, as duas coisas pedem providencias diferentes.
+    $r = reuniaoDe($this);
+    $r->update(['comecou_em' => now()->subHours(Meeting::HORAS_ATE_EXPIRAR + 1)]);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    Livewire::test(Sala::class, ['token' => $r->token_convidado])
+        ->set('nome', 'Joana')
+        ->call('entrar')
+        ->assertSet('entrou', false)
+        ->assertSee('expirou');
+});
+
+it('so a equipe encerra para todos', function () {
+    $r = reuniaoDe($this);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    Livewire::test(Sala::class, ['token' => $r->token_convidado])->call('encerrar');
+
+    expect($r->refresh()->aberta())->toBeTrue();
+
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])->call('encerrar');
+
+    expect($r->refresh()->aberta())->toBeFalse();
+});
+
+it('sem credenciais a sala nao deixa entrar, e avisa', function () {
+    $r = reuniaoDe($this);
+    config()->set('services.livekit', ['url' => null, 'key' => null, 'secret' => null]);
+
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->assertSet('entrou', false)
+        ->assertSee('não está disponível');
+});
+
+// ------------------------------------------------------- a partir da conversa
+
+it('chamar por video abre a sala e manda o link na conversa', function () {
+    // O link vai por onde a pessoa ja estava falando: link em outro lugar e link de amanha.
+    Livewire::actingAs($this->pessoa)->test(ConversationWindow::class)
+        ->call('abrir', $this->conversa->id)
+        ->call('chamarPorVideo')
+        ->assertDispatched('abrir-sala');
+
+    $reuniao = Meeting::first();
+
+    expect($reuniao->conversation_id)->toBe($this->conversa->id)
+        ->and($reuniao->contact_id)->toBe($this->contato->id)
+        ->and($reuniao->criada_por)->toBe($this->pessoa->id);
+
+    $mensagem = Message::where('direcao', 'out')->latest('id')->first();
+
+    expect($mensagem->corpo)->toContain($reuniao->token_convidado)
+        ->and($mensagem->tipo)->toBe('text');
+});
+
+it('nao abre duas salas na mesma conversa', function () {
+    // Duas salas fariam o cliente entrar numa e o atendente esperar na outra.
+    $tela = Livewire::actingAs($this->pessoa)->test(ConversationWindow::class)
+        ->call('abrir', $this->conversa->id);
+
+    $tela->call('chamarPorVideo');
+    $tela->call('chamarPorVideo');
+
+    expect(Meeting::count())->toBe(1);
+});
+
+it('sala vencida da lugar a uma nova', function () {
+    $tela = Livewire::actingAs($this->pessoa)->test(ConversationWindow::class)
+        ->call('abrir', $this->conversa->id);
+
+    $tela->call('chamarPorVideo');
+
+    Meeting::first()->update(['comecou_em' => now()->subHours(Meeting::HORAS_ATE_EXPIRAR + 1)]);
+
+    $tela->call('chamarPorVideo');
+
+    expect(Meeting::count())->toBe(2);
+});
+
+it('sem credenciais, a conversa avisa em vez de abrir sala', function () {
+    config()->set('services.livekit', ['url' => null, 'key' => null, 'secret' => null]);
+
+    Livewire::actingAs($this->pessoa)->test(ConversationWindow::class)
+        ->call('abrir', $this->conversa->id)
+        ->call('chamarPorVideo')
+        ->assertHasErrors('video');
+
+    expect(Meeting::count())->toBe(0);
+});
+
+it('fora da janela de 24h a sala abre mesmo assim, com o link na tela', function () {
+    // A sala existe e o atendente ja esta indo para ela: falha ao avisar nao desmancha nada.
+    $this->conversa->update(['ultima_entrada_em' => now()->subHours(30)]);
+    $this->canal->update(['tipo' => 'meta_cloud']);
+
+    Livewire::actingAs($this->pessoa)->test(ConversationWindow::class)
+        ->call('abrir', $this->conversa->id)
+        ->call('chamarPorVideo')
+        ->assertHasErrors('video')
+        ->assertDispatched('abrir-sala');
+
+    expect(Meeting::count())->toBe(1)
+        ->and(Message::where('direcao', 'out')->count())->toBe(0);
+});
+
+it('nao mistura conta', function () {
+    reuniaoDe($this);
+
+    $outra = Tenant::create(['nome' => 'Outra', 'slug' => 'video-alheia']);
+    TenantContext::set($outra->id);
+
+    expect(Meeting::count())->toBe(0);
+});

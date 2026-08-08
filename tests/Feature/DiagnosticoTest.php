@@ -146,11 +146,18 @@ it('nao repete o mesmo alerta dentro do silencio', function () {
     app()->instance(Diagnostico::class, new Diagnostico(fn () => false));
 
     $this->artisan('onchat:diagnostico --alertar');
+
+    // O que importa e que a SEGUNDA passada nao mande nada, e nao quantos problemas existem:
+    // numero fixo aqui quebra toda vez que uma verificacao nova entra no diagnostico, e o
+    // teste passa a falhar por um motivo que nao e o dele.
+    $daPrimeira = count(Http::recorded());
+
     $this->artisan('onchat:diagnostico --alertar');
 
-    // Quatro problemas, quatro avisos. Se repetisse, seriam oito — e alerta que
-    // repete passa a ser alerta que ninguem le.
-    Http::assertSentCount(4);
+    expect($daPrimeira)->toBeGreaterThan(0);
+
+    // Se repetisse, seriam o dobro — e alerta que repete passa a ser alerta que ninguem le.
+    Http::assertSentCount($daPrimeira);
 });
 
 it('alerta nao quebra quando a Evolution esta fora', function () {

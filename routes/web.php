@@ -117,3 +117,13 @@ Route::middleware('auth')->group(function () {
  * e unico no banco inteiro.
  */
 Route::get('/agendar/{slug}', App\Livewire\Publico\Reservar::class)->name('reservar');
+
+/*
+ * A sala de video.
+ *
+ * SEM AUTENTICACAO na rota, e um endereco so para os dois lados: o link e a credencial, e quem
+ * o recebeu pelo WhatsApp entra sem ter conta aqui. Quem tiver sessao da mesma conta e
+ * reconhecido dentro da tela e vira anfitriao — mas quem cumpre isso e o token do servidor de
+ * midia, nao a rota.
+ */
+Route::get('/sala/{token}', App\Livewire\Video\Sala::class)->name('sala');

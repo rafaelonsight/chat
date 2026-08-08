@@ -1,6 +1,18 @@
 <?php
 
 return [
+
+    /*
+     * Reuniao por video.
+     *
+     * O teto de gente na sala existe por PROCESSAMENTO, e nao por seguranca: cada camera
+     * publicando custa banda e CPU no servidor de midia. Oito cobre a reuniao de equipe e o
+     * atendimento com o cliente, que sao os dois casos reais.
+     */
+    'video' => [
+        'max_participantes' => (int) env('VIDEO_MAX_PARTICIPANTES', 8),
+    ],
+
     // Numero que recebe alerta por WhatsApp, em E.164 sem sinais (5584999998888).
     // Vazio = alerta so no log e no /saude.
     'alerta_whatsapp' => env('ONCHAT_ALERTA_WHATSAPP', ''),

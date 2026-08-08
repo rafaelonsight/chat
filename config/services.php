@@ -36,6 +36,32 @@ return [
     ],
 
 
+    /*
+     * Servidor de midia das reunioes por video.
+     *
+     * Sem os tres, o video some da tela em vez de dar erro: chamada de video e recurso a mais,
+     * e nao pode impedir ninguem de atender pelo chat, que e o que a pessoa veio fazer.
+     */
+    'livekit' => [
+        // O que o NAVEGADOR usa, por WebSocket.
+        'url'    => env('LIVEKIT_URL'),
+
+        /*
+         * O que o SERVIDOR usa para administrar salas.
+         *
+         * Separado porque os dois caminhos nao sao o mesmo: o navegador precisa passar pela
+         * internet e pelo proxy, e o PHP fala com o servidor de midia na propria maquina. Com
+         * um endereco so, a administracao de salas sairia pela internet para voltar ao mesmo
+         * lugar — e obrigaria a expor publicamente uma API que nao precisa ser publica.
+         *
+         * Vazio: deriva do endereco do navegador, trocando ws por http.
+         */
+        'api_url' => env('LIVEKIT_API_URL'),
+
+        'key'    => env('LIVEKIT_API_KEY'),
+        'secret' => env('LIVEKIT_API_SECRET'),
+    ],
+
     'evolution' => [
         'url' => env('EVOLUTION_BASE_URL', 'http://127.0.0.1:8081'),
         'key' => env('EVOLUTION_API_KEY'),

@@ -28,6 +28,19 @@
             Regra de horario passava as 20h no teste e falhava as 20h no ar.
         -->
         <env name="APP_TIMEZONE" value="America/Sao_Paulo"/>
+
+        <!--
+            Vídeo desligado no teste, sempre.
+
+            Sem isto, a suite passa a se comportar de um jeito no servidor que tem credencial
+            de video e de outro na maquina que nao tem — e a diferenca aparece longe daqui,
+            num teste de diagnostico que conta problemas. Quem precisa de video no teste liga
+            explicitamente, como o VideoTest faz.
+        -->
+        <env name="LIVEKIT_URL" value=""/>
+        <env name="LIVEKIT_API_URL" value=""/>
+        <env name="LIVEKIT_API_KEY" value=""/>
+        <env name="LIVEKIT_API_SECRET" value=""/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>

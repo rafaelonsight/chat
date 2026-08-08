@@ -206,6 +206,25 @@
                     </svg>
                 </button>
 
+                {{-- Chamada de video.
+
+                     Some quando o servidor nao tem video configurado, em vez de aparecer e dar
+                     erro: botao que so serve para avisar que nao funciona e ruido na barra que
+                     o atendente usa o dia inteiro. --}}
+                @if (app(\App\Services\Video\Livekit::class)->configurado())
+                    <button type="button" wire:click="chamarPorVideo"
+                            x-data
+                            x-on:abrir-sala.window="window.open($event.detail.url, '_blank', 'noopener')"
+                            title="Chamar por vídeo e mandar o link na conversa"
+                            class="rounded border border-amber-300 bg-amber-50 p-1.5 text-amber-700 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300 dark:hover:bg-amber-500/20">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                             stroke-width="1.8" stroke="currentColor" class="h-4 w-4">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+                        </svg>
+                    </button>
+                @endif
+
                 {{-- "Volto depois". Fecha a conversa junto — marcar como nao lida com ela
                      aberta na frente nao significaria nada. --}}
                 <button type="button" wire:click="marcarNaoLida"
@@ -342,6 +361,12 @@
                 </div>
             </div>
         @endif
+
+        @error('video')
+            <div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+                {{ $message }}
+            </div>
+        @enderror
 
         @error('encaminhar')
             <div class="bg-red-50 px-4 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ $message }}</div>
