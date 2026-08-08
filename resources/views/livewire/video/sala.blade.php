@@ -47,11 +47,98 @@
                             @error('nome') <span class="text-xs text-red-400">{{ $message }}</span> @enderror
                         </label>
 
-                        <button type="button" wire:click="entrar" wire:loading.attr="disabled"
-                                class="mt-4 w-full rounded-lg bg-amber-500 py-2.5 text-sm font-semibold text-gray-950 transition hover:bg-amber-400 disabled:opacity-60">
-                            <span wire:loading.remove wire:target="entrar">Entrar</span>
-                            <span wire:loading wire:target="entrar">Abrindo…</span>
-                        </button>
+                        {{--
+                            A PERMISSAO E PEDIDA AQUI, DENTRO DO CLIQUE.
+
+                            O navegador so abre a caixa de permissao de camera durante um gesto
+                            da pessoa. Antes, quem pedia era o codigo que roda DEPOIS da ida ao
+                            servidor — e nessa viagem o gesto se perde: o Safari do iPhone
+                            recusa na hora, sem nem perguntar.
+
+                            O fluxo e obtido e desligado no mesmo instante. O que interessa nao
+                            e o video, e a AUTORIZACAO, que fica valendo para a pagina inteira;
+                            quando a sala pedir a camera de novo, ja vem liberada e sem segunda
+                            caixa. Desligar na hora tambem evita o iPhone recusar a segunda
+                            captura da mesma camera por ela ainda estar em uso.
+
+                            Falhar aqui nao impede de entrar: quem nao tem camera participa
+                            ouvindo.
+                        --}}
+                        <div x-data="{ pedindo: false, bloqueado: false, detalhe: '' }">
+                            {{--
+                                A PERMISSAO E PEDIDA AQUI, DENTRO DO CLIQUE.
+
+                                O navegador so abre a caixa de permissao durante um gesto da
+                                pessoa. Pedir depois da ida ao servidor perde o gesto, e o
+                                Safari do iPhone recusa sem nem perguntar.
+
+                                O fluxo e obtido e desligado no mesmo instante: o que interessa
+                                nao e o video, e a AUTORIZACAO, que fica valendo para a pagina
+                                inteira. Desligar na hora tambem evita o iPhone recusar a
+                                segunda captura por a camera ainda estar em uso.
+
+                                FALHAR AQUI NAO IMPEDE DE ENTRAR — so muda o que a tela diz
+                                antes. Quem esta numa janela onde a camera nao existe precisa
+                                saber disso ANTES de entrar mudo numa reuniao e ficar tentando
+                                entender por que ninguem ouve.
+                            --}}
+                            <button type="button"
+                                    x-show="! bloqueado"
+                                    x-on:click="
+                                        pedindo = true;
+                                        try {
+                                            const fluxo = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                                            fluxo.getTracks().forEach(faixa => faixa.stop());
+                                            pedindo = false;
+                                            $wire.entrar();
+                                        } catch (e) {
+                                            detalhe = [e?.name, e?.message].filter(Boolean).join(': ');
+                                            bloqueado = true;
+                                            pedindo = false;
+                                        }
+                                    "
+                                    x-bind:disabled="pedindo"
+                                    wire:loading.attr="disabled"
+                                    class="mt-4 w-full rounded-lg bg-amber-500 py-2.5 text-sm font-semibold text-gray-950 transition hover:bg-amber-400 disabled:opacity-60">
+                                <span x-show="pedindo">Liberando câmera…</span>
+                                <span x-show="! pedindo">
+                                    <span wire:loading.remove wire:target="entrar">Entrar</span>
+                                    <span wire:loading wire:target="entrar">Abrindo…</span>
+                                </span>
+                            </button>
+
+                            {{-- O caminho mais provavel deste produto: o link viaja pelo
+                                 WhatsApp por projeto, e no iPhone ele abre numa janela que a
+                                 Apple nao autoriza a usar camera. Nao ha o que a pagina faca —
+                                 so ensinar o caminho. --}}
+                            <div x-show="bloqueado" x-cloak class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+                                <p class="text-sm font-medium text-amber-200">Abra em outro navegador</p>
+                                <p class="mt-1 text-xs text-amber-100/80">
+                                    Esta janela não libera a câmera nem o microfone. Toque em
+                                    <strong>•••</strong> ou no ícone de compartilhar e escolha
+                                    <strong>Abrir no Safari</strong> (ou no Chrome). O endereço é o mesmo.
+                                </p>
+
+                                <div class="mt-3 flex flex-wrap gap-2">
+                                    <button type="button"
+                                            x-data="{ copiado: false }"
+                                            @click="navigator.clipboard.writeText(window.location.href); copiado = true; setTimeout(() => copiado = false, 1600)"
+                                            class="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-gray-950">
+                                        <span x-show="! copiado">Copiar o link</span>
+                                        <span x-show="copiado" x-cloak>Copiado!</span>
+                                    </button>
+
+                                    {{-- Entrar assim mesmo continua valendo: as vezes a pessoa
+                                         so quer ouvir, e barrar seria pior que entrar mudo. --}}
+                                    <button type="button" @click="bloqueado = false; $wire.entrar()"
+                                            class="rounded-lg border border-amber-400/40 px-3 py-1.5 text-xs text-amber-100">
+                                        Entrar assim mesmo, só ouvindo
+                                    </button>
+                                </div>
+
+                                <p class="mt-2 text-[10px] text-amber-100/40" x-text="detalhe"></p>
+                            </div>
+                        </div>
                     @endif
                 </div>
             </div>
@@ -62,8 +149,35 @@
                 x-init="entrar(@js($tokenDeVideo), @js($urlDeVideo))"
                 class="flex flex-1 flex-col"
             >
+                {{-- Aviso, e nao lapide: se a pessoa esta dentro, a sala continua embaixo
+                     dele. Vermelho de tela cheia faria ela fechar a aba achando que quebrou. --}}
                 <template x-if="erro">
-                    <div class="border-b border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200" x-text="erro"></div>
+                    <div class="border-b border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                        <div class="flex items-start gap-2">
+                            <span class="flex-1" x-text="erro"></span>
+                            <button type="button" @click="erro = ''" class="shrink-0 opacity-70">&times;</button>
+                        </div>
+
+                        <div class="mt-2 flex flex-wrap items-center gap-2">
+                            {{-- Tentar de novo DENTRO do clique: e o unico momento em que o
+                                 navegador aceita abrir a caixa de permissao. Quem negou por
+                                 reflexo volta atras sem recarregar e perder a reuniao. --}}
+                            <button type="button" @click="tentarMidia()"
+                                    class="rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold text-gray-950 hover:bg-amber-400">
+                                Tentar câmera de novo
+                            </button>
+
+                            <button type="button"
+                                    x-data="{ copiado: false }"
+                                    @click="navigator.clipboard.writeText(window.location.href); copiado = true; setTimeout(() => copiado = false, 1600)"
+                                    class="rounded-full border border-amber-400/40 px-3 py-1 text-xs">
+                                <span x-show="! copiado">Copiar o link</span>
+                                <span x-show="copiado" x-cloak>Copiado!</span>
+                            </button>
+
+                            <span class="text-[10px] opacity-50" x-text="detalhe"></span>
+                        </div>
+                    </div>
                 </template>
 
                 <template x-if="entrando">

@@ -20,6 +20,10 @@ document.addEventListener('alpine:init', () => {
         entrando: false,
         dentro: false,
         erro: '',
+        // O nome tecnico da falha, em letra miuda. Existe para diagnostico: "NotAllowedError"
+        // nao ajuda quem esta na reuniao, mas e a primeira coisa que se pergunta quando
+        // alguem manda print dizendo que nao funcionou.
+        detalhe: '',
         saiu: false,
 
         // controles
@@ -49,18 +53,64 @@ document.addEventListener('alpine:init', () => {
 
                 await this.sala.connect(url, token);
 
-                // Camera e microfone juntos, num pedido so: dois pedidos seguidos viram duas
-                // caixas de permissao e a segunda quase sempre e negada por reflexo.
-                await this.sala.localParticipant.enableCameraAndMicrophone();
-
+                // JA ESTA NA SALA. Marcado ANTES de mexer em camera, e essa ordem e o conserto
+                // de um defeito que derrubava toda entrada: a falha ao abrir a camera caia no
+                // catch de baixo, que desconectava a sala inteira. O servidor registrava
+                // "participante ativo" e, 50ms depois, "CLIENT_REQUEST_LEAVE" — parecia
+                // problema de rede e era a nossa propria mao desligando.
                 this.dentro = true;
+
+                try {
+                    // Camera e microfone juntos, num pedido so: dois pedidos seguidos viram
+                    // duas caixas de permissao e a segunda quase sempre e negada por reflexo.
+                    await this.sala.localParticipant.enableCameraAndMicrophone();
+                } catch (e) {
+                    // SEM CAMERA AINDA SE PARTICIPA. Quem negou a permissao, esta num aparelho
+                    // sem camera, ou com ela ocupada por outro programa, continua na reuniao
+                    // vendo e ouvindo os outros. Derrubar a pessoa por causa disso e trocar
+                    // uma limitacao por uma porta fechada.
+                    this.anotarFalha(e);
+                }
+
                 this.recontar();
             } catch (e) {
+                // Aqui e falha de CONEXAO, e ai nao ha sala para ficar.
                 this.erro = this.explicar(e);
                 this.desmontar();
             } finally {
                 this.entrando = false;
             }
+        },
+
+        anotarFalha(e) {
+            this.erro = this.explicar(e);
+            this.detalhe = [e?.name, e?.message].filter(Boolean).join(': ');
+            this.camera = false;
+            this.microfone = false;
+        },
+
+        /**
+         * Tentar a camera de novo, sem sair da sala.
+         *
+         * Roda no clique, que e o unico momento em que o navegador aceita abrir a caixa de
+         * permissao. Quem negou por reflexo — e negar por reflexo e o caso comum — tem como
+         * voltar atras sem recarregar a pagina e perder a reuniao.
+         */
+        async tentarMidia() {
+            if (! this.sala) return;
+
+            this.erro = '';
+            this.detalhe = '';
+
+            try {
+                await this.sala.localParticipant.enableCameraAndMicrophone();
+                this.camera = true;
+                this.microfone = true;
+            } catch (e) {
+                this.anotarFalha(e);
+            }
+
+            this.recontar();
         },
 
         /**
@@ -72,6 +122,20 @@ document.addEventListener('alpine:init', () => {
          */
         explicar(e) {
             const nome = e?.name ?? '';
+
+            /*
+             * O NAVEGADOR DE DENTRO DO WHATSAPP NAO ENTREGA CAMERA.
+             *
+             * No iPhone, link aberto pelo WhatsApp abre numa janela embutida que a Apple nao
+             * autoriza a usar camera nem microfone. Nao ha o que a pagina faca a respeito — a
+             * unica saida e abrir no Safari, e a pessoa precisa ser ensinada a fazer isso.
+             *
+             * E o caso mais provavel deste produto: o link de reuniao viaja pelo WhatsApp por
+             * projeto, entao quase todo convidado vai chegar exatamente por esse caminho.
+             */
+            if (this.dentroDeAplicativo()) {
+                return 'Este navegador não libera a câmera. Toque em ••• (ou no ícone de compartilhar) e escolha "Abrir no Safari" — o link é o mesmo.';
+            }
 
             if (nome === 'NotAllowedError') {
                 return 'Você precisa liberar a câmera e o microfone para o navegador. Toque no cadeado ao lado do endereço e permita.';
@@ -86,6 +150,24 @@ document.addEventListener('alpine:init', () => {
             }
 
             return 'Não foi possível entrar na sala. Verifique sua conexão e tente de novo.';
+        },
+
+        /**
+         * Estamos numa janela embutida de aplicativo?
+         *
+         * Nao da para perguntar isso ao navegador, entao se olha o que da: no iPhone, a janela
+         * do WhatsApp se apresenta como Safari mas SEM a marca "Safari/" completa, e alguns
+         * aplicativos se identificam pelo nome. E heuristica, e por isso ela so decide o TEXTO
+         * do aviso — nunca se a pessoa entra ou nao.
+         */
+        dentroDeAplicativo() {
+            const ua = navigator.userAgent || '';
+            const ehIOS = /iPhone|iPad|iPod/i.test(ua);
+
+            if (/FBAN|FBAV|Instagram|Line\/|WhatsApp/i.test(ua)) return true;
+
+            // iPhone dizendo que e Safari mas sem "Version/" e a janela embutida.
+            return ehIOS && /AppleWebKit/i.test(ua) && ! /Version\//i.test(ua);
         },
 
         ouvir() {
