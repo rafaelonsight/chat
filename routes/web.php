@@ -127,3 +127,25 @@ Route::get('/agendar/{slug}', App\Livewire\Publico\Reservar::class)->name('reser
  * midia, nao a rota.
  */
 Route::get('/sala/{token}', App\Livewire\Video\Sala::class)->name('sala');
+
+/*
+ * O chat que mora no site do cliente.
+ *
+ * PUBLICO E SEM SESSAO: quem chama e o navegador de um visitante que acabou de entrar num
+ * site qualquer. A conta sai da chave do canal, que viaja no HTML de quem instalou o widget, e
+ * nunca do corpo da requisicao.
+ *
+ * Sem CSRF porque nao ha sessao para proteger: o token do visitante nao autoriza nada alem de
+ * falar na propria conversa dele, e o que segura abuso e o teto por IP dentro do controlador.
+ */
+Route::prefix('chat-do-site/{chave}')
+    ->name('chat-do-site.')
+    ->group(function () {
+        Route::post('/abrir', [App\Http\Controllers\ChatDoSiteController::class, 'abrir'])->name('abrir');
+        Route::post('/mandar', [App\Http\Controllers\ChatDoSiteController::class, 'mandar'])->name('mandar');
+        Route::get('/mensagens', [App\Http\Controllers\ChatDoSiteController::class, 'mensagens'])->name('mensagens');
+    });
+
+// O widget em si. Servido pelo app para quem instala colar UMA linha, e para a correcao de
+// amanha chegar sozinha em todos os sites que ja instalaram.
+Route::get('/widget.js', App\Http\Controllers\WidgetDoSiteController::class)->name('widget');

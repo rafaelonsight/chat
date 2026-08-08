@@ -20,6 +20,7 @@ class Enviadores
         return match ($canal->tipo) {
             Channel::EVOLUTION  => app(EvolutionEnviador::class),
             Channel::META_CLOUD => app(MetaCloudEnviador::class),
+            Channel::SITE       => app(SiteEnviador::class),
             default             => throw new ConfiguracaoInvalida(
                 "Canal \"{$canal->nome}\" tem tipo \"{$canal->tipo}\", que nao sabe enviar."
             ),

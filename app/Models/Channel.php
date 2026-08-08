@@ -17,14 +17,19 @@ class Channel extends Model
     /** API oficial da Meta: janela de 24h, template aprovado, e SEM grupo. */
     public const META_CLOUD = 'meta_cloud';
 
+    /** O chat que fica no site do cliente. Sem numero, sem provedor. */
+    public const SITE = 'site';
+
     public const TIPOS = [
         self::EVOLUTION  => 'WhatsApp via Evolution (não oficial)',
         self::META_CLOUD => 'WhatsApp oficial (Meta Cloud API)',
+        self::SITE       => 'Chat no site',
     ];
 
     protected $fillable = [
         'tenant_id', 'tipo', 'nome', 'instance_name',
         'webhook_secret', 'telefone_e164', 'status', 'conectado_em', 'ultimo_erro',
+        'site_key', 'site_dominio', 'site_saudacao',
         'meta_phone_number_id', 'meta_waba_id', 'meta_token', 'meta_business_id',
     ];
 
@@ -106,6 +111,22 @@ class Channel extends Model
     public function exigeJanela(): bool
     {
         return $this->tipo === self::META_CLOUD;
+    }
+
+    public function ehSite(): bool
+    {
+        return $this->tipo === self::SITE;
+    }
+
+    /**
+     * O trecho que a pessoa cola no site dela.
+     *
+     * Uma linha, e nada de iframe: iframe nao consegue se posicionar sozinho por cima da
+     * pagina, e obrigaria quem instala a mexer em CSS que ele nao conhece.
+     */
+    public function trechoDoSite(): string
+    {
+        return '<script src="'.url('/widget.js').'" data-chave="'.$this->site_key.'" defer></script>';
     }
 
     /**

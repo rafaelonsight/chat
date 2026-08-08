@@ -13,8 +13,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // A Evolution nao envia token CSRF; a autenticidade vem do segredo na URL.
-        $middleware->validateCsrfTokens(except: ['webhooks/*']);
+        /*
+         * Rotas sem sessao, e portanto sem CSRF para proteger.
+         *
+         * webhooks: a Evolution e a Meta nao mandam token; a autenticidade vem do segredo na
+         * URL e da assinatura do corpo.
+         *
+         * chat-do-site: quem chama e o navegador de um visitante em OUTRO dominio. Nao existe
+         * sessao nossa ali para alguem sequestrar — o token do visitante so autoriza falar na
+         * conversa dele mesmo, e o que segura abuso e o teto por IP no controlador.
+         *
+         * Declarado AQUI e nao com withoutMiddleware na rota: o Laravel 11 renomeou a classe
+         * do CSRF, entao a remocao por nome de classe passa batida sem erro nenhum — o
+         * sintoma foi um 419 que nao aparecia em log algum.
+         */
+        $middleware->validateCsrfTokens(except: ['webhooks/*', 'chat-do-site/*']);
         //
     })
     ->withExceptions(function (Exceptions $exceptions): void {
