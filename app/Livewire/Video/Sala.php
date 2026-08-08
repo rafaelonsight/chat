@@ -3,6 +3,7 @@
 namespace App\Livewire\Video;
 
 use App\Models\Meeting;
+use App\Models\MeetingMessage;
 use App\Models\MeetingParticipant;
 use App\Services\Video\Livekit;
 use App\Support\TenantContext;
@@ -182,6 +183,60 @@ class Sala extends Component
         RateLimiter::hit($chave, 600);
 
         return true;
+    }
+
+    /**
+     * Grava um recado do bate-papo.
+     *
+     * QUEM ENTREGA AO VIVO E O CANAL DE DADOS DA PROPRIA SALA, e nao esta chamada: o recado
+     * aparece na tela dos outros no mesmo instante, sem passar por aqui. O servidor e o
+     * REGISTRO — o que fica para quem chegar depois, e para quem for ler o atendimento amanha.
+     *
+     * Falhar aqui nao apaga o que ja apareceu na tela de todo mundo. Perder o registro de um
+     * recado e ruim; perder o recado no meio da conversa e pior.
+     */
+    public function gravarMensagem(string $texto): void
+    {
+        $texto = trim($texto);
+
+        if ($texto === '' || ! $this->entrou) {
+            return;
+        }
+
+        $reuniao = $this->reuniao();
+
+        if (! $reuniao->aberta()) {
+            return;
+        }
+
+        MeetingMessage::create([
+            'tenant_id'  => $reuniao->tenant_id,
+            'meeting_id' => $reuniao->id,
+            'user_id'    => $this->souDaEquipe() ? auth()->id() : null,
+            'nome'       => trim($this->nome) ?: 'Convidado',
+            'corpo'      => mb_substr($texto, 0, MeetingMessage::LIMITE),
+        ]);
+    }
+
+    /**
+     * O que ja foi dito, para quem chega depois.
+     *
+     * Vai para a tela UMA vez, no momento de entrar. Redesenhar isto a cada recado faria o
+     * Livewire mexer no HTML da sala em plena chamada — e mexer no HTML de uma chamada e como
+     * a chamada cai.
+     *
+     * @return list<array{nome: string, corpo: string, hora: string, daEquipe: bool}>
+     */
+    public function historico(): array
+    {
+        return $this->reuniao()->messages()->with('user')->get()
+            ->map(fn (MeetingMessage $m) => [
+                'nome'     => $m->nome,
+                'corpo'    => $m->corpo,
+                'hora'     => $m->created_at->format('H:i'),
+                'daEquipe' => $m->daEquipe(),
+            ])
+            ->all();
     }
 
     public function render()

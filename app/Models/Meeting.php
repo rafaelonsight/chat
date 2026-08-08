@@ -61,6 +61,11 @@ class Meeting extends Model
         return $this->hasMany(MeetingParticipant::class);
     }
 
+    public function messages(): HasMany
+    {
+        return $this->hasMany(MeetingMessage::class)->orderBy('id');
+    }
+
     public function scopeAbertas(Builder $q): Builder
     {
         return $q->where('status', self::EM_ANDAMENTO);

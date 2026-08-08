@@ -3,7 +3,7 @@
 use App\Filament\Pages\Reunioes;
 use App\Livewire\Inbox\ConversationWindow;
 use App\Livewire\Video\Sala;
-use App\Models\{Channel, Contact, Conversation, Meeting, MeetingParticipant, Message, Tenant, User};
+use App\Models\{Channel, Contact, Conversation, Meeting, MeetingMessage, MeetingParticipant, Message, Tenant, User};
 use App\Services\Video\Livekit;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\Http;
@@ -562,4 +562,119 @@ it('nao encerra reuniao de outra conta nem sabendo o id', function () {
     Livewire::actingAs($this->pessoa)->test(Reunioes::class)->call('encerrar', $alheia->id);
 
     expect($alheia->refresh()->aberta())->toBeTrue();
+});
+
+// -------------------------------------------------------------- o bate-papo
+
+it('o recado da sala fica gravado', function () {
+    /*
+     * GRAVADO, e nao so ao vivo. Num sistema de atendimento, o que se digita durante a chamada
+     * e justamente o que nao pode sumir: o numero de serie que o cliente leu do aparelho, o
+     * endereco que ele corrigiu. Chat que evapora ao fechar a aba faz a pessoa pedir tudo de
+     * novo depois -- ou pior, nao pedir e errar a visita.
+     */
+    $r = reuniaoDe($this);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    Livewire::test(Sala::class, ['token' => $r->token_convidado])
+        ->set('nome', 'Joana')
+        ->call('entrar')
+        ->call('gravarMensagem', 'O número de série é XPTO-4471');
+
+    $recado = MeetingMessage::withoutGlobalScope('tenant')->first();
+
+    expect($recado->corpo)->toBe('O número de série é XPTO-4471')
+        ->and($recado->nome)->toBe('Joana')
+        ->and($recado->user_id)->toBeNull()
+        ->and($recado->meeting_id)->toBe($r->id);
+});
+
+it('quem e da equipe fica identificado no recado', function () {
+    $r = reuniaoDe($this);
+
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->call('gravarMensagem', 'já estou vendo aqui');
+
+    expect(MeetingMessage::first()->user_id)->toBe($this->pessoa->id);
+});
+
+it('quem chega depois le o que ja foi dito', function () {
+    // Entrou dez minutos atrasado e se situa, em vez de parar a reuniao perguntando "o que eu
+    // perdi?".
+    $r = reuniaoDe($this);
+
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->call('gravarMensagem', 'primeiro recado');
+
+    $historico = Livewire::actingAs($this->pessoa)
+        ->test(Sala::class, ['token' => $r->token_convidado])
+        ->instance()
+        ->historico();
+
+    expect($historico)->toHaveCount(1)
+        ->and($historico[0]['corpo'])->toBe('primeiro recado')
+        ->and($historico[0]['daEquipe'])->toBeTrue();
+});
+
+it('quem nao entrou na sala nao escreve nela', function () {
+    // O token abre a porta; escrever exige ter passado por ela.
+    $r = reuniaoDe($this);
+
+    auth()->logout();
+    TenantContext::forget();
+
+    Livewire::test(Sala::class, ['token' => $r->token_convidado])
+        ->call('gravarMensagem', 'oi');
+
+    expect(MeetingMessage::withoutGlobalScope('tenant')->count())->toBe(0);
+});
+
+it('reuniao encerrada nao recebe mais recado', function () {
+    $r = reuniaoDe($this);
+
+    $tela = Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar');
+
+    $r->encerrar();
+
+    $tela->call('gravarMensagem', 'tarde demais');
+
+    expect(MeetingMessage::count())->toBe(0);
+});
+
+it('recado vazio nao vira linha no banco', function () {
+    $r = reuniaoDe($this);
+
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->call('gravarMensagem', '   ');
+
+    expect(MeetingMessage::count())->toBe(0);
+});
+
+it('recado enorme e cortado, e nao recusado', function () {
+    // Quem colou um texto gigante nao pode simplesmente ver o recado sumir.
+    $r = reuniaoDe($this);
+
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->call('gravarMensagem', str_repeat('a', MeetingMessage::LIMITE + 500));
+
+    expect(mb_strlen(MeetingMessage::first()->corpo))->toBe(MeetingMessage::LIMITE);
+});
+
+it('o recado morre junto com a reuniao', function () {
+    $r = reuniaoDe($this);
+
+    Livewire::actingAs($this->pessoa)->test(Sala::class, ['token' => $r->token_convidado])
+        ->call('entrar')
+        ->call('gravarMensagem', 'oi');
+
+    $r->delete();
+
+    expect(MeetingMessage::withoutGlobalScope('tenant')->count())->toBe(0);
 });

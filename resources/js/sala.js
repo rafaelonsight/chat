@@ -66,14 +66,35 @@ document.addEventListener('alpine:init', () => {
 
             maoLevantada: false,
 
+            // ---------------------------------------------------------- o bate-papo
+            /** @type {Array<{nome: string, corpo: string, hora: string, daEquipe: boolean}>} */
+            recados: [],
+
+            painel: false,
+
+            /**
+             * Quantos chegaram com o painel fechado.
+             *
+             * Existe porque numa chamada ninguem fica olhando para o icone do chat: sem o
+             * numero, o recado escrito com a resposta que a pessoa esperava passa despercebido
+             * ate a reuniao acabar.
+             */
+            naoLidos: 0,
+
+            rascunho: '',
+
             // ------------------------------------------------------- dispositivos
             microfones: [],
             cameras: [],
             microfoneAtual: '',
             cameraAtual: '',
 
-            async entrar(token, url) {
+            async entrar(token, url, historico = []) {
                 if (this.entrando || this.dentro) return;
+
+                // O que ja foi dito, para quem chega depois: entrou dez minutos atrasado e le
+                // em vez de parar a reuniao perguntando "o que eu perdi?".
+                this.recados = Array.isArray(historico) ? [...historico] : [];
 
                 this.entrando = true;
                 this.erro = '';
@@ -232,6 +253,17 @@ document.addEventListener('alpine:init', () => {
             marcarSinal(identidade, dado) {
                 const atual = this.sinais[identidade] ?? {};
 
+                if (dado.tipo === 'chat') {
+                    this.guardarRecado({
+                        nome: dado.nome || 'Convidado',
+                        corpo: dado.corpo,
+                        hora: dado.hora,
+                        daEquipe: Boolean(dado.daEquipe),
+                    });
+
+                    return;
+                }
+
                 if (dado.tipo === 'mao') {
                     this.sinais[identidade] = { ...atual, mao: Boolean(dado.valor) };
                 }
@@ -253,6 +285,69 @@ document.addEventListener('alpine:init', () => {
                 }
 
                 this.recontar();
+            },
+
+            guardarRecado(recado) {
+                this.recados.push(recado);
+
+                if (! this.painel) this.naoLidos++;
+
+                this.$nextTick(() => this.rolarRecados());
+            },
+
+            rolarRecados() {
+                const caixa = this.$refs.recados;
+
+                if (caixa) caixa.scrollTop = caixa.scrollHeight;
+            },
+
+            abrirPainel(sim) {
+                this.painel = sim;
+
+                if (sim) {
+                    this.naoLidos = 0;
+                    this.$nextTick(() => this.rolarRecados());
+                }
+            },
+
+            /**
+             * Manda um recado.
+             *
+             * DOIS CAMINHOS, E CADA UM FAZ UMA COISA. O canal de dados da sala entrega na tela
+             * dos outros no mesmo instante — e o que faz o chat parecer chat. O servidor guarda,
+             * e e o que sobra para quem chegar depois e para quem for ler o atendimento amanha.
+             *
+             * Num sistema de atendimento isso nao e luxo: o que se digita durante a chamada e
+             * justamente o que nao pode sumir — o numero de serie que o cliente leu do aparelho,
+             * o endereco que ele corrigiu.
+             *
+             * Se a gravacao falhar, o recado JA apareceu para todo mundo. Perder o registro e
+             * ruim; perder o recado no meio da conversa e pior.
+             */
+            mandarRecado() {
+                const corpo = this.rascunho.trim();
+
+                if (! corpo || ! sala) return;
+
+                const meu = {
+                    nome: sala.localParticipant.name || 'Você',
+                    corpo,
+                    hora: new Date().toTimeString().slice(0, 5),
+                    daEquipe: false,
+                    souEu: true,
+                };
+
+                this.guardarRecado(meu);
+                this.rascunho = '';
+
+                this.enviarSinal({
+                    tipo: 'chat',
+                    corpo,
+                    nome: meu.nome,
+                    hora: meu.hora,
+                });
+
+                this.$wire?.gravarMensagem(corpo);
             },
 
             alternarMao() {

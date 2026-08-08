@@ -1,4 +1,16 @@
-<div class="flex min-h-screen flex-col">
+{{--
+    ALTURA FIXA, E NADA ROLA.
+
+    Era min-h-screen: a pagina podia crescer para baixo, e crescia. Com uma pessoa so, o quadro
+    ocupava a largura inteira e o formato 16:9 fazia a altura passar da tela — a barra de
+    controles ia parar embaixo da dobra, e quem quisesse desligar o microfone tinha de ROLAR a
+    pagina no meio da chamada.
+
+    h-dvh e nao h-screen por causa do celular: a barra do navegador aparece e some conforme a
+    pessoa rola, e o dvh acompanha isso. Com vh, a barra de controles fica escondida atras da
+    barra do Safari exatamente na hora de sair da chamada.
+--}}
+<div class="flex h-dvh flex-col overflow-hidden">
     {{-- ------------------------------------------------------------- cabeçalho --}}
     <header class="flex items-center gap-3 border-b border-white/10 px-4 py-3">
         <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-500 font-bold text-gray-950">
@@ -11,7 +23,7 @@
         </div>
     </header>
 
-    <main class="flex flex-1 flex-col">
+    <main class="flex min-h-0 flex-1 flex-col">
         @if ($recado)
             <div class="border-b border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
                 {{ $recado }}
@@ -20,7 +32,7 @@
 
         {{-- ---------------------------------------------------- antes de entrar --}}
         @if (! $entrou)
-            <div class="flex flex-1 items-center justify-center p-6">
+            <div class="flex flex-1 items-center justify-center overflow-y-auto p-6">
                 <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-gray-900 p-6">
                     @if (! $reuniao->aberta())
                         <h1 class="text-lg font-semibold">Reunião encerrada</h1>
@@ -144,9 +156,19 @@
             </div>
         @else
             {{-- ------------------------------------------------------- dentro --}}
+            {{--
+                wire:ignore: DEPOIS DE CONECTAR, O LIVEWIRE NAO ENCOSTA MAIS AQUI.
+
+                Gravar um recado e uma ida ao servidor, e toda ida ao servidor faz o Livewire
+                redesenhar o HTML do componente. Redesenhar o HTML de uma chamada em andamento e
+                como a chamada cai: o elemento de video e trocado e a imagem morre no meio da
+                conversa. Os botoes com wire:click continuam funcionando — eles sobem pelo
+                elemento raiz, que fica de fora.
+            --}}
             <div
+                wire:ignore
                 x-data="salaDeVideo()"
-                x-init="entrar(@js($tokenDeVideo), @js($urlDeVideo))"
+                x-init="entrar(@js($tokenDeVideo), @js($urlDeVideo), @js($this->historico()))"
                 class="flex flex-1 flex-col"
             >
                 {{-- Aviso, e nao lapide: se a pessoa esta dentro, a sala continua embaixo
@@ -195,11 +217,12 @@
                 </template>
 
                 <template x-if="dentro">
-                    <div class="flex flex-1 flex-col">
+                    <div class="flex min-h-0 flex-1 flex-col">
+                      <div class="flex min-h-0 flex-1">
                         {{-- os quadros --}}
-                        <div class="grid flex-1 content-center gap-2 p-2" :class="colunas">
+                        <div class="grid min-h-0 flex-1 auto-rows-fr gap-2 p-2" :class="colunas">
                             <template x-for="p in pessoas" :key="p.id">
-                                <div class="relative aspect-video overflow-hidden rounded-xl bg-gray-900 ring-1"
+                                <div class="relative min-h-0 overflow-hidden rounded-xl bg-gray-900 ring-1"
                                      :class="p.falando ? 'ring-amber-400' : 'ring-white/10'">
 
                                     {{-- -scale-x-100 vira o quadro na horizontal: a pessoa
@@ -246,6 +269,69 @@
                                 </div>
                             </template>
                         </div>
+
+                        {{--
+                            O BATE-PAPO DA SALA.
+
+                            AO LADO no computador, POR CIMA no celular. Numa tela estreita nao
+                            existe espaco para os dois: dividir daria meia lista de recados e
+                            meio video, e nenhum dos dois serviria.
+
+                            O que se digita aqui e GRAVADO, e nao so ao vivo. Num sistema de
+                            atendimento, e justamente o que nao pode sumir: o numero de serie
+                            que o cliente leu do aparelho, o endereco que ele corrigiu, o link
+                            que o tecnico colou.
+                        --}}
+                        <div x-show="painel" x-cloak
+                             class="absolute inset-0 z-30 flex flex-col bg-gray-900 sm:relative sm:inset-auto sm:z-auto sm:w-80 sm:shrink-0 sm:border-l sm:border-white/10">
+
+                            <div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-100">Conversa</p>
+                                    <p class="text-[11px] text-gray-500">Fica gravada no atendimento</p>
+                                </div>
+                                <button type="button" @click="abrirPainel(false)"
+                                        class="grid h-8 w-8 place-items-center rounded-full text-gray-400 hover:bg-white/10 hover:text-white">&times;</button>
+                            </div>
+
+                            <div x-ref="recados" class="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
+                                <template x-if="! recados.length">
+                                    <p class="text-xs text-gray-500">
+                                        Nada escrito ainda. Dá para mandar um link, um endereço, um
+                                        número de série — fica salvo depois da chamada.
+                                    </p>
+                                </template>
+
+                                <template x-for="(r, i) in recados" :key="i">
+                                    <div>
+                                        <p class="flex items-baseline gap-2">
+                                            <span class="text-xs font-medium text-amber-400" x-text="r.nome"></span>
+                                            <span class="text-[10px] text-gray-500" x-text="r.hora"></span>
+                                        </p>
+                                        {{-- break-words: link comprido colado sem espaco estoura
+                                             a coluna e empurra o video para fora da tela. --}}
+                                        <p class="whitespace-pre-wrap break-words text-sm text-gray-200" x-text="r.corpo"></p>
+                                    </div>
+                                </template>
+                            </div>
+
+                            <div class="border-t border-white/10 p-3">
+                                <div class="flex gap-2">
+                                    {{-- Enter manda, Shift+Enter pula linha: e o que o dedo de
+                                         quem usa WhatsApp o dia inteiro ja espera. --}}
+                                    <textarea x-model="rascunho" rows="1" maxlength="800"
+                                              @keydown.enter.prevent="if (! $event.shiftKey) mandarRecado()"
+                                              placeholder="Escreva um recado…"
+                                              class="min-w-0 flex-1 resize-none rounded-lg border-white/15 bg-gray-800 text-sm text-gray-100 placeholder-gray-500 focus:border-amber-500 focus:ring-amber-500"></textarea>
+
+                                    <button type="button" @click="mandarRecado()"
+                                            class="shrink-0 rounded-lg bg-amber-500 px-3 text-sm font-semibold text-gray-950 hover:bg-amber-400">
+                                        Enviar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                      </div>
 
                         {{--
                             A BARRA DE CONTROLES.
@@ -399,7 +485,25 @@
                                 </div>
                             </div>
 
-                            {{-- ------------------------------------------------------------------ mais --}}
+                            {{-- ------------------------------------------------------------------ chat --}}
+    <button type="button" @click="abrirPainel(! painel)" title="Conversa"
+            class="relative grid h-11 w-11 place-items-center rounded-full"
+            :class="painel ? 'bg-amber-500 text-gray-950' : 'bg-white/10 text-white hover:bg-white/15'">
+        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 0 1-.825-.242m9.345-8.334a2.126 2.126 0 0 0-.476-.095 48.64 48.64 0 0 0-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0 0 11.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155" />
+        </svg>
+
+        {{-- O numero existe porque numa chamada ninguem fica olhando para o icone do chat:
+             sem ele, o recado com a resposta que a pessoa esperava passa despercebido ate a
+             reuniao acabar. --}}
+        <template x-if="naoLidos > 0">
+            <span class="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+                  x-text="naoLidos > 9 ? '9+' : naoLidos"></span>
+        </template>
+    </button>
+
+    {{-- ------------------------------------------------------------------ mais --}}
                             <div class="relative" x-data="{ aberto: false }" @click.outside="aberto = false">
                                 <button type="button" @click="aberto = ! aberto" title="Mais opções"
                                         class="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/15">
