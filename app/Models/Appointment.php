@@ -20,8 +20,12 @@ class Appointment extends Model
         self::LEMBRETE    => 'Lembrete — só você vê',
     ];
 
+    // O booking_page_id entra aqui junto com a coluna, e nao depois. Campo fora do fillable
+    // e descartado em SILENCIO pelo create(): a reserva gravava sem vinculo com a pagina, o
+    // teto por dia parava de contar e o indice unico da vaga nem chegava a valer. Quinta vez
+    // que esta armadilha custa uma rodada esta semana.
     protected $fillable = [
-        'tenant_id', 'user_id', 'criado_por', 'contact_id', 'conversation_id',
+        'tenant_id', 'user_id', 'criado_por', 'contact_id', 'conversation_id', 'booking_page_id',
         'tipo', 'titulo', 'descricao', 'comeca_em', 'duracao_min', 'concluido_em',
     ];
 
@@ -46,6 +50,18 @@ class Appointment extends Model
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);
+    }
+
+    /** De qual link de agendamento veio, quando veio de um. */
+    public function bookingPage(): BelongsTo
+    {
+        return $this->belongsTo(BookingPage::class);
+    }
+
+    /** Marcado pelo proprio cliente, e nao pela equipe. */
+    public function veioDoLink(): bool
+    {
+        return $this->booking_page_id !== null;
     }
 
     /**

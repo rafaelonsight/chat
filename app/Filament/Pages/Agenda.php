@@ -5,6 +5,7 @@ namespace App\Filament\Pages;
 use App\Models\Appointment;
 use App\Models\Contact;
 use App\Models\User;
+use App\Support\DataPtBr;
 use BackedEnum;
 use Filament\Pages\Page;
 use Filament\Support\Enums\Width;
@@ -60,17 +61,13 @@ class Agenda extends Page
         'lista'  => 'Lista',
     ];
 
-    public const MESES = [
-        1 => 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-        'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
-    ];
+    // Os mesmos nomes da pagina publica de reserva: duas listas de meses divergem no dia em
+    // que alguem corrigir um acento numa so.
+    public const MESES = DataPtBr::MESES;
 
-    public const DIAS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+    public const DIAS = DataPtBr::DIAS;
 
-    public const DIAS_LONGOS = [
-        'domingo', 'segunda-feira', 'terça-feira', 'quarta-feira',
-        'quinta-feira', 'sexta-feira', 'sábado',
-    ];
+    public const DIAS_LONGOS = DataPtBr::DIAS_LONGOS;
 
     public string $visao = 'semana';
 

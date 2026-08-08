@@ -17,6 +17,16 @@ use Illuminate\Support\Facades\Queue;
  */
 
 beforeEach(function () {
+    /*
+     * RELOGIO PARADO NUMA TERCA DE MANHA.
+     *
+     * Metade dos testes daqui e sobre a JANELA DE HORARIO — o freio que impede o disparo de
+     * madrugada. Com a hora da maquina, esses testes passavam o dia inteiro e falhavam
+     * sozinhos depois das 23h, quando a propria janela que eles configuram fecha. Teste que
+     * depende de quando roda nao afirma nada: ele so avisa que ja e tarde.
+     */
+    $this->travelTo(Illuminate\Support\Carbon::parse('2026-08-11 10:00:00'));
+
     $this->conta = Tenant::create(['nome' => 'Conta', 'slug' => 'camp']);
     TenantContext::set($this->conta->id);
 

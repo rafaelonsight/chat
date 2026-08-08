@@ -108,3 +108,12 @@ Route::middleware('auth')->group(function () {
         ]);
     })->name('sessao.limpar-navegador');
 });
+
+/*
+ * A pagina publica de reserva.
+ *
+ * SEM AUTENTICACAO e sem tenant na URL: quem abre e o cliente do cliente, que nao tem conta
+ * aqui e nem deveria precisar de uma para marcar meia hora. A conta sai do slug, que por isso
+ * e unico no banco inteiro.
+ */
+Route::get('/agendar/{slug}', App\Livewire\Publico\Reservar::class)->name('reservar');

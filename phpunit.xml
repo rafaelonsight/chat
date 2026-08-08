@@ -19,6 +19,15 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+
+        <!--
+            O MESMO FUSO DA PRODUCAO.
+
+            Sem isto o teste roda em UTC enquanto o app roda em Brasilia, e ai o teste deixa de
+            responder a pergunta que ele existe para responder: nao e mais o mesmo relogio.
+            Regra de horario passava as 20h no teste e falhava as 20h no ar.
+        -->
+        <env name="APP_TIMEZONE" value="America/Sao_Paulo"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
