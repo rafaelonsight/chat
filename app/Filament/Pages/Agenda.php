@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Models\Appointment;
+use App\Models\Channel;
 use App\Models\Contact;
 use App\Models\User;
 use App\Support\DataPtBr;
@@ -108,6 +109,31 @@ class Agenda extends Page
     public ?string $recadoDoVideo = null;
 
     /**
+     * Os convidados em edicao.
+     *
+     * Vivem em memoria ate salvar porque o compromisso NOVO ainda nao tem id: gravar convidado
+     * antes exigiria criar o compromisso no primeiro clique e limpar depois se a pessoa
+     * desistir — e compromisso fantasma na agenda de alguem e pior que formulario com estado.
+     *
+     * @var list<array{contact_id: ?int, nome: string, email: ?string}>
+     */
+    public array $convidados = [];
+
+    public string $buscaConvidado = '';
+
+    public string $emailNovo = '';
+
+    /** A caixa de avisar por WhatsApp. */
+    public bool $avisando = false;
+
+    public ?int $canalDoAviso = null;
+
+    /** @var list<int> */
+    public array $paraAvisar = [];
+
+    public string $buscaParaAvisar = '';
+
+    /**
      * O numero vermelho no menu: o que ESTA ATRASADO.
      *
      * Nao conta o que e hoje mais tarde — isso ainda esta no prazo, e badge que acende por algo
@@ -193,7 +219,10 @@ class Agenda extends Page
 
     public function novo(): void
     {
-        $this->reset(['editando', 'titulo', 'descricao', 'contact_id', 'buscaContato', 'por_video', 'recadoDoVideo']);
+        $this->reset([
+            'editando', 'titulo', 'descricao', 'contact_id', 'buscaContato', 'por_video',
+            'recadoDoVideo', 'convidados', 'buscaConvidado', 'emailNovo',
+        ]);
         $this->tipo = Appointment::COMPROMISSO;
         $this->duracao_min = 60;
         $this->user_id = auth()->id();
@@ -236,6 +265,14 @@ class Agenda extends Page
         $this->buscaContato = (string) $a->contact?->nomeExibicao();
         $this->por_video = $a->ehPorVideo();
         $this->recadoDoVideo = null;
+
+        $this->convidados = $a->guests->map(fn ($c) => [
+            'contact_id' => $c->contact_id,
+            'nome'       => $c->nome,
+            'email'      => $c->email,
+        ])->all();
+
+        $this->reset(['buscaConvidado', 'emailNovo']);
         $this->formAberto = true;
     }
 
@@ -275,6 +312,8 @@ class Agenda extends Page
             ]);
         }
 
+        $this->gravarConvidados($compromisso);
+
         $this->cuidarDoVideo($compromisso->refresh());
 
         // O calendario anda ate onde a coisa foi marcada: salvar e nao ver o que salvou parece
@@ -283,6 +322,157 @@ class Agenda extends Page
 
         $this->formAberto = false;
         $this->editando = null;
+    }
+
+    /**
+     * Passa a lista da tela para o banco.
+     *
+     * QUEM SAIU DA LISTA E APAGADO, e por isso as datas de aviso se perdem junto — e o certo:
+     * se a pessoa voltar para a lista depois, ela precisa ser avisada de novo, e um "avisado
+     * em" sobrevivente diria que nao.
+     *
+     * updateOrCreate e nao create: salvar o compromisso duas vezes nao pode duplicar convidado
+     * nem apagar quem ja foi avisado.
+     */
+    private function gravarConvidados(Appointment $compromisso): void
+    {
+        $vivos = [];
+
+        foreach ($this->convidados as $c) {
+            $chave = $c['contact_id']
+                ? ['appointment_id' => $compromisso->id, 'contact_id' => $c['contact_id']]
+                : ['appointment_id' => $compromisso->id, 'email' => $c['email']];
+
+            $convidado = \App\Models\AppointmentGuest::updateOrCreate($chave + ['tenant_id' => $compromisso->tenant_id], [
+                'nome'  => $c['nome'],
+                'email' => $c['email'],
+            ]);
+
+            $vivos[] = $convidado->id;
+        }
+
+        $compromisso->guests()->whereKeyNot($vivos)->delete();
+    }
+
+    // -------------------------------------------------------------- avisar
+
+    /** O bloco de texto do convite, para a tela oferecer o copiar. */
+    public function textoDoConvite(): string
+    {
+        if (! $this->editando) {
+            return '';
+        }
+
+        $compromisso = Appointment::visivelPara(auth()->user())->find($this->editando);
+
+        return $compromisso ? app(\App\Services\Agendamento\Convite::class)->texto($compromisso) : '';
+    }
+
+    public function enviarPorEmail(): void
+    {
+        $compromisso = Appointment::visivelPara(auth()->user())->find($this->editando);
+
+        if (! $compromisso) {
+            return;
+        }
+
+        $r = app(\App\Services\Agendamento\Convite::class)->porEmail($compromisso->refresh());
+
+        if ($r['enviados'] === 0) {
+            $this->recadoDoVideo = $r['sem_email'] > 0
+                ? 'Nenhum convidado tem e-mail cadastrado. Use o copiar, ou avise pelo WhatsApp.'
+                : 'Adicione convidados antes de enviar o convite.';
+
+            return;
+        }
+
+        $this->recadoDoVideo = $r['enviados'] === 1
+            ? 'Convite saindo por e-mail para 1 convidado.'
+            : 'Convites saindo por e-mail para '.$r['enviados'].' convidados.';
+
+        if ($r['sem_email'] > 0) {
+            $this->recadoDoVideo .= ' '.$r['sem_email'].' sem e-mail cadastrado ficaram de fora.';
+        }
+    }
+
+    /**
+     * Abre a caixa de avisar por WhatsApp.
+     *
+     * Ja vem com os convidados que sao contatos marcados: eles sao a resposta certa em quase
+     * todo caso, e desmarcar da menos trabalho que procurar cada um de novo.
+     */
+    public function abrirAviso(): void
+    {
+        $this->paraAvisar = collect($this->convidados)
+            ->pluck('contact_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        $canais = Channel::orderBy('nome')->get();
+
+        // Com um canal so nao ha escolha a fazer; com mais de um, escolher pelo primeiro
+        // mandaria do numero errado sem avisar.
+        $this->canalDoAviso = $canais->count() === 1 ? $canais->first()->id : null;
+
+        $this->buscaParaAvisar = '';
+        $this->avisando = true;
+    }
+
+    public function alternarParaAvisar(int $contactId): void
+    {
+        $this->paraAvisar = in_array($contactId, $this->paraAvisar, true)
+            ? array_values(array_diff($this->paraAvisar, [$contactId]))
+            : [...$this->paraAvisar, $contactId];
+    }
+
+    public function avisarPorWhatsapp(): void
+    {
+        $compromisso = Appointment::visivelPara(auth()->user())->find($this->editando);
+
+        if (! $compromisso) {
+            return;
+        }
+
+        if (! $this->canalDoAviso) {
+            $this->addError('canalDoAviso', 'Escolha por qual número enviar.');
+
+            return;
+        }
+
+        if ($this->paraAvisar === []) {
+            $this->addError('paraAvisar', 'Escolha pelo menos um contato.');
+
+            return;
+        }
+
+        $canal = Channel::find($this->canalDoAviso);
+
+        if (! $canal) {
+            return;
+        }
+
+        $r = app(\App\Services\Agendamento\Convite::class)
+            ->porWhatsapp($compromisso->refresh(), $canal, $this->paraAvisar);
+
+        $this->recadoDoVideo = $r['enviados'] === 1
+            ? 'Convite enviado no WhatsApp de 1 contato.'
+            : 'Convite enviado no WhatsApp de '.$r['enviados'].' contatos.';
+
+        if ($r['fora'] !== []) {
+            $this->recadoDoVideo .= ' Fora da janela de 24 horas, ficaram sem receber: '
+                .implode(', ', $r['fora']).'. Copie o convite e mande por fora.';
+        }
+
+        // A lista pode ter crescido: quem foi avisado entrou como convidado.
+        $this->convidados = $compromisso->refresh()->guests->map(fn ($c) => [
+            'contact_id' => $c->contact_id,
+            'nome'       => $c->nome,
+            'email'      => $c->email,
+        ])->all();
+
+        $this->avisando = false;
     }
 
     /**
@@ -334,6 +524,74 @@ class Agenda extends Page
                 .'e mande para quem vai participar.',
             default => 'Sala criada, mas não consegui mandar o link. Copie no compromisso e mande por fora.',
         };
+    }
+
+    /**
+     * Poe um contato na lista de convidados.
+     *
+     * O contato do compromisso ("com quem e") e coisa diferente de convidado: da para marcar
+     * uma visita com a Padaria do Ze e convidar o eletricista, que nao e o cliente.
+     */
+    public function convidarContato(int $id): void
+    {
+        $contato = Contact::find($id);
+
+        if (! $contato) {
+            return;
+        }
+
+        foreach ($this->convidados as $c) {
+            if (($c['contact_id'] ?? null) === $contato->id) {
+                $this->buscaConvidado = '';
+
+                return;
+            }
+        }
+
+        $this->convidados[] = [
+            'contact_id' => $contato->id,
+            'nome'       => $contato->nomeExibicao(),
+            'email'      => $contato->email,
+        ];
+
+        $this->buscaConvidado = '';
+    }
+
+    /** Convidado que nao e contato do CRM: o socio, o fornecedor que aparece uma vez. */
+    public function convidarEmail(): void
+    {
+        $email = mb_strtolower(trim($this->emailNovo));
+
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $this->addError('emailNovo', 'Esse e-mail não parece certo.');
+
+            return;
+        }
+
+        foreach ($this->convidados as $c) {
+            if (mb_strtolower((string) ($c['email'] ?? '')) === $email) {
+                $this->emailNovo = '';
+
+                return;
+            }
+        }
+
+        $this->convidados[] = [
+            'contact_id' => null,
+            // Sem nome, o proprio e-mail serve: melhor que "Convidado 3" na lista.
+            'nome'       => \Illuminate\Support\Str::before($email, '@'),
+            'email'      => $email,
+        ];
+
+        $this->emailNovo = '';
+        $this->resetErrorBag('emailNovo');
+    }
+
+    public function tirarConvidado(int $indice): void
+    {
+        unset($this->convidados[$indice]);
+
+        $this->convidados = array_values($this->convidados);
     }
 
     public function escolherContato(int $id): void
@@ -454,6 +712,9 @@ class Agenda extends Page
                 'pessoas' => User::orderBy('name')->get(),
                 'candidatos' => collect(),
                 'agora' => now(),
+                'paraConvidar' => collect(),
+                'contatosDoAviso' => collect(),
+                'canais' => collect(),
             ];
         }
 
@@ -474,7 +735,42 @@ class Agenda extends Page
             'pessoas'    => User::orderBy('name')->get(),
             'candidatos' => $this->candidatos(),
             'agora'      => now(),
+            'paraConvidar'    => $this->paraConvidar(),
+            'contatosDoAviso' => $this->contatosDoAviso(),
+            'canais'          => Channel::orderBy('nome')->get(),
         ];
+    }
+
+    /** Os contatos que a busca de convidado achou. */
+    private function paraConvidar(): Collection
+    {
+        if (mb_strlen(trim($this->buscaConvidado)) < 2) {
+            return collect();
+        }
+
+        return Contact::ativos()
+            ->where('nome', 'ilike', '%'.trim($this->buscaConvidado).'%')
+            ->orderBy('nome')->limit(8)->get();
+    }
+
+    /**
+     * A lista da caixa de avisar por WhatsApp.
+     *
+     * Sem busca, mostra os ULTIMOS contatos e nao "todos": conta com dez mil contatos
+     * desenharia dez mil linhas com caixinha, e a tela morre antes de aparecer.
+     */
+    private function contatosDoAviso(): Collection
+    {
+        if (! $this->avisando) {
+            return collect();
+        }
+
+        return Contact::ativos()
+            ->when(
+                mb_strlen(trim($this->buscaParaAvisar)) >= 2,
+                fn ($q) => $q->where('nome', 'ilike', '%'.trim($this->buscaParaAvisar).'%'),
+            )
+            ->orderByDesc('id')->limit(40)->get();
     }
 
     private function consulta()

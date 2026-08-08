@@ -74,6 +74,11 @@ class Appointment extends Model
         return $this->meeting !== null;
     }
 
+    public function guests(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(AppointmentGuest::class)->orderBy('nome');
+    }
+
     /** Marcado pelo proprio cliente, e nao pela equipe. */
     public function veioDoLink(): bool
     {

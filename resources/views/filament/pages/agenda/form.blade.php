@@ -76,6 +76,119 @@
             @endif
         </div>
 
+        {{-- ------------------------------------------------------- convidados --}}
+        @if ($tipo === \App\Models\Appointment::COMPROMISSO)
+            <div class="rounded-lg border border-gray-200 p-3 dark:border-white/10">
+                <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    Convidados
+                </p>
+
+                @if (count($convidados))
+                    <div class="mt-2 flex flex-wrap gap-1">
+                        @foreach ($convidados as $i => $c)
+                            <span wire:key="cv-{{ $i }}"
+                                  class="flex items-center gap-1.5 rounded-full bg-gray-100 py-1 pl-2.5 pr-1 text-xs dark:bg-white/10">
+                                <span class="text-gray-800 dark:text-gray-100">{{ $c['nome'] }}</span>
+
+                                @if (! empty($c['email']))
+                                    <span class="text-gray-400">{{ $c['email'] }}</span>
+                                @else
+                                    {{-- Sem e-mail o convite por e-mail nao alcança essa pessoa,
+                                         e vale dizer antes e nao depois de tentar. --}}
+                                    <span class="text-amber-600 dark:text-amber-400" title="Sem e-mail cadastrado">sem e-mail</span>
+                                @endif
+
+                                <button type="button" wire:click="tirarConvidado({{ $i }})"
+                                        title="Tirar da lista"
+                                        class="grid h-4 w-4 place-items-center rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-white/10">&times;</button>
+                            </span>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="mt-1 text-xs text-gray-400">
+                        Ninguém convidado ainda. Você pode convidar contatos do CRM ou digitar um
+                        e-mail de quem não é cadastrado.
+                    </p>
+                @endif
+
+                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Do CRM</span>
+                        <input type="text" wire:model.live.debounce.300ms="buscaConvidado"
+                               placeholder="nome do contato"
+                               class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+
+                        @if ($paraConvidar->isNotEmpty())
+                            <div class="mt-1 flex flex-wrap gap-1">
+                                @foreach ($paraConvidar as $p)
+                                    <button type="button" wire:key="pc-{{ $p->id }}"
+                                            wire:click="convidarContato({{ $p->id }})"
+                                            class="rounded-full border border-gray-300 px-2.5 py-1 text-xs hover:bg-gray-100 dark:border-white/20 dark:hover:bg-white/5">
+                                        + {{ $p->nomeExibicao() }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
+
+                    <div>
+                        <span class="text-xs text-gray-500 dark:text-gray-400">Por e-mail</span>
+                        <div class="mt-1 flex gap-1">
+                            <input type="email" wire:model="emailNovo" wire:keydown.enter="convidarEmail"
+                                   placeholder="alguem@empresa.com.br"
+                                   class="min-w-0 flex-1 rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+                            <x-filament::button size="xs" color="gray" wire:click="convidarEmail">Add</x-filament::button>
+                        </div>
+                        @error('emailNovo') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
+                    </div>
+                </div>
+
+                {{-- ------------------------------------------------ como avisar --}}
+                @if ($editando)
+                    @php($convite = $this->textoDoConvite())
+
+                    <div class="mt-4 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3 dark:border-white/5">
+                        {{-- O copiar existe porque os outros dois falham: convidado sem e-mail e
+                             sem WhatsApp, grupo de família, Telegram. Um bloco pronto resolve
+                             todos esses de uma vez, sem depender de integração nenhuma. --}}
+                        <button type="button"
+                                x-data="{ copiado: false }"
+                                x-on:click="
+                                    navigator.clipboard.writeText(@js($convite));
+                                    copiado = true;
+                                    setTimeout(() => copiado = false, 1600);
+                                "
+                                class="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5">
+                            <span x-show="! copiado">Copiar convite</span>
+                            <span x-show="copiado" x-cloak class="text-emerald-600 dark:text-emerald-400">Copiado!</span>
+                        </button>
+
+                        <x-filament::button size="xs" color="gray" wire:click="enviarPorEmail"
+                                            icon="heroicon-o-envelope">
+                            Enviar por e-mail
+                        </x-filament::button>
+
+                        <x-filament::button size="xs" color="gray" wire:click="abrirAviso"
+                                            icon="heroicon-o-chat-bubble-left-right">
+                            Avisar por WhatsApp
+                        </x-filament::button>
+                    </div>
+
+                    {{-- O texto que o botão copia, à mostra: quem cola em outro lugar quer ver
+                         antes o que vai colar. --}}
+                    <details class="mt-2">
+                        <summary class="cursor-pointer text-[11px] text-gray-400">ver o texto do convite</summary>
+                        <pre class="mt-1 whitespace-pre-wrap rounded-lg bg-gray-50 p-2 text-[11px] text-gray-600 dark:bg-white/5 dark:text-gray-300">{{ $convite }}</pre>
+                    </details>
+                @else
+                    <p class="mt-3 border-t border-gray-100 pt-3 text-[11px] text-gray-400 dark:border-white/5">
+                        Salve o compromisso para poder enviar o convite por e-mail, por WhatsApp,
+                        ou copiar o texto.
+                    </p>
+                @endif
+            </div>
+        @endif
+
         {{-- ------------------------------------------------------------- por vídeo --}}
         @if ($tipo === \App\Models\Appointment::COMPROMISSO)
             <div class="rounded-lg border border-gray-200 p-3 dark:border-white/10">

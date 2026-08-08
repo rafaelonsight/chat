@@ -117,6 +117,10 @@
             @include('filament.pages.agenda.form')
         @endif
 
+        @if ($avisando)
+            @include('filament.pages.agenda.aviso')
+        @endif
+
         {{-- ---------------------------------------------------------- a tela --}}
         @if ($this->visao === 'mes')
             @include('filament.pages.agenda.mes')
