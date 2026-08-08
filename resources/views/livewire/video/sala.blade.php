@@ -290,7 +290,26 @@
 
                 <template x-if="dentro">
                     <div class="flex min-h-0 flex-1 flex-col">
-                      <div class="flex min-h-0 flex-1">
+                      <div class="relative flex min-h-0 flex-1">
+
+                        {{--
+                            AS REAÇÕES SOBEM AQUI, no meio da área de vídeo.
+
+                            pointer-events-none porque isto fica por cima de todo mundo: uma
+                            camada que engole clique deixaria os quadros e o painel sem resposta
+                            durante os dois segundos e meio da animação.
+                        --}}
+                        <div class="pointer-events-none absolute inset-0 z-30 flex items-center justify-center">
+                            <template x-for="r in reacoes" :key="r.id">
+                                <div class="reacao-sobe absolute flex flex-col items-center"
+                                     :style="`margin-left: ${r.desvio}px`">
+                                    <span class="text-6xl drop-shadow-lg" x-text="r.emoji"></span>
+                                    <span class="mt-1 rounded-full bg-black/60 px-2 py-0.5 text-[11px] text-white"
+                                          x-text="r.nome"></span>
+                                </div>
+                            </template>
+                        </div>
+
                         {{-- os quadros --}}
                         <div class="grid min-h-0 flex-1 auto-rows-fr gap-2 p-2" :class="colunas">
                             <template x-for="p in pessoas" :key="p.id">
@@ -323,13 +342,6 @@
                                     <template x-if="p.mao">
                                         <span class="absolute left-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-amber-500 text-base"
                                               title="Pediu a vez">&#9995;</span>
-                                    </template>
-
-                                    {{-- A reação some em quatro segundos: emoji preso no quadro
-                                         de alguém por uma hora deixa de ser reação e vira
-                                         adesivo. --}}
-                                    <template x-if="p.reacao">
-                                        <span class="absolute right-2 top-2 text-3xl drop-shadow" x-text="p.reacao"></span>
                                     </template>
 
                                     <div class="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5">

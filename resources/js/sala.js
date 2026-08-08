@@ -34,6 +34,19 @@ document.addEventListener('alpine:init', () => {
         /** identidade -> { video, tela, audio } com as faixas de verdade, fora do Proxy. */
         const faixas = new Map();
 
+        /*
+         * O AudioContext tambem mora aqui fora, pela MESMA razao das faixas: objeto de
+         * navegador dentro do estado do Alpine vira Proxy, e Proxy nao pode ser clonado. Ja
+         * custou uma tarde com o DataCloneError; nao custa duas.
+         *
+         * Um so para a sala inteira: cada `new AudioContext()` e um recurso de audio do
+         * sistema, e o navegador limita quantos existem ao mesmo tempo.
+         */
+        let audio = null;
+
+        /** Numera as reacoes que estao subindo na tela. Contador, e nao sorteio. */
+        let proximaReacao = 0;
+
         return {
             // ---------------------------------------------------------- estado da tela
             entrando: false,
@@ -63,6 +76,17 @@ document.addEventListener('alpine:init', () => {
              * repetir o DataCloneError. { identidade: { mao: bool, reacao: '👍' } }
              */
             sinais: {},
+
+            /**
+             * As reacoes SUBINDO na tela, e nao grudadas em ninguem.
+             *
+             * Reacao presa ao quadro de uma pessoa por quatro segundos deixa de ser reacao e
+             * vira adesivo — e num quadro pequeno de celular ela ainda tapa o rosto de quem
+             * esta falando. Subindo no meio da tela, ela e vista por todo mundo e some sozinha.
+             *
+             * @type {Array<{id: number, emoji: string, nome: string, desvio: number}>}
+             */
+            reacoes: [],
 
             maoLevantada: false,
 
@@ -266,22 +290,22 @@ document.addEventListener('alpine:init', () => {
 
                 if (dado.tipo === 'mao') {
                     this.sinais[identidade] = { ...atual, mao: Boolean(dado.valor) };
+
+                    /*
+                     * O APITO E SO PARA MAO DOS OUTROS, e so ao LEVANTAR.
+                     *
+                     * Levantar a mao e um pedido de vez, e pedido de vez que ninguem escuta nao
+                     * e pedido — quem esta falando esta olhando para a propria tela, nao para o
+                     * quadro do colega. Apitar na propria mao seria treinar a pessoa a ignorar
+                     * o som, e apitar ao baixar seria barulho por uma coisa que ja acabou.
+                     */
+                    if (dado.valor && identidade !== sala?.localParticipant?.identity) {
+                        this.apitar();
+                    }
                 }
 
                 if (dado.tipo === 'reacao') {
-                    this.sinais[identidade] = { ...atual, reacao: dado.emoji };
-
-                    // Reacao some sozinha: emoji preso no quadro de alguem por uma hora deixa
-                    // de ser reacao e vira adesivo.
-                    setTimeout(() => {
-                        const agora = this.sinais[identidade] ?? {};
-
-                        if (agora.reacao === dado.emoji) {
-                            this.sinais[identidade] = { ...agora, reacao: '' };
-                        }
-
-                        this.recontar();
-                    }, 4000);
+                    this.soltarReacao(dado.emoji, dado.nome || 'Alguém');
                 }
 
                 this.recontar();
@@ -350,6 +374,61 @@ document.addEventListener('alpine:init', () => {
                 this.$wire?.gravarMensagem(corpo);
             },
 
+            /**
+             * Solta uma reacao para subir no meio da tela.
+             *
+             * O desvio horizontal existe para duas reacoes no mesmo instante nao subirem
+             * exatamente uma em cima da outra e parecerem uma so.
+             */
+            soltarReacao(emoji, nome) {
+                const id = ++proximaReacao;
+
+                this.reacoes.push({ id, emoji, nome, desvio: (id % 5) * 14 - 28 });
+
+                // Some sozinha, no mesmo tempo da animacao. Guardar o que ja saiu de vista so
+                // faria a lista crescer para sempre numa reuniao longa.
+                setTimeout(() => {
+                    this.reacoes = this.reacoes.filter((r) => r.id !== id);
+                }, 2600);
+            },
+
+            /**
+             * Dois tons curtos, gerados na hora.
+             *
+             * Sem arquivo de audio de proposito: arquivo e mais um pedido que pode dar 404 num
+             * deploy e falhar calado justo quando importa. O navegador ja liberou audio nesta
+             * pagina — a pessoa clicou em entrar e esta ouvindo os outros —, entao aqui nao ha
+             * o problema do gesto.
+             */
+            apitar() {
+                try {
+                    audio = audio ?? new (window.AudioContext ?? window.webkitAudioContext)();
+
+                    if (audio.state === 'suspended') audio.resume();
+
+                    const agora = audio.currentTime;
+
+                    [[880, 0], [1320, 0.14]].forEach(([hz, atraso]) => {
+                        const osc = audio.createOscillator();
+                        const vol = audio.createGain();
+
+                        osc.type = 'sine';
+                        osc.frequency.value = hz;
+
+                        // Sobe e desce o volume: onda cortada no zero estala.
+                        vol.gain.setValueAtTime(0, agora + atraso);
+                        vol.gain.linearRampToValueAtTime(0.16, agora + atraso + 0.01);
+                        vol.gain.linearRampToValueAtTime(0, agora + atraso + 0.13);
+
+                        osc.connect(vol).connect(audio.destination);
+                        osc.start(agora + atraso);
+                        osc.stop(agora + atraso + 0.14);
+                    });
+                } catch (e) {
+                    // audio bloqueado: a mao levantada continua aparecendo na tela
+                }
+            },
+
             alternarMao() {
                 this.maoLevantada = ! this.maoLevantada;
 
@@ -361,11 +440,11 @@ document.addEventListener('alpine:init', () => {
             },
 
             reagir(emoji) {
-                const eu = sala?.localParticipant?.identity;
+                const nome = sala?.localParticipant?.name || 'Você';
 
-                if (eu) this.marcarSinal(eu, { tipo: 'reacao', emoji });
+                this.soltarReacao(emoji, nome);
 
-                this.enviarSinal({ tipo: 'reacao', emoji });
+                this.enviarSinal({ tipo: 'reacao', emoji, nome });
             },
 
             /**
@@ -505,7 +584,6 @@ document.addEventListener('alpine:init', () => {
                         temImagem: Boolean(video || tela),
                         espelhar: souEu && ! tela && this.ehCameraFrontal(video),
                         mao: Boolean(sinal.mao),
-                        reacao: sinal.reacao || '',
                     };
                 };
 
