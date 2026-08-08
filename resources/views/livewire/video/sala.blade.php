@@ -222,6 +222,21 @@
                                         </div>
                                     </template>
 
+                                    {{-- A mão fica no alto e não some sozinha: ela é um pedido
+                                         de vez, e pedido que some antes de ser atendido não
+                                         serve para nada. --}}
+                                    <template x-if="p.mao">
+                                        <span class="absolute left-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-amber-500 text-base"
+                                              title="Pediu a vez">&#9995;</span>
+                                    </template>
+
+                                    {{-- A reação some em quatro segundos: emoji preso no quadro
+                                         de alguém por uma hora deixa de ser reação e vira
+                                         adesivo. --}}
+                                    <template x-if="p.reacao">
+                                        <span class="absolute right-2 top-2 text-3xl drop-shadow" x-text="p.reacao"></span>
+                                    </template>
+
                                     <div class="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5">
                                         <span class="truncate text-xs font-medium text-white" x-text="p.nome"></span>
                                         <template x-if="p.semSom">
@@ -232,37 +247,205 @@
                             </template>
                         </div>
 
-                        {{-- os controles --}}
-                        <div class="flex flex-wrap items-center justify-center gap-2 border-t border-white/10 px-4 py-3">
-                            <button type="button" @click="alternarMicrofone()"
-                                    class="rounded-full px-4 py-2 text-xs font-medium transition"
-                                    :class="microfone ? 'bg-white/10 text-gray-100 hover:bg-white/15' : 'bg-red-500 text-white hover:bg-red-400'"
-                                    x-text="microfone ? 'Microfone' : 'Sem som'"></button>
+                        {{--
+                            A BARRA DE CONTROLES.
 
-                            <button type="button" @click="alternarCamera()"
-                                    class="rounded-full px-4 py-2 text-xs font-medium transition"
-                                    :class="camera ? 'bg-white/10 text-gray-100 hover:bg-white/15' : 'bg-red-500 text-white hover:bg-red-400'"
-                                    x-text="camera ? 'Câmera' : 'Sem câmera'"></button>
+                            Icone redondo em vez de pilula com texto, e a razao e o celular: cinco palavras lado a lado
+                            quebram em duas linhas e comem a altura que era do video. Icone tem o mesmo tamanho em
+                            qualquer lingua, e todo mundo ja aprendeu o que cada um significa em outro aplicativo.
 
+                            A COR DIZ O ESTADO: apagado e neutro, vermelho e desligado. Vermelho aqui nao e erro — e
+                            "os outros nao estao te ouvindo", que e a informacao que a pessoa precisa de relance.
+                        --}}
+                        <div class="flex flex-wrap items-center justify-center gap-2 border-t border-white/10 px-3 py-3">
+
+                            {{-- ---------------------------------------------------- microfone + aparelhos --}}
+                            <div class="flex items-center rounded-full"
+                                 :class="microfone ? 'bg-white/10' : 'bg-red-500'"
+                                 x-data="{ lista: false }" @click.outside="lista = false">
+
+                                <button type="button" @click="alternarMicrofone()"
+                                        :title="microfone ? 'Desligar o microfone' : 'Ligar o microfone'"
+                                        class="grid h-11 w-11 place-items-center rounded-full text-white">
+                                    <svg x-show="microfone" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                              d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
+                                    </svg>
+                                    <svg x-show="! microfone" x-cloak class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                              d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M3 3l18 18" />
+                                    </svg>
+                                </button>
+
+                                {{-- A setinha so aparece quando ha o que escolher. Seta que abre lista de um item
+                                     so ensina a pessoa a nao clicar em setinha nenhuma. --}}
+                                <template x-if="microfones.length > 1">
+                                    <div class="relative">
+                                        <button type="button" @click="lista = ! lista" title="Escolher o microfone"
+                                                class="grid h-11 w-6 place-items-center rounded-r-full text-white/70 hover:text-white">
+                                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+                                            </svg>
+                                        </button>
+
+                                        <div x-show="lista" x-cloak
+                                             class="absolute bottom-14 left-1/2 z-40 w-64 -translate-x-1/2 overflow-hidden rounded-xl bg-gray-800 py-1 shadow-xl ring-1 ring-white/10">
+                                            <template x-for="d in microfones" :key="d.id">
+                                                <button type="button" @click="trocarDispositivo('audioinput', d.id); lista = false"
+                                                        class="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-gray-200 hover:bg-white/10">
+                                                    <span class="w-3 text-amber-400" x-text="d.id === microfoneAtual ? '✓' : ''"></span>
+                                                    <span class="truncate" x-text="d.nome"></span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+
+                            {{-- ------------------------------------------------------ câmera + aparelhos --}}
+                            <div class="flex items-center rounded-full"
+                                 :class="camera ? 'bg-white/10' : 'bg-red-500'"
+                                 x-data="{ lista: false }" @click.outside="lista = false">
+
+                                <button type="button" @click="alternarCamera()"
+                                        :title="camera ? 'Desligar a câmera' : 'Ligar a câmera'"
+                                        class="grid h-11 w-11 place-items-center rounded-full text-white">
+                                    <svg x-show="camera" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                              d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25Z" />
+                                    </svg>
+                                    <svg x-show="! camera" x-cloak class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                              d="m15.75 10.5 4.72-4.72a.75.75 0 0 1 1.28.53v11.38a.75.75 0 0 1-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 0 0 2.25-2.25v-9a2.25 2.25 0 0 0-2.25-2.25h-9A2.25 2.25 0 0 0 2.25 7.5v9a2.25 2.25 0 0 0 2.25 2.25ZM3 3l18 18" />
+                                    </svg>
+                                </button>
+
+                                <template x-if="cameras.length > 1">
+                                    <div class="relative">
+                                        <button type="button" @click="lista = ! lista" title="Escolher a câmera"
+                                                class="grid h-11 w-6 place-items-center rounded-r-full text-white/70 hover:text-white">
+                                            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
+                                            </svg>
+                                        </button>
+
+                                        <div x-show="lista" x-cloak
+                                             class="absolute bottom-14 left-1/2 z-40 w-64 -translate-x-1/2 overflow-hidden rounded-xl bg-gray-800 py-1 shadow-xl ring-1 ring-white/10">
+                                            <template x-for="d in cameras" :key="d.id">
+                                                <button type="button" @click="trocarDispositivo('videoinput', d.id); lista = false"
+                                                        class="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-gray-200 hover:bg-white/10">
+                                                    <span class="w-3 text-amber-400" x-text="d.id === cameraAtual ? '✓' : ''"></span>
+                                                    <span class="truncate" x-text="d.nome"></span>
+                                                </button>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+
+                            {{-- --------------------------------------------------------------- virar câmera --}}
+                            {{-- O botão que o atendimento por vídeo existe para ter: "me mostra o aparelho".
+                                 Só aparece quando há mais de uma câmera, que na prática quer dizer celular. --}}
+                            <template x-if="cameras.length > 1">
+                                <button type="button" @click="virarCamera()" title="Virar a câmera"
+                                        class="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/15">
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                              d="M16.023 9.348h4.992V4.356m0 4.992-3.181-3.183a8.25 8.25 0 0 0-13.803 3.7M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7" />
+                                    </svg>
+                                </button>
+                            </template>
+
+                            {{-- ---------------------------------------------------------------- mostrar tela --}}
                             <button type="button" @click="alternarTela()"
-                                    class="rounded-full px-4 py-2 text-xs font-medium transition"
-                                    :class="compartilhando ? 'bg-amber-500 text-gray-950 hover:bg-amber-400' : 'bg-white/10 text-gray-100 hover:bg-white/15'"
-                                    x-text="compartilhando ? 'Parar de mostrar' : 'Mostrar tela'"></button>
-
-                            <button type="button" @click="sair()"
-                                    class="rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white hover:bg-red-400">
-                                Sair
+                                    :title="compartilhando ? 'Parar de mostrar a tela' : 'Mostrar a minha tela'"
+                                    class="grid h-11 w-11 place-items-center rounded-full text-white"
+                                    :class="compartilhando ? 'bg-amber-500 text-gray-950' : 'bg-white/10 hover:bg-white/15'">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M9 17.25v1.007a3 3 0 0 1-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0 1 15 18.257V17.25m6-12V15a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 15V5.25m18 0A2.25 2.25 0 0 0 18.75 3H5.25A2.25 2.25 0 0 0 3 5.25m18 0V12a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 12V5.25" />
+                                </svg>
                             </button>
 
-                            @if ($this->souDaEquipe())
-                                {{-- Encerrar derruba todo mundo, e por isso e da equipe: quem
-                                     obedece e o servidor de midia, pelo token, e nao este botao. --}}
-                                <button type="button" wire:click="encerrar"
-                                        wire:confirm="Encerrar a chamada para todos?"
-                                        class="rounded-full border border-red-400/40 px-4 py-2 text-xs font-medium text-red-300 hover:bg-red-500/10">
-                                    Encerrar para todos
+                            {{-- ------------------------------------------------------------- levantar a mão --}}
+                            {{-- Serve para pedir a vez sem cortar quem está falando. Numa chamada de três é
+                                 cortesia; numa de oito é a diferença entre reunião e algazarra. --}}
+                            <button type="button" @click="alternarMao()"
+                                    :title="maoLevantada ? 'Baixar a mão' : 'Levantar a mão'"
+                                    class="grid h-11 w-11 place-items-center rounded-full"
+                                    :class="maoLevantada ? 'bg-amber-500 text-gray-950' : 'bg-white/10 text-white hover:bg-white/15'">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M10.05 4.575a1.575 1.575 0 1 0-3.15 0v3m3.15-3v-1.5a1.575 1.575 0 0 1 3.15 0v1.5m-3.15 0 .075 5.925m3.075.75V4.575m0 0a1.575 1.575 0 0 1 3.15 0V15M6.9 7.575a1.575 1.575 0 1 0-3.15 0v8.175a6.75 6.75 0 0 0 6.75 6.75h2.018a5.25 5.25 0 0 0 3.712-1.538l1.732-1.732a5.25 5.25 0 0 0 1.538-3.712l.003-2.024a.668.668 0 0 1 .198-.471 1.575 1.575 0 1 0-2.228-2.228 3.818 3.818 0 0 0-1.12 2.687M6.9 7.575V12" />
+                                </svg>
+                            </button>
+
+                            {{-- ------------------------------------------------------------------- reações --}}
+                            <div class="relative" x-data="{ aberto: false }" @click.outside="aberto = false">
+                                <button type="button" @click="aberto = ! aberto" title="Reagir"
+                                        class="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/15">
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                              d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75h.008v.008H9.75V9.75Zm4.5 0h.008v.008h-.008V9.75Z" />
+                                    </svg>
                                 </button>
-                            @endif
+
+                                <div x-show="aberto" x-cloak
+                                     class="absolute bottom-14 left-1/2 z-40 flex -translate-x-1/2 gap-1 rounded-full bg-gray-800 px-2 py-1.5 shadow-xl ring-1 ring-white/10">
+                                    @foreach (['👍', '👏', '❤️', '😂', '😮', '🎉'] as $emoji)
+                                        <button type="button" @click="reagir('{{ $emoji }}'); aberto = false"
+                                                class="grid h-9 w-9 place-items-center rounded-full text-lg hover:bg-white/10">{{ $emoji }}</button>
+                                    @endforeach
+                                </div>
+                            </div>
+
+                            {{-- ------------------------------------------------------------------ mais --}}
+                            <div class="relative" x-data="{ aberto: false }" @click.outside="aberto = false">
+                                <button type="button" @click="aberto = ! aberto" title="Mais opções"
+                                        class="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/15">
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                              d="M12 6.75h.008v.008H12V6.75Zm0 5.25h.008v.008H12V12Zm0 5.25h.008v.008H12v-.008Z" />
+                                    </svg>
+                                </button>
+
+                                <div x-show="aberto" x-cloak
+                                     class="absolute bottom-14 right-0 z-40 w-56 overflow-hidden rounded-xl bg-gray-800 py-1 shadow-xl ring-1 ring-white/10">
+                                    <button type="button"
+                                            x-data="{ copiado: false }"
+                                            @click="navigator.clipboard.writeText(window.location.href); copiado = true; setTimeout(() => copiado = false, 1600)"
+                                            class="block w-full px-3 py-2 text-left text-xs text-gray-200 hover:bg-white/10">
+                                        <span x-show="! copiado">Copiar o link da sala</span>
+                                        <span x-show="copiado" x-cloak class="text-emerald-400">Copiado!</span>
+                                    </button>
+
+                                    <button type="button" @click="tentarMidia(); aberto = false"
+                                            class="block w-full px-3 py-2 text-left text-xs text-gray-200 hover:bg-white/10">
+                                        Reconectar câmera e microfone
+                                    </button>
+
+                                    @if ($this->souDaEquipe())
+                                        {{-- Encerrar derruba todo mundo, e por isso está aqui dentro e não solto na
+                                             barra: distância de um clique a mais do dedo de quem só queria sair. --}}
+                                        <button type="button" wire:click="encerrar"
+                                                wire:confirm="Encerrar a chamada para todos?"
+                                                class="block w-full border-t border-white/10 px-3 py-2 text-left text-xs text-red-300 hover:bg-red-500/10">
+                                            Encerrar para todos
+                                        </button>
+                                    @endif
+                                </div>
+                            </div>
+
+                            {{-- ------------------------------------------------------------------- sair --}}
+                            {{-- Vermelho e telefone deitado: e o unico botao da barra que a pessoa procura com
+                                 pressa, e o unico que nao pode ser confundido com outro. --}}
+                            <button type="button" @click="sair()" title="Sair da chamada"
+                                    class="grid h-11 w-14 place-items-center rounded-full bg-red-500 text-white hover:bg-red-400">
+                                <svg class="h-5 w-5 rotate-[135deg]" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 0 0 2.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 0 1-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 0 0-1.091-.852H4.5A2.25 2.25 0 0 0 2.25 4.5v2.25Z" />
+                                </svg>
+                            </button>
                         </div>
                     </div>
                 </template>

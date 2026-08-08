@@ -56,6 +56,22 @@ document.addEventListener('alpine:init', () => {
             /** So dado simples: o que a tela precisa desenhar, e nada de objeto de midia. */
             pessoas: [],
 
+            /**
+             * Mao levantada e reacao, por participante.
+             *
+             * Dado simples de novo — booleano e texto — entao pode viver no estado reativo sem
+             * repetir o DataCloneError. { identidade: { mao: bool, reacao: '👍' } }
+             */
+            sinais: {},
+
+            maoLevantada: false,
+
+            // ------------------------------------------------------- dispositivos
+            microfones: [],
+            cameras: [],
+            microfoneAtual: '',
+            cameraAtual: '',
+
             async entrar(token, url) {
                 if (this.entrando || this.dentro) return;
 
@@ -86,6 +102,7 @@ document.addEventListener('alpine:init', () => {
                     this.dentro = true;
 
                     await this.ligarMidia();
+                    await this.listarDispositivos();
 
                     this.recontar();
                 } catch (e) {
@@ -122,6 +139,138 @@ document.addEventListener('alpine:init', () => {
                     this.camera = false;
                     this.microfone = false;
                 }
+            },
+
+            /**
+             * Quais microfones e cameras existem neste aparelho.
+             *
+             * SO DEPOIS DA PERMISSAO. Antes dela o navegador devolve a lista sem NOME — por
+             * privacidade, para uma pagina qualquer nao conseguir catalogar o hardware de quem
+             * visita. Uma lista de "dispositivo 1, dispositivo 2" nao ajuda ninguem a escolher
+             * o headset, entao ela e carregada depois de a camera ser liberada.
+             *
+             * E o motivo de existir e concreto: microfone errado e a causa numero um de "nao
+             * estao me ouvindo". O aparelho escolhe o embutido, a pessoa fala no headset, e a
+             * reuniao inteira vira uma conversa sobre audio.
+             */
+            async listarDispositivos() {
+                try {
+                    const todos = await navigator.mediaDevices.enumerateDevices();
+
+                    this.microfones = todos
+                        .filter((d) => d.kind === 'audioinput' && d.deviceId)
+                        .map((d) => ({ id: d.deviceId, nome: d.label || 'Microfone' }));
+
+                    this.cameras = todos
+                        .filter((d) => d.kind === 'videoinput' && d.deviceId)
+                        .map((d) => ({ id: d.deviceId, nome: d.label || 'Câmera' }));
+
+                    this.microfoneAtual = sala?.getActiveDevice('audioinput') ?? '';
+                    this.cameraAtual = sala?.getActiveDevice('videoinput') ?? '';
+                } catch (e) {
+                    // Sem lista a sala continua inteira; so nao da para trocar de aparelho.
+                    this.microfones = [];
+                    this.cameras = [];
+                }
+            },
+
+            async trocarDispositivo(tipo, id) {
+                if (! sala) return;
+
+                try {
+                    await sala.switchActiveDevice(tipo, id);
+
+                    if (tipo === 'audioinput') this.microfoneAtual = id;
+                    if (tipo === 'videoinput') this.cameraAtual = id;
+                } catch (e) {
+                    this.erro = 'Não consegui trocar de aparelho.';
+                    this.detalhe = this.tecnico(e);
+                }
+
+                this.recontar();
+            },
+
+            /**
+             * Virar entre a camera da frente e a de tras.
+             *
+             * O BOTAO MAIS IMPORTANTE DESTE PRODUTO, e nao um enfeite: o atendimento por video
+             * nasceu de "me mostra o aparelho". Quem esta com o problema precisa virar o
+             * celular para o equipamento — e sem este botao teria de abrir a lista, ler nomes
+             * de dispositivo que ninguem entende, e adivinhar qual e a de tras.
+             *
+             * So aparece quando ha mais de uma camera, que na pratica quer dizer celular.
+             */
+            async virarCamera() {
+                if (this.cameras.length < 2) return;
+
+                const atual = this.cameras.findIndex((c) => c.id === this.cameraAtual);
+                const proxima = this.cameras[(atual + 1) % this.cameras.length];
+
+                await this.trocarDispositivo('videoinput', proxima.id);
+            },
+
+            // ------------------------------------------------------------- sinais
+
+            /**
+             * Mao levantada e reacoes viajam pelo canal de DADOS da propria sala.
+             *
+             * Sem servidor no meio, sem banco, sem nada guardado: e recado de momento, e
+             * recado de momento que sobrevive ao fim da reuniao vira lixo que alguem precisa
+             * limpar depois.
+             */
+            enviarSinal(dado) {
+                try {
+                    sala?.localParticipant.publishData(
+                        new TextEncoder().encode(JSON.stringify(dado)),
+                        { reliable: true },
+                    );
+                } catch (e) {
+                    // sinal e cortesia: se nao for, ninguem fica sem reuniao por causa disso
+                }
+            },
+
+            marcarSinal(identidade, dado) {
+                const atual = this.sinais[identidade] ?? {};
+
+                if (dado.tipo === 'mao') {
+                    this.sinais[identidade] = { ...atual, mao: Boolean(dado.valor) };
+                }
+
+                if (dado.tipo === 'reacao') {
+                    this.sinais[identidade] = { ...atual, reacao: dado.emoji };
+
+                    // Reacao some sozinha: emoji preso no quadro de alguem por uma hora deixa
+                    // de ser reacao e vira adesivo.
+                    setTimeout(() => {
+                        const agora = this.sinais[identidade] ?? {};
+
+                        if (agora.reacao === dado.emoji) {
+                            this.sinais[identidade] = { ...agora, reacao: '' };
+                        }
+
+                        this.recontar();
+                    }, 4000);
+                }
+
+                this.recontar();
+            },
+
+            alternarMao() {
+                this.maoLevantada = ! this.maoLevantada;
+
+                const eu = sala?.localParticipant?.identity;
+
+                if (eu) this.marcarSinal(eu, { tipo: 'mao', valor: this.maoLevantada });
+
+                this.enviarSinal({ tipo: 'mao', valor: this.maoLevantada });
+            },
+
+            reagir(emoji) {
+                const eu = sala?.localParticipant?.identity;
+
+                if (eu) this.marcarSinal(eu, { tipo: 'reacao', emoji });
+
+                this.enviarSinal({ tipo: 'reacao', emoji });
             },
 
             /**
@@ -212,6 +361,15 @@ document.addEventListener('alpine:init', () => {
                     .on(RoomEvent.LocalTrackPublished, () => this.recontar())
                     .on(RoomEvent.LocalTrackUnpublished, () => this.recontar())
                     .on(RoomEvent.ActiveSpeakersChanged, () => this.recontar())
+                    .on(RoomEvent.DataReceived, (carga, quem) => {
+                        try {
+                            const dado = JSON.parse(new TextDecoder().decode(carga));
+
+                            if (quem?.identity) this.marcarSinal(quem.identity, dado);
+                        } catch (e) {
+                            // dado estranho no canal: ignora, nao e motivo para quebrar a sala
+                        }
+                    })
                     .on(RoomEvent.Disconnected, () => {
                         this.dentro = false;
                         this.saiu = true;
@@ -241,6 +399,8 @@ document.addEventListener('alpine:init', () => {
 
                     faixas.set(p.identity, { video, tela, audio });
 
+                    const sinal = this.sinais[p.identity] ?? {};
+
                     return {
                         id: p.identity,
                         nome: p.name || (souEu ? 'Você' : 'Convidado'),
@@ -249,6 +409,8 @@ document.addEventListener('alpine:init', () => {
                         semSom: ! p.isMicrophoneEnabled,
                         temImagem: Boolean(video || tela),
                         espelhar: souEu && ! tela && this.ehCameraFrontal(video),
+                        mao: Boolean(sinal.mao),
+                        reacao: sinal.reacao || '',
                     };
                 };
 
@@ -377,6 +539,10 @@ document.addEventListener('alpine:init', () => {
             /** Aba fechada tem de sair da sala, senao a pessoa fica de fantasma no lugar dela. */
             init() {
                 window.addEventListener('beforeunload', () => this.desmontar());
+
+                // Headset plugado no meio da reuniao precisa aparecer na lista sem recarregar:
+                // e exatamente quando a pessoa vai procurar por ele.
+                navigator.mediaDevices?.addEventListener?.('devicechange', () => this.listarDispositivos());
             },
 
             get colunas() {
