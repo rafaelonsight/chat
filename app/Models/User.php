@@ -66,6 +66,12 @@ class User extends Authenticatable implements FilamentUser
         return true;
     }
 
+    /** @var array<int, int>|null */
+    protected ?array $canaisMemo = null;
+
+    /** @var array<int, int>|null */
+    protected ?array $equipesMemo = null;
+
     public function teams(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Team::class, 'team_user')
@@ -73,9 +79,56 @@ class User extends Authenticatable implements FilamentUser
             ->withTimestamps();
     }
 
+    /**
+     * Os canais que esta pessoa pode ver.
+     *
+     * Sem nenhum vinculado, ela ve TODOS — ver o escopo Acesso. Vazio aqui quer dizer "nao foi
+     * restringida", e nao "nao pode nada": o contrario trancaria para fora todo usuario que
+     * existia antes desta tabela.
+     */
+    public function canais(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Channel::class, 'channel_user')->withTimestamps();
+    }
+
+    /**
+     * @return array<int, int>
+     *
+     * withoutGlobalScope(Acesso) NAO E DETALHE: o Channel carrega o escopo de acesso, que
+     * pergunta ao usuario quais canais ele pode ver — que e exatamente este metodo. Sem tirar o
+     * escopo aqui, a pergunta se responde chamando a si mesma e a requisicao morre em recursao.
+     *
+     * A memoria e pelo mesmo motivo em outra escala: o escopo roda em toda consulta de conversa,
+     * e sem isto cada tela viraria dezenas de idas ao banco para a mesma resposta.
+     */
+    public function canalIds(): array
+    {
+        return $this->canaisMemo ??= $this->canais()
+            ->withoutGlobalScope(\App\Models\Scopes\Acesso::class)
+            ->pluck('channels.id')
+            ->all();
+    }
+
     /** @return array<int, int> */
     public function equipeIds(): array
     {
-        return $this->teams()->pluck('teams.id')->all();
+        return $this->equipesMemo ??= $this->teams()->pluck('teams.id')->all();
+    }
+
+    /**
+     * Quem enxerga o sistema inteiro, sem restricao de canal nem de time.
+     *
+     * Administrador configura canais e usuarios: restringir o que ele ve seria pedir que ele
+     * configure no escuro. Operador e o dono do produto, acima de tudo.
+     */
+    public function veTudo(): bool
+    {
+        return (bool) ($this->admin || $this->operador);
+    }
+
+    /** Se ela foi restringida a algo — o que a tela precisa saber para explicar uma lista vazia. */
+    public function temAcessoRestrito(): bool
+    {
+        return ! $this->veTudo() && ($this->canalIds() !== [] || $this->equipeIds() !== []);
     }
 }

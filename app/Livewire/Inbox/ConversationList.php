@@ -395,7 +395,25 @@ class ConversationList extends Component
             'conversas'     => $conversas,
             'total'         => $total,
             'restantes'     => max(0, $total - $conversas->count()),
-            'equipes'       => Team::ativas()->orderBy('nome')->get(),
+            /*
+             * O TIME TAMBEM SE RESTRINGE, e ele nao vem de graca pelo escopo: Team nao carrega
+             * o escopo de acesso (a equipe existe independente de quem a atende), entao o corte
+             * e aqui. Sem isto, o atendente veria no menu times que ele nao pode abrir —
+             * escolha que nao leva a nada e a pior forma de dizer "voce nao pode".
+             */
+            'equipes'       => Team::ativas()
+                ->when(
+                    ! auth()->user()->veTudo() && auth()->user()->equipeIds() !== [],
+                    fn ($q) => $q->whereIn('teams.id', auth()->user()->equipeIds()),
+                )
+                ->orderBy('nome')
+                ->get(),
+
+            // A tela precisa saber para explicar uma lista vazia: fila vazia e acesso
+            // restrito parecem a mesma coisa, e o atendente vai embora achando que nao ha
+            // trabalho.
+            'acessoRestrito' => auth()->user()->temAcessoRestrito(),
+            'restritoAoTime' => ! auth()->user()->veTudo() && auth()->user()->equipeIds() !== [],
             'etiquetas'     => Tag::orderBy('nome')->get(),
             'canais'        => $canais = \App\Models\Channel::orderBy('nome')->get(),
             // A marca de canal so aparece com MAIS DE UM canal. Com um so ela nao separa

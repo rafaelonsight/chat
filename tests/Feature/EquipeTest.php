@@ -180,39 +180,73 @@ it('quem nao esta em equipe nenhuma continua vendo tudo', function () {
         ->assertViewHas('conversas', fn ($cs) => $cs->count() === 2);
 });
 
-it('minhas equipes traz as minhas MAIS as sem equipe', function () {
+it('quem esta num time NAO ve as conversas sem time', function () {
+    /*
+     * A REGRA MUDOU AQUI, e por decisao do Rafael — nao por acidente.
+     *
+     * Antes este teste se chamava "minhas equipes traz as minhas MAIS as sem equipe": estar num
+     * time era um FILTRO de conveniencia, e a fila de entrada (sem time) era de todos. Quando o
+     * acesso por canal e time entrou, ele perguntou o que fazer com essa fila e escolheu o lado
+     * fechado: a triagem e feita pelo chatbot ou por quem esta no time Triagem, entao a entrada
+     * nao e de todo mundo.
+     *
+     * Se este teste voltar a passar com a conversa sem time na lista, a regra de acesso foi
+     * afrouxada sem ninguem decidir isso.
+     */
     [, , $ana, , $c] = cenarioEquipe('eqd');
     $suporte = Team::create(['nome' => 'Suporte']);
     $financeiro = Team::create(['nome' => 'Financeiro']);
     $ana->teams()->attach($suporte->id);
 
     $minha = convEq($c, '5584911111111@s.whatsapp.net', $suporte->id);
-    $semEquipe = convEq($c, '5584922222222@s.whatsapp.net');
+    convEq($c, '5584922222222@s.whatsapp.net');
     convEq($c, '5584933333333@s.whatsapp.net', $financeiro->id);
     TenantContext::forget();
 
     Livewire::actingAs($ana)
         ->test(ConversationList::class)
         ->assertSet('equipe', 'minhas')
-        ->assertViewHas('conversas', fn ($cs) => $cs->pluck('id')->sort()->values()->all()
-            === collect([$minha->id, $semEquipe->id])->sort()->values()->all());
+        ->assertViewHas('conversas', fn ($cs) => $cs->pluck('id')->all() === [$minha->id]);
 });
 
-it('todas mostra tudo, e uma equipe especifica filtra', function () {
+it('quem nao esta em time nenhum continua vendo tudo', function () {
+    // O outro lado da regra, e o que impediu esta mudanca de trancar todo mundo para fora:
+    // sem vinculo de time, nada e restringido — inclusive a fila sem time.
+    [, , $ana, , $c] = cenarioEquipe('eqd2');
+    $suporte = Team::create(['nome' => 'Suporte']);
+
+    convEq($c, '5584911111111@s.whatsapp.net', $suporte->id);
+    convEq($c, '5584922222222@s.whatsapp.net');
+    TenantContext::forget();
+
+    Livewire::actingAs($ana)
+        ->test(ConversationList::class)
+        ->set('equipe', 'todas')
+        ->assertViewHas('conversas', fn ($cs) => $cs->count() === 2);
+});
+
+it('para quem e restrito, "todas" quer dizer todos os times DELE', function () {
+    /*
+     * "Todas" e um recorte da tela, nao uma chave de permissao — e essa distincao e o ponto.
+     * Antes ele mostrava as tres conversas; agora mostra so a do time da Ana, porque o acesso
+     * corta a consulta antes de qualquer filtro de tela chegar nela. E o filtro por um time que
+     * nao e dela devolve VAZIO em vez de devolver a conversa do outro time.
+     */
     [, , $ana, , $c] = cenarioEquipe('eqe');
     $suporte = Team::create(['nome' => 'Suporte']);
     $financeiro = Team::create(['nome' => 'Financeiro']);
     $ana->teams()->attach($suporte->id);
 
-    convEq($c, '5584911111111@s.whatsapp.net', $suporte->id);
-    $doFin = convEq($c, '5584933333333@s.whatsapp.net', $financeiro->id);
+    $minha = convEq($c, '5584911111111@s.whatsapp.net', $suporte->id);
+    convEq($c, '5584933333333@s.whatsapp.net', $financeiro->id);
     convEq($c, '5584922222222@s.whatsapp.net');
     TenantContext::forget();
 
     $lista = fn (string $eq) => Livewire::actingAs($ana)->test(ConversationList::class)->set('equipe', $eq);
 
-    $lista('todas')->assertViewHas('conversas', fn ($cs) => $cs->count() === 3);
-    $lista((string) $financeiro->id)->assertViewHas('conversas', fn ($cs) => $cs->pluck('id')->all() === [$doFin->id]);
+    $lista('todas')->assertViewHas('conversas', fn ($cs) => $cs->pluck('id')->all() === [$minha->id]);
+    $lista((string) $suporte->id)->assertViewHas('conversas', fn ($cs) => $cs->pluck('id')->all() === [$minha->id]);
+    $lista((string) $financeiro->id)->assertViewHas('conversas', fn ($cs) => $cs->count() === 0);
 });
 
 it('sem equipe filtra so as nao roteadas', function () {

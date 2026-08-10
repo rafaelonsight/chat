@@ -12,6 +12,19 @@ class Conversation extends Model
 {
     use BelongsToTenant;
 
+    /**
+     * O acesso do usuario logado, aplicado por construcao.
+     *
+     * Aqui e o gargalo certo: toda tela de atendimento, todo relatorio e toda abertura de
+     * conversa por id passam por este modelo. Filtrar em cada lugar seria confiar em memoria
+     * humana para uma regra cujo esquecimento nao da erro nenhum — so mostra ao atendente uma
+     * conversa que nao era dele.
+     */
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new \App\Models\Scopes\Acesso('channel_id', 'team_id'));
+    }
+
     public const NOVA           = 'nova';
     public const EM_ATENDIMENTO = 'em_atendimento';
     public const ARQUIVADA      = 'arquivada';

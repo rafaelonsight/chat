@@ -84,7 +84,12 @@
                         class="mr-1 min-w-0 max-w-[8.5rem] rounded-full border-0 bg-gray-100 py-1 pl-2 pr-6 text-xs font-medium text-gray-700 dark:bg-white/10 dark:text-gray-200">
                     <option value="minhas">Minhas equipes</option>
                     <option value="todas">Todas</option>
-                    <option value="sem">Sem equipe</option>
+                    {{-- "Sem equipe" so para quem pode ve-las: para quem esta restrito a times,
+                         essa opcao devolveria lista vazia sempre, e filtro que nunca acha nada
+                         se le como sistema quebrado. --}}
+                    @unless ($restritoAoTime)
+                        <option value="sem">Sem equipe</option>
+                    @endunless
                     @foreach ($equipes as $eq)
                         <option value="{{ $eq->id }}">{{ $eq->nome }}</option>
                     @endforeach
@@ -419,6 +424,23 @@
                         @case('grupos') Nenhum grupo com conversa. @break
                         @default Nenhuma conversa arquivada.
                     @endswitch
+
+                    {{--
+                        E O MOTIVO POSSIVEL, quando o acesso e restrito.
+
+                        Lista vazia por falta de trabalho e lista vazia por falta de permissao
+                        sao a mesma imagem na tela e coisas opostas na vida: uma manda ir tomar
+                        um cafe, a outra manda chamar o administrador. Sem esta linha, o
+                        atendente novo passa a manha achando que o dia esta calmo.
+                    --}}
+                    @if ($acessoRestrito)
+                        <span class="mt-1 block text-xs text-gray-400">
+                            Seu acesso está limitado a alguns canais/times.
+                            @if ($restritoAoTime)
+                                Conversas que ainda não foram direcionadas a um time não aparecem aqui.
+                            @endif
+                        </span>
+                    @endif
                 @endif
             </p>
         @endforelse

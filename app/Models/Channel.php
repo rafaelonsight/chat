@@ -78,6 +78,14 @@ class Channel extends Model
 
     protected static function booted(): void
     {
+        /*
+         * O canal tambem, e por isso o filtro do atendimento e o "nova conversa" ficaram
+         * restritos sem uma linha a mais: eles listam canais, e a lista ja vem cortada.
+         *
+         * A coluna e 'id' porque aqui o canal e o proprio registro, nao uma referencia.
+         */
+        static::addGlobalScope(new \App\Models\Scopes\Acesso('id'));
+
         static::creating(function (Channel $c) {
             // A Evolution nao assina o payload do webhook: a autenticidade vem
             // deste segredo embutido na URL.
