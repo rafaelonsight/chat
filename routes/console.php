@@ -14,6 +14,17 @@ Schedule::command('onchat:diagnostico --alertar')
     ->everyFiveMinutes()
     ->withoutOverlapping();
 
+/*
+ * Para onde a Evolution avisa. De cinco em cinco minutos, junto do diagnostico.
+ *
+ * O endereco mora dentro dela, gravado quando o canal nasceu: mudanca de dominio do painel
+ * nao o acompanha, e ela nao reclama — POSTa no endereco velho, recebe redirecionamento e
+ * considera entregue. Isto reaponta sozinho e deixa o selo que o diagnostico cobra.
+ */
+Schedule::command('onchat:conferir-webhooks')
+    ->everyFiveMinutes()
+    ->withoutOverlapping();
+
 // Sequencias: um tique por minuto. O job tem trava de sobreposicao, entao rodada que demorar
 // nao empilha com a seguinte.
 Schedule::job(new \App\Jobs\AvancarSequencias)->everyMinute();

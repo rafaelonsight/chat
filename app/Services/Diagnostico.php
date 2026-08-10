@@ -46,6 +46,7 @@ class Diagnostico
         'banco'          => 'Banco de dados acessível',
         'email'          => 'Envio de e-mail configurado',
         'webhook_parado' => 'Mensagem recebida sem processar',
+        'webhook_apontamento' => 'Evolution avisando neste servidor',
         'fila'           => 'Fila acumulando trabalho',
         'falhas'         => 'Jobs falhando acima do normal',
         'canais'         => 'Canais conectados',
@@ -71,6 +72,7 @@ class Diagnostico
             $this->banco(),
             $this->email(),
             $this->webhookParado($limites['webhook_parado_minutos']),
+            $this->apontamentoSemConferencia($limites['webhook_conferido_minutos']),
             $this->filaAcumulada($limites['fila_acumulada']),
             $this->falhas($limites['falhas_por_hora']),
             $this->canaisDesconectados(),
@@ -205,6 +207,48 @@ class Diagnostico
             'webhook_parado',
             self::CRITICO,
             "{$paradas} mensagem(ns) recebida(s) ha mais de {$minutos} min sem processar",
+        );
+    }
+
+    /**
+     * Ninguem confere ha quanto tempo para onde a Evolution avisa.
+     *
+     * ESTE E O VIGIA QUE FALTAVA. O webhookParado() acima conta aviso que CHEGOU e nao foi
+     * processado: ele ve cano entupido. Cano DESLIGADO da zero, e zero, para ele, e saude —
+     * foi assim que dois dias de silencio passaram por aqui sem acender nada.
+     *
+     * E ele nao pergunta a Evolution: ele cobra PROVA de que alguem perguntou. O selo e
+     * gravado pelo onchat:conferir-webhooks so quando todos os canais foram verificados sem
+     * erro, entao um selo velho acusa as duas doencas ao mesmo tempo — apontamento errado que
+     * nao pudemos corrigir, e o proprio verificador morto. Vigia que fosse verificar por conta
+     * propria ficaria cego para o segundo caso, que e o mais traicoeiro dos dois.
+     */
+    private function apontamentoSemConferencia(int $minutos): ?array
+    {
+        // Servidor sem canal Evolution nao tem apontamento para conferir, e alerta que acende
+        // sempre e alerta que se aprende a ignorar.
+        $temEvolution = Channel::withoutGlobalScope('tenant')
+            ->where('tipo', Channel::EVOLUTION)
+            ->exists();
+
+        if (! $temEvolution) {
+            return null;
+        }
+
+        $selo = SystemSetting::ler(\App\Console\Commands\ConferirWebhooks::SELO);
+
+        if ($selo !== null && \Illuminate\Support\Carbon::parse($selo)->gt(now()->subMinutes($minutos))) {
+            return null;
+        }
+
+        return $this->problema(
+            'webhook_apontamento',
+            self::CRITICO,
+            $selo === null
+                ? 'Nunca foi conferido para onde a Evolution avisa: mensagem de cliente pode estar caindo fora'
+                : 'Ninguem confere para onde a Evolution avisa desde '
+                    .\Illuminate\Support\Carbon::parse($selo)->diffForHumans()
+                    .': mensagem de cliente pode estar caindo fora sem erro nenhum aparecer',
         );
     }
 

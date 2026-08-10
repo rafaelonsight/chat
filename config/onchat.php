@@ -24,6 +24,9 @@ return [
         // Webhook recebido e nao processado por mais tempo que isso significa que
         // mensagem de cliente esta entrando e ninguem esta vendo.
         'webhook_parado_minutos' => (int) env('ONCHAT_LIMITE_WEBHOOK', 10),
+        // O comando confere de cinco em cinco minutos; 30 min da folga para uma rodada
+        // presa ou um reinicio sem gerar falso alarme, e ainda limita a surdez a meia hora.
+        'webhook_conferido_minutos' => (int) env('ONCHAT_LIMITE_WEBHOOK_CONFERIDO', 30),
         'fila_acumulada'         => (int) env('ONCHAT_LIMITE_FILA', 200),
         'falhas_por_hora'        => (int) env('ONCHAT_LIMITE_FALHAS', 1),
         'disco_aviso'            => (int) env('ONCHAT_LIMITE_DISCO_AVISO', 85),

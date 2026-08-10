@@ -23,6 +23,20 @@ class EvolutionService
             ->timeout(20);
     }
 
+    /**
+     * Os avisos que pedimos a Evolution.
+     *
+     * Constante, e nao lista escrita em cada chamada: criar e reapontar precisam pedir
+     * exatamente o mesmo conjunto. Se as duas listas puderem divergir, um dia o reapontamento
+     * vai apagar em silencio um tipo de aviso que o sistema depende de receber.
+     */
+    private const EVENTOS = [
+        'MESSAGES_UPSERT',
+        'MESSAGES_UPDATE',
+        'CONNECTION_UPDATE',
+        'SEND_MESSAGE',
+    ];
+
     public function createInstance(string $instance, string $webhookUrl): array
     {
         return $this->client()->post('/instance/create', [
@@ -33,12 +47,41 @@ class EvolutionService
                 'url'      => $webhookUrl,
                 'byEvents' => false,
                 'base64'   => true,
-                'events'   => [
-                    'MESSAGES_UPSERT',
-                    'MESSAGES_UPDATE',
-                    'CONNECTION_UPDATE',
-                    'SEND_MESSAGE',
-                ],
+                'events'   => self::EVENTOS,
+            ],
+        ])->throw()->json();
+    }
+
+    /**
+     * Para onde esta instancia avisa hoje.
+     *
+     * Sem throw: instancia que nunca teve aviso configurado responde 404, e isso e uma
+     * resposta legitima ("nao aponta para lugar nenhum"), nao um erro de comunicacao. Quem
+     * chama precisa distinguir as duas coisas, e uma excecao aqui misturaria as duas.
+     */
+    public function acharWebhook(string $instance): array
+    {
+        $dados = $this->client()->get("/webhook/find/{$instance}")->json();
+
+        return is_array($dados) ? $dados : [];
+    }
+
+    /**
+     * Manda esta instancia avisar aqui.
+     *
+     * O endereco vive DENTRO da Evolution, gravado uma vez quando o canal nasceu. Trocar o
+     * dominio do painel nao muda o que ela guardou — e foi exatamente assim que o sistema
+     * ficou dois dias surdo, recebendo 302 do endereco velho a cada mensagem de cliente.
+     */
+    public function apontarWebhook(string $instance, string $url): array
+    {
+        return $this->client()->post("/webhook/set/{$instance}", [
+            'webhook' => [
+                'enabled'  => true,
+                'url'      => $url,
+                'byEvents' => false,
+                'base64'   => true,
+                'events'   => self::EVENTOS,
             ],
         ])->throw()->json();
     }

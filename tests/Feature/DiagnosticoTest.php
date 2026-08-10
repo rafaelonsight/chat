@@ -16,6 +16,14 @@ beforeEach(function () {
     // de "nunca saiu e-mail" e as contagens de alerta destes testes param de fechar.
     App\Models\SystemSetting::gravar('email.ultimo_envio', now()->toIso8601String());
 
+    // O apontamento do webhook conferido agora mesmo. A verificacao entrou depois destes
+    // testes e nao e o assunto deles: sem isto, cada cenario com canal Evolution carregaria
+    // um critico a mais e as contagens de alerta parariam de fechar.
+    App\Models\SystemSetting::gravar(
+        App\Console\Commands\ConferirWebhooks::SELO,
+        now()->toIso8601String(),
+    );
+
     $this->tenant = Tenant::create(['nome' => 'T', 'slug' => 't']);
     TenantContext::set($this->tenant->id);
 

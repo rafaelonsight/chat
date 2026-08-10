@@ -168,6 +168,7 @@ class Channel extends Model
         return match ($this->tipo) {
             'instagram' => 'instagram',
             'messenger' => 'messenger',
+            self::SITE  => 'site',
             default     => 'whatsapp',
         };
     }
@@ -180,6 +181,12 @@ class Channel extends Model
      */
     public function rotulo(): string
     {
+        // O chat do site nao tem numero, e dizer "numero ainda nao confirmado" faria alguem
+        // procurar por um numero que nunca vai existir.
+        if ($this->ehSite()) {
+            return $this->nome.' · chat no site';
+        }
+
         $numero = $this->telefone_e164
             ? \App\Support\PhoneNumber::discavel($this->telefone_e164)
             : null;
