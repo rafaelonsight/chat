@@ -67,6 +67,18 @@ document.addEventListener('alpine:init', () => {
             camera: true,
             compartilhando: false,
 
+            /**
+             * Quem esta com a tela compartilhada agora: { id, nome, souEu } ou null.
+             *
+             * Existe porque quadro e PESSOA eram a mesma coisa aqui, e nao sao. Quem
+             * compartilhava perdia o rosto: a tela entrava no lugar da camera dentro do mesmo
+             * quadro, e o Rafael viu a propria imagem desaparecer no meio da reuniao.
+             *
+             * Uma pessoa pode produzir DUAS imagens ao mesmo tempo. Com isto, a tela vira
+             * palco e as cameras — a dela inclusive — ficam na fita do lado.
+             */
+            apresentador: null,
+
             /** So dado simples: o que a tela precisa desenhar, e nada de objeto de midia. */
             pessoas: [],
 
@@ -568,6 +580,24 @@ document.addEventListener('alpine:init', () => {
             ouvir() {
                 sala.on(RoomEvent.TrackSubscribed, () => this.recontar())
                     .on(RoomEvent.TrackUnsubscribed, () => this.recontar())
+                    /*
+                     * PUBLICADA E ASSINADA SAO DOIS MOMENTOS, e faltava ouvir o primeiro.
+                     *
+                     * Com adaptiveStream, a assinatura so acontece quando ha um elemento
+                     * visivel pedindo a imagem. Entao para a tela compartilhada de outra pessoa
+                     * a ordem e ao contrario do que parece: primeiro precisamos SABER que ela
+                     * existe (publicada), desenhar o palco, e a assinatura vem depois, por
+                     * causa do elemento que o palco criou.
+                     *
+                     * Sem este ouvinte, o TrackSubscribed nunca chegava — ele dependia do
+                     * elemento que dependia dele. O palco aparecia so quando outro evento
+                     * qualquer (alguem falando, um microfone mudando) redesenhava a lista por
+                     * acaso: nos testes de duas janelas apareceu numa rodada e nao apareceu na
+                     * seguinte, com o mesmo codigo. Intermitente e pior que quebrado, porque
+                     * ninguem acredita em quem reclama.
+                     */
+                    .on(RoomEvent.TrackPublished, () => this.recontar())
+                    .on(RoomEvent.TrackUnpublished, () => this.recontar())
                     .on(RoomEvent.ParticipantConnected, () => this.recontar())
                     .on(RoomEvent.ParticipantDisconnected, () => this.recontar())
                     // Calado pelo anfitriao: sem ouvir isto, o proprio botao continuaria
@@ -621,7 +651,28 @@ document.addEventListener('alpine:init', () => {
 
                 const monta = (p, souEu) => {
                     const video = p.getTrackPublication(Track.Source.Camera)?.track ?? null;
-                    const tela = p.getTrackPublication(Track.Source.ScreenShare)?.track ?? null;
+                    /*
+                     * A PUBLICACAO E A FAIXA SAO COISAS DIFERENTES, e aqui essa diferenca era
+                     * uma TRAVA CIRCULAR.
+                     *
+                     * A sala roda com adaptiveStream, que so assina uma faixa de video quando
+                     * ela esta pendurada num elemento visivel — e economiza banda de quem esta
+                     * no 4G. Mas o palco da apresentacao so nascia se a FAIXA existisse:
+                     *
+                     *     sem elemento -> sem assinatura -> sem faixa -> sem palco -> sem elemento
+                     *
+                     * Quem compartilhava via o proprio palco (faixa local nao precisa de
+                     * assinatura) e jurava que estava tudo certo. Os outros nunca viam nada, e
+                     * nao havia erro em log nenhum para acusar.
+                     *
+                     * A PUBLICACAO aparece assim que o outro lado publica, independente de
+                     * assinatura. Ela e a resposta certa para "alguem esta apresentando?", e a
+                     * faixa e so o que se pendura quando chega. O palco nasce com a publicacao,
+                     * o elemento nasce com o palco, a assinatura vem por causa do elemento, e o
+                     * x-effect pendura a imagem quando o TrackSubscribed redesenhar.
+                     */
+                    const publicacaoDaTela = p.getTrackPublication(Track.Source.ScreenShare);
+                    const tela = publicacaoDaTela?.track ?? null;
                     const audio = souEu
                         ? null
                         : p.getTrackPublication(Track.Source.Microphone)?.track ?? null;
@@ -636,8 +687,16 @@ document.addEventListener('alpine:init', () => {
                         souEu,
                         falando: p.isSpeaking,
                         semSom: ! p.isMicrophoneEnabled,
-                        temImagem: Boolean(video || tela),
-                        espelhar: souEu && ! tela && this.ehCameraFrontal(video),
+                        // SO a camera. A tela nao entra aqui: ela tem palco proprio agora, e
+                        // quem compartilha continua com o rosto na fita como todo mundo.
+                        temImagem: Boolean(video),
+                        // Sem o "! tela": o espelho e da camera, e a camera continua sendo a
+                        // camera enquanto a pessoa compartilha.
+                        espelhar: souEu && this.ehCameraFrontal(video),
+                        // A publicacao, e nao a faixa: ver o comentario da trava circular
+                        // acima. Trocar isto de volta apaga o palco de todo mundo menos de
+                        // quem compartilha — e sem sintoma nenhum do lado de dentro.
+                        apresentando: Boolean(publicacaoDaTela),
                         mao: Boolean(sinal.mao),
                     };
                 };
@@ -646,6 +705,20 @@ document.addEventListener('alpine:init', () => {
                     monta(sala.localParticipant, true),
                     ...Array.from(sala.remoteParticipants.values()).map((p) => monta(p, false)),
                 ];
+
+                /*
+                 * QUEM OCUPA O PALCO.
+                 *
+                 * Com dois compartilhando ao mesmo tempo — raro, mas acontece — ganha o
+                 * OUTRO, e nao eu: a minha tela eu ja estou vendo no meu monitor; a dele e a
+                 * unica que eu nao teria como ver de outro jeito.
+                 */
+                const apresentando = this.pessoas.filter((p) => p.apresentando);
+                const dono = apresentando.find((p) => ! p.souEu) ?? apresentando[0] ?? null;
+
+                this.apresentador = dono
+                    ? { id: dono.id, nome: dono.nome, souEu: dono.souEu }
+                    : null;
 
                 // A verdade sobre os proprios botoes mora no servidor de midia, nao aqui.
                 this.microfone = sala.localParticipant.isMicrophoneEnabled;
@@ -685,13 +758,33 @@ document.addEventListener('alpine:init', () => {
              *
              * Chamado por x-effect, e nao por x-init: o quadro da pessoa continua o MESMO
              * elemento quando ela liga e desliga a camera, entao algo que roda so no nascimento
-             * deixaria a tela congelada na ultima imagem. Tela compartilhada ganha a frente da
-             * camera — quem compartilha esta mostrando alguma coisa, e o rosto dele nao e o
-             * assunto.
+             * deixaria a tela congelada na ultima imagem.
+             *
+             * SO A CAMERA. Antes a tela compartilhada era plugada aqui, na frente da camera, e
+             * o efeito colateral era o dono da tela desaparecer da reuniao. A tela tem palco
+             * proprio agora — plugarTela abaixo.
              */
             plugarVideo(el, p) {
-                const faixa = faixas.get(p.id);
-                const imagem = faixa?.tela ?? faixa?.video;
+                const imagem = faixas.get(p.id)?.video;
+
+                if (imagem) {
+                    imagem.attach(el);
+                } else {
+                    el.srcObject = null;
+                }
+            },
+
+            /**
+             * A tela compartilhada, no palco.
+             *
+             * object-contain no elemento, e nao object-cover como nos rostos: recortar rosto
+             * pelas beiradas nao custa nada, recortar tela come justamente a barra de menu e a
+             * primeira coluna da planilha que a pessoa esta tentando mostrar.
+             */
+            plugarTela(el) {
+                const imagem = this.apresentador
+                    ? faixas.get(this.apresentador.id)?.tela
+                    : null;
 
                 if (imagem) {
                     imagem.attach(el);
@@ -749,7 +842,19 @@ document.addEventListener('alpine:init', () => {
                         // mentindo que esta compartilhando.
                         const novas = await createLocalScreenTracks({ audio: false });
 
-                        await Promise.all(novas.map((f) => sala.localParticipant.publishTrack(f)));
+                        /*
+                         * A fonte declarada de proposito. E o jeito documentado de publicar, em
+                         * vez de deixar o SDK inferir do objeto da faixa.
+                         *
+                         * REGISTRO HONESTO: eu troquei isto achando que era a causa do palco
+                         * nao aparecer para os outros, e nao era — a fonte atravessava certo.
+                         * A causa era a trava circular do adaptiveStream, explicada no
+                         * recontar(). Ficou porque declarar e melhor que inferir, nao porque
+                         * consertou algo.
+                         */
+                        await Promise.all(novas.map((f) => sala.localParticipant.publishTrack(f, {
+                            source: Track.Source.ScreenShare,
+                        })));
 
                         this.compartilhando = true;
                     }
@@ -758,6 +863,39 @@ document.addEventListener('alpine:init', () => {
                 }
 
                 this.recontar();
+            },
+
+            /**
+             * Fotografia das publicacoes de midia. NAO e usada pela tela.
+             *
+             * Existe porque esta sala e a parte mais difícil do sistema de depurar: o objeto do
+             * LiveKit mora fora do Alpine de proposito (Proxy nao pode ser clonado), e sem isto
+             * a unica forma de saber o que foi publicado e o que foi assinado e adivinhar pelo
+             * que aparece na tela — que e exatamente o que fez eu perseguir tres causas erradas
+             * para o compartilhamento de tela.
+             *
+             * Do console do navegador, dentro da sala:
+             *   $el._x_dataStack[0].diagnostico()
+             */
+            diagnostico() {
+                if (! sala) return null;
+
+                const listar = (p) => Array.from(p.trackPublications.values()).map((t) => ({
+                    fonte: t.source,
+                    tipo: t.kind,
+                    sid: t.trackSid,
+                    temFaixa: Boolean(t.track),
+                    assinada: t.isSubscribed ?? null,
+                    silenciada: t.isMuted,
+                }));
+
+                return {
+                    eu: listar(sala.localParticipant),
+                    outros: Array.from(sala.remoteParticipants.values()).map((p) => ({
+                        nome: p.name,
+                        faixas: listar(p),
+                    })),
+                };
             },
 
             sair() {

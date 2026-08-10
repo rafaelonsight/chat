@@ -314,11 +314,50 @@
                             </template>
                         </div>
 
-                        {{-- os quadros --}}
-                        <div class="grid min-h-0 flex-1 auto-rows-fr gap-2 p-2" :class="colunas">
+                        {{--
+                            OS QUADROS — e, quando alguem compartilha, o PALCO junto.
+
+                            O quadro da pessoa e UM SO neste arquivo, de proposito: o mesmo
+                            desenho serve a grade e a fita do lado, mudando apenas as classes
+                            do recipiente. Duplicar o quadro para o modo apresentacao criaria
+                            duas verdades sobre a mesma coisa — e a segunda envelhece calada,
+                            porque ninguem lembra de mexer nas duas.
+                        --}}
+                        <div class="flex min-h-0 flex-1 flex-col gap-2 p-2"
+                             :class="apresentador ? 'lg:flex-row' : ''">
+
+                            {{-- o palco. So existe com alguem compartilhando. --}}
+                            <template x-if="apresentador">
+                                <div class="relative min-h-0 flex-1 overflow-hidden rounded-xl bg-black ring-1 ring-amber-400/40">
+                                    {{-- object-contain: tela cortada perde justamente a beirada
+                                         que a pessoa esta tentando mostrar. Fundo preto para a
+                                         sobra nao parecer defeito. --}}
+                                    <video autoplay playsinline muted
+                                           x-effect="plugarTela($el)"
+                                           class="h-full w-full object-contain"></video>
+
+                                    <div class="absolute inset-x-0 bottom-0 flex items-center gap-2 bg-gradient-to-t from-black/80 to-transparent px-3 py-2">
+                                        <span class="text-xs font-medium text-white"
+                                              x-text="apresentador.souEu
+                                                        ? 'Você está apresentando'
+                                                        : apresentador.nome + ' está apresentando'"></span>
+                                    </div>
+                                </div>
+                            </template>
+
+                            {{-- os rostos: grade quando ninguem apresenta, fita quando alguem
+                                 apresenta. Em tela estreita a fita vai para baixo e rola de
+                                 lado, que e o unico jeito de caber sem esmagar ninguem. --}}
+                            <div class="min-h-0 gap-2"
+                                 :class="apresentador
+                                    ? 'flex shrink-0 overflow-x-auto lg:w-48 lg:flex-col lg:overflow-x-hidden lg:overflow-y-auto'
+                                    : 'grid flex-1 auto-rows-fr ' + colunas">
                             <template x-for="p in pessoas" :key="p.id">
                                 <div class="relative min-h-0 overflow-hidden rounded-xl bg-gray-900 ring-1"
-                                     :class="p.falando ? 'ring-amber-400' : 'ring-white/10'">
+                                     :class="[
+                                        p.falando ? 'ring-amber-400' : 'ring-white/10',
+                                        apresentador ? 'h-24 w-36 shrink-0 lg:h-28 lg:w-full' : '',
+                                     ]">
 
                                     {{-- -scale-x-100 vira o quadro na horizontal: a pessoa
                                          se ve como num espelho, que e como ela se conhece. Só
@@ -335,7 +374,11 @@
                                     {{-- sem câmera: as iniciais, para o quadro não virar um buraco preto --}}
                                     <template x-if="! p.temImagem">
                                         <div class="absolute inset-0 grid place-items-center">
-                                            <span class="grid h-16 w-16 place-items-center rounded-full bg-amber-500/20 text-xl font-semibold text-amber-300"
+                                            {{-- Encolhe na fita: a roda de 64px nao cabe num
+                                                 quadro de 96px de altura sem encostar nas
+                                                 beiradas e parecer erro de desenho. --}}
+                                            <span class="grid place-items-center rounded-full bg-amber-500/20 font-semibold text-amber-300"
+                                                  :class="apresentador ? 'h-10 w-10 text-sm' : 'h-16 w-16 text-xl'"
                                                   x-text="p.nome.trim().charAt(0).toUpperCase()"></span>
                                         </div>
                                     </template>
@@ -351,11 +394,12 @@
                                     <div class="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5">
                                         <span class="truncate text-xs font-medium text-white" x-text="p.nome"></span>
                                         <template x-if="p.semSom">
-                                            <span class="text-[10px] text-red-300">sem som</span>
+                                            <span class="text-[11px] text-red-300">sem som</span>
                                         </template>
                                     </div>
                                 </div>
                             </template>
+                            </div>
                         </div>
 
 
