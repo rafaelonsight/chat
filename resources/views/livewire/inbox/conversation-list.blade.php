@@ -28,7 +28,7 @@
                     <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
                 </svg>
                 @if ($badges['grupos'] > 0)
-                    <span class="absolute -right-0.5 -top-0.5 rounded-full bg-gray-400 px-1 text-[9px] font-semibold text-white dark:bg-white/40">{{ $badges['grupos'] }}</span>
+                    <span class="absolute -right-0.5 -top-0.5 rounded-full bg-gray-400 px-1 text-[10px] font-semibold text-white dark:bg-white/40">{{ $badges['grupos'] }}</span>
                 @endif
             </button>
 
@@ -45,7 +45,20 @@
     <div x-data="{ busca: @js(trim($busca) !== ''), ordem: false }"
          class="shrink-0 border-b border-gray-200 dark:border-white/10">
 
-        <div class="flex items-center gap-1 px-2 py-1.5">
+        {{--
+            QUEBRA LINHA EM VEZ DE ESMAGAR.
+
+            Sao seis controles nesta fileira, e em coluna estreita eles nao cabem. Sem
+            flex-wrap o navegador resolve o aperto encolhendo alguem — e eu ja vi as duas
+            versoes desse estrago: o rotulo "Não lidas" partido em duas linhas, e depois os
+            dois seletores reduzidos a uma setinha sem texto, que e pior, porque controle
+            ilegivel nao se sabe nem para que serve.
+
+            Com wrap, ninguem fica ilegivel: quando falta largura, a fileira usa duas linhas.
+            Custa 28px de altura, e so quando falta mesmo — e altura e justamente o que esta
+            tela acabou de ganhar de volta.
+        --}}
+        <div class="flex flex-wrap items-center gap-x-1 gap-y-1.5 px-2 py-1.5">
             {{-- Recorte por canal. So com mais de um: com um canal so, um menu de uma
                  opcao e um clique que nao faz nada. --}}
             @if ($multiCanal)
@@ -60,8 +73,15 @@
 
             {{-- so aparece quando ha equipe: sem nenhuma, a barra fica como antes --}}
             @if ($equipes->isNotEmpty())
+                {{-- min-w-0 e shrink: numa coluna de 320px alguem tem de ceder, e a
+                     PRIORIDADE ESTAVA INVERTIDA. Sem isto o seletor mantinha a largura
+                     inteira e o aperto sobrava para o chip ao lado, que quebrava "Não
+                     lidas" em duas linhas — um chip de duas linhas numa fileira de chips
+                     de uma, que e o tipo de detalhe que faz a tela parecer desleixada.
+                     Seletor truncado continua legivel: ele mostra a escolha de novo ao
+                     abrir. Rotulo de filtro cortado no meio nao tem essa segunda chance. --}}
                 <select wire:model.live="equipe"
-                        class="mr-1 max-w-[8.5rem] rounded-full border-0 bg-gray-100 py-1 pl-2 pr-6 text-xs font-medium text-gray-700 dark:bg-white/10 dark:text-gray-200">
+                        class="mr-1 min-w-0 max-w-[8.5rem] rounded-full border-0 bg-gray-100 py-1 pl-2 pr-6 text-xs font-medium text-gray-700 dark:bg-white/10 dark:text-gray-200">
                     <option value="minhas">Minhas equipes</option>
                     <option value="todas">Todas</option>
                     <option value="sem">Sem equipe</option>
@@ -71,16 +91,23 @@
                 </select>
             @endif
 
-            <button type="button" wire:click="$set('somenteNaoLidas', false)"
-                    class="rounded-full px-2.5 py-1 text-xs font-medium transition
-                           {{ ! $somenteNaoLidas ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5' }}">
-                Todas
-            </button>
-            <button type="button" wire:click="$set('somenteNaoLidas', true)"
-                    class="rounded-full px-2.5 py-1 text-xs font-medium transition
-                           {{ $somenteNaoLidas ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5' }}">
-                Não lidas
-            </button>
+            {{-- PAR DE ALTERNANCIA, e por isso os dois andam juntos.
+                 Sao dois estados de UMA escolha, nao dois botoes independentes. Com o wrap
+                 da fileira eles podiam cair em linhas diferentes — "Todas" numa, "Não lidas"
+                 na outra — e ai a alternancia deixava de se ler como alternancia: viravam duas
+                 acoes soltas, e o estado aceso perdia o contra o que ele contrasta. --}}
+            <span class="flex shrink-0 items-center gap-1">
+                <button type="button" wire:click="$set('somenteNaoLidas', false)"
+                        class="shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium transition
+                               {{ ! $somenteNaoLidas ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5' }}">
+                    Todas
+                </button>
+                <button type="button" wire:click="$set('somenteNaoLidas', true)"
+                        class="shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium transition
+                               {{ $somenteNaoLidas ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5' }}">
+                    Não lidas
+                </button>
+            </span>
 
             <span class="ml-auto flex items-center gap-0.5">
                 <button type="button" title="Buscar"
@@ -335,13 +362,21 @@
                         <span class="shrink-0">{{ $conversa->messages_count }} msg</span>
                     @else
                         <span class="flex min-w-0 items-center gap-1.5">
-                            {{-- De qual numero e esta conversa. So com mais de um canal: com um
-                                 so, a marca nao separaria nada. --}}
-                            @if ($multiCanal && $conversa->channel)
+                            {{-- De qual numero e esta conversa. So quando a lista MISTURA
+                                 canais: com todas vindas do mesmo numero, a marca se repetiria
+                                 em toda linha sem separar nada. --}}
+                            @if ($marcarCanal && $conversa->channel)
                                 <span class="flex shrink-0 items-center gap-1"
                                       title="Canal: {{ $conversa->channel->rotulo() }}">
                                     <span class="h-2 w-2 rounded-full {{ $conversa->channel->cor() }}"></span>
-                                    <span class="max-w-24 truncate">{{ $conversa->channel->nomeCurto() }}</span>
+                                    {{-- O NOME SO EM TELA LARGA. Numa coluna de 320px, um
+                                         numero cortado em "+55419849199…" gasta um terco da
+                                         linha para nao distinguir nada: todo canal de WhatsApp
+                                         comeca igual, e o que diferencia esta justamente no
+                                         fim, que e o pedaco que a reticencia come. O pontinho
+                                         colorido separa os canais em qualquer largura, e o
+                                         numero inteiro continua ao parar o mouse. --}}
+                                    <span class="hidden max-w-24 truncate xl:inline">{{ $conversa->channel->nomeCurto() }}</span>
                                 </span>
                                 <span class="shrink-0 opacity-40">&middot;</span>
                             @endif

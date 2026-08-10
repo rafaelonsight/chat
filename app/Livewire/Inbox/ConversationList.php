@@ -401,6 +401,20 @@ class ConversationList extends Component
             // A marca de canal so aparece com MAIS DE UM canal. Com um so ela nao separa
             // nada e viraria enfeite ocupando o lugar de informacao util.
             'multiCanal'    => $canais->count() > 1,
+            /*
+             * A MARCA EM CADA LINHA SO QUANDO ELA SEPARA ALGO DE VERDADE.
+             *
+             * Antes ela seguia o multiCanal acima, isto e, bastava a CONTA ter mais de um
+             * canal — e o Rafael tem tres. Resultado: as trinta linhas carregavam o mesmo
+             * "+55419849199…" cortado, repetido, sem distinguir nada de nada. Marca que
+             * aparece em toda linha nao e marca, e ruido — e ainda gastava um terco da linha.
+             *
+             * Quem decide agora e o que esta NA TELA: com tudo vindo do mesmo numero a marca
+             * some; no instante em que a lista misturar dois canais ela volta, que e
+             * exatamente quando ela passa a informar algo. E o FILTRO acima continua de pe
+             * independente disso.
+             */
+            'marcarCanal'   => $conversas->pluck('channel_id')->unique()->count() > 1,
             'etiquetaAtiva' => $this->etiquetaId() ? Tag::find($this->etiquetaId()) : null,
             'badges'        => $badges,
             'baldes'        => self::BALDES,

@@ -384,7 +384,20 @@
             <div class="bg-red-50 px-4 py-2 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ $message }}</div>
         @enderror
 
-        <div class="flex-1 space-y-2 overflow-y-auto bg-slate-50 p-4">
+        {{--
+            AS MENSAGENS GANHARAM MEDIDA.
+
+            A coluna da conversa tem 894px numa tela de 1600. As bolhas se agarram ao canto
+            esquerdo e sobra meia tela de vazio a direita — nao um vazio calmo, um vazio torto,
+            que e o que fazia a tela parecer mal aproveitada mesmo estando cheia.
+
+            Com uma medida centrada de 768px o texto fica no comprimento em que se le sem
+            varrer a cabeca, e o vazio passa a ser simetrico: deliberado em vez de sobra. E a
+            variante [&>*] em vez de um invólucro novo — o mesmo efeito sem outro nivel de
+            div entre a rolagem e as mensagens, que e onde erro de altura se esconde.
+        --}}
+        <div class="flex-1 space-y-2 overflow-y-auto bg-slate-50 p-4
+                    [&>*]:mx-auto [&>*]:w-full [&>*]:max-w-3xl">
             @if ($mensagens->count() >= $limite)
                 <button type="button" wire:click="carregarMais" class="mx-auto block text-xs text-slate-500 underline">
                     carregar mensagens anteriores
@@ -626,6 +639,23 @@
             @endforeach
         </div>
     @else
-        <div class="grid flex-1 place-items-center bg-slate-50 text-slate-400">Selecione uma conversa</div>
+        {{--
+            A TELA VAZIA ENSINA, em vez de so constatar o vazio.
+
+            "Selecione uma conversa" sozinho gastava a maior area livre da tela para dizer o
+            que a pessoa ja sabia. Aqui e o unico momento em que ela esta parada, sem conversa
+            aberta e sem pressa — exatamente quando cabe aprender que existe teclado.
+        --}}
+        <div class="grid flex-1 place-items-center bg-slate-50 p-6 text-center dark:bg-gray-950/30">
+            <div class="max-w-xs space-y-3">
+                <p class="text-sm text-slate-400">Selecione uma conversa</p>
+
+                <p class="hidden text-xs text-slate-400 lg:block">
+                    Aperte
+                    <kbd class="rounded border border-slate-300 px-1 font-sans dark:border-white/20">?</kbd>
+                    para ver os atalhos de teclado
+                </p>
+            </div>
+        </div>
     @endif
 </div>

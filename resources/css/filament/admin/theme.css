@@ -9,3 +9,77 @@
    Blade tambem precisa existir no css. Tailwind 4 decide isso no BUILD. */
 @source '../../../../app/**/*.php';
 @source '../../../../resources/views/**/*.blade.php';
+
+/* ============================================================ A INBOX OCUPA A TELA
+
+   O QUE ESTAVA ERRADO era aritmetica, nao falta de espaco. O painel se limitava com
+   `h-[calc(100vh-14rem)]`: 224px chutados a dedo para descontar barra de cima, titulo e
+   vaos. Medido no navegador, o container em volta dele JA TINHA 733px livres e o painel
+   ficava com 676 — ele recusava 57px que estavam ali, de graca.
+
+   E numero fixo erra sempre para o lado pior: o desconto de 224px e o mesmo numa tela de
+   1080px e numa de 768px, entao quanto MENOR o monitor, maior a fatia perdida. Medido:
+   75% de aproveitamento em 900px de altura, 71% em 768px.
+
+   ENTAO ELE PAROU DE CALCULAR E PASSOU A ESTICAR. Tres elos da corrente do Filament viram
+   flex, e o painel recebe `flex: 1` — ele fica com o que sobrar, seja quanto for. Nao ha
+   mais numero para envelhecer quando o Filament mudar um padding, e nao ha mais tela em
+   que a conta esteja errada.
+
+   `:has()` para nao vazar: estas regras valem so na pagina que contem a inbox. As outras
+   telas do painel continuam sendo documentos, com titulo e respiro — e devem continuar. */
+
+.fi-page:has([data-inbox]) .fi-page-header-main-ctn {
+    /* 32px acima e abaixo eram respiro de documento. Numa bancada, 12px bastam para a
+       borda arredondada nao encostar na barra. */
+    padding-block: 0.75rem;
+}
+
+/* A CORRENTE INTEIRA, E NAO SO A METADE DE BAIXO.
+
+   Primeira tentativa: estiquei de .fi-page-main para baixo, e o painel DESABOU de 676px para
+   246px. O motivo estava acima do que eu tinha olhado — .fi-main e .fi-page sao display:block,
+   e bloco dentro de bloco tem altura de CONTEUDO. Antes isso passava porque o painel tinha
+   altura fixa e empurrava os pais de baixo para cima; ao trocar a altura fixa por "ocupe o que
+   sobrar", nao sobrava nada para ocupar — ninguem acima dele estava esticado.
+
+   Esticar corrente exige TODOS os elos, do primeiro que tem altura real (.fi-main-ctn, que o
+   Filament ja mantem na altura da janela) ate o painel. Um unico elo em bloco no meio anula
+   todos os outros EM SILENCIO: nao ha erro, o painel so encolhe. */
+
+.fi-main:has([data-inbox]),
+.fi-page:has([data-inbox]),
+.fi-page:has([data-inbox]) .fi-page-header-main-ctn,
+.fi-page:has([data-inbox]) .fi-page-main,
+.fi-page:has([data-inbox]) .fi-page-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0%;
+    /* min-height: 0 em TODOS os elos: falta dele em um so ja faz o filho transbordar em vez
+       de rolar por dentro. Foi essa a armadilha do enquadramento da sala de video. */
+    min-height: 0;
+}
+
+@media (min-width: 1024px) {
+    [data-inbox] {
+        flex: 1 1 0%;
+        min-height: 0;
+
+        /* O TETO, e a razao pela qual um numero sobreviveu aqui.
+
+           "Ocupe o que sobrar" precisa de um TOTAL para se comparar, e nenhum ancestral do
+           Filament tem altura definida: todos crescem com o conteudo, e o unico limite que
+           existe la em cima e um PISO (min-height), nunca um teto. Sem teto, medido: uma
+           conversa longa esticava o painel para 1568px numa janela de 900 e a PAGINA passava
+           a rolar — a bancada inteira subindo, em vez das mensagens rolarem por dentro dela.
+           Isso e pior que o desperdicio original, porque quebra o campo de escrever de vista.
+
+           E ele e LIMITE, nao altura, e essa diferenca e o que o torna seguro: se a conta
+           errar por alguns pixels, o painel fica um pouco mais curto. Nunca desabado, nunca
+           transbordando. Um numero como altura erra para os dois lados; como teto, so para
+           um — e para o lado que ninguem percebe.
+
+           88px = 76 da barra de cima mais o respiro de 12, medidos no navegador. */
+        max-height: calc(100dvh - 5.5rem);
+    }
+}

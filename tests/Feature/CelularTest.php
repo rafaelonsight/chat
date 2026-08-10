@@ -89,7 +89,11 @@ it('no computador as tres colunas voltam, apesar do que o Alpine decidir', funct
     // depois das utilidades base, entao no tamanho grande o lg: vence.
     $html = inbox()->getContent();
 
-    expect($html)->toContain('lg:flex lg:w-80')   // a lista volta a ter largura fixa
+    // 384px (w-96) e nao 320 (w-80): em 320 a fileira de seis filtros esmagava os dois
+    // seletores ate sobrar so a setinha sem texto, e nome de contato quebrava no meio.
+    // O teste continua guardando a mesma coisa — que no computador a lista tem largura
+    // FIXA, e nao fluida — so mudou qual e ela.
+    expect($html)->toContain('lg:flex lg:w-96')   // a lista volta a ter largura fixa
         ->and($html)->toContain('lg:contents');   // e os detalhes voltam a ser coluna propria
 });
 
