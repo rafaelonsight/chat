@@ -21,15 +21,24 @@ class ContactResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedIdentification;
 
-    protected static string|UnitEnum|null $navigationGroup = 'CRM';
+    /*
+     * SAIU DO CRM E FOI PARA ERP > Cadastro, e o nome virou "Pessoas".
+     *
+     * "Contato" descreve o papel de quem escreveu uma vez; "pessoa" descreve o cadastro. E a
+     * mesma ficha que aparece no atendimento — o que mudou e onde ela mora no menu e como ela se
+     * chama para quem esta cadastrando, nao consultando.
+     */
+    protected static string|UnitEnum|null $navigationGroup = 'ERP';
 
-    protected static ?string $navigationLabel = 'Contatos';
+    protected static ?string $navigationParentItem = 'Cadastro';
 
-    protected static ?string $modelLabel = 'contato';
+    protected static ?string $navigationLabel = 'Pessoas';
 
-    protected static ?string $pluralModelLabel = 'contatos';
+    protected static ?string $modelLabel = 'pessoa';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?string $pluralModelLabel = 'pessoas';
+
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $recordTitleAttribute = 'nome';
 

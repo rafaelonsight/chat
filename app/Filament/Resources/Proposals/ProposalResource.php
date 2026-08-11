@@ -21,7 +21,7 @@ class ProposalResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentCurrencyDollar;
 
-    protected static string|UnitEnum|null $navigationGroup = 'CRM';
+    protected static string|UnitEnum|null $navigationGroup = 'ERP';
 
     protected static ?string $navigationLabel = 'Propostas';
 
@@ -29,7 +29,8 @@ class ProposalResource extends Resource
 
     protected static ?string $pluralModelLabel = 'propostas';
 
-    protected static ?int $navigationSort = 5;
+    // Depois de Cadastro (1), no primeiro nivel do ERP.
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $recordTitleAttribute = 'numero';
 

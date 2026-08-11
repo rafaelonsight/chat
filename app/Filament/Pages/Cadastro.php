@@ -20,7 +20,12 @@ class Cadastro extends Page
 
     protected static ?string $navigationParentItem = 'Conta';
 
-    protected static ?string $navigationLabel = 'Cadastro';
+    /*
+     * "Dados da conta" e nao "Cadastro": com o ERP tendo o seu proprio Cadastro, dois itens com o
+     * mesmo nome em grupos diferentes fariam a pessoa clicar no errado — e o titulo desta pagina
+     * ja era "Cadastro da conta". O menu passou a dizer o que ela sempre foi.
+     */
+    protected static ?string $navigationLabel = 'Dados da conta';
 
     protected static ?string $title = 'Cadastro da conta';
 
