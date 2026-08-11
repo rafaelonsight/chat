@@ -519,3 +519,114 @@ window.addEventListener('storage', (e) => {
 
     cortina(e.newValue === '1');
 });
+
+
+/*
+ * ------------------------------------------------------------------------- O MENU LATERAL
+ *
+ * UM GRUPO ABERTO POR VEZ, E O QUE ABRIU APARECE NA TELA.
+ *
+ * O RELATO: "clico em Configuracoes e o menu fica errado, preciso enxergar as opcoes."
+ *
+ * O QUE ERA, MEDIDO: o menu tem seis grupos, e o Filament guarda cada um aberto ou fechado por
+ * conta propria — ou seja, varios ficam abertos ao mesmo tempo. Com tres abertos, a navegacao
+ * chegava a 1498px de conteudo numa area visivel de 836px. "Configuracoes" tem 13 itens (564px)
+ * e fica no fim da lista: ao abrir, os itens dele comecavam em y=966 numa janela de 900 — a
+ * lista INTEIRA do lado de fora da tela.
+ *
+ * O menu nunca esteve quebrado. Ele estava fora do campo de visao, e a barra rolava sem dar
+ * nenhum sinal de que havia algo la embaixo. Que e a pior forma de esconder: sem parecer
+ * escondido.
+ *
+ * DUAS REGRAS:
+ *   1. abrir um grupo fecha os outros (acordeao). Seis grupos abertos nunca caberiam, e um menu
+ *      que exige rolagem para achar o que se acabou de abrir e um menu que nao ajuda.
+ *   2. depois de abrir, o grupo e trazido para a vista.
+ *
+ * E AS DUAS USAM OS PROPRIOS BOTOES DO FILAMENT, com um clique programatico, em vez de mexer no
+ * estado interno dele: assim a preferencia continua sendo gravada por ele, e uma atualizacao do
+ * painel nao deixa este arquivo conversando com uma API que mudou de nome. Custa um clique
+ * sintetico e paga em nao quebrar em silencio na proxima versao.
+ */
+{
+    const GRUPO = '.fi-sidebar-group.fi-collapsible';
+    const ITENS = '.fi-sidebar-group-items';
+
+    // A duracao do x-collapse do Filament e 200ms: perguntar "esta aberto?" antes disso pega a
+    // altura no meio da animacao e responde errado.
+    const DEPOIS_DA_ANIMACAO = 240;
+
+    let arrumando = false;
+
+    const estaAberto = (grupo) => {
+        const itens = grupo.querySelector(ITENS);
+
+        return Boolean(itens) && itens.offsetHeight > 0;
+    };
+
+    const fecharOsOutros = (escolhido) => {
+        arrumando = true;
+
+        document.querySelectorAll(GRUPO).forEach((grupo) => {
+            if (grupo === escolhido || ! estaAberto(grupo)) return;
+
+            grupo.querySelector('button')?.click();
+        });
+
+        arrumando = false;
+    };
+
+    /*
+     * FASE DE CAPTURA (o true no fim), e isso nao e preferencia de estilo: e a unica forma de
+     * este ouvinte existir.
+     *
+     * O botao do grupo INTERROMPE a propagacao do clique — provei com um ouvinte de sonda no
+     * document, que nunca foi chamado. Na subida, o evento morre antes de sair da barra lateral;
+     * na descida (captura), ele passa por aqui primeiro, e ninguem tem como impedir isso.
+     *
+     * Foi o meu segundo erro do mesmo tipo nesta sessao: a primeira versao "funcionava" sem dar
+     * erro nenhum, so nao acontecia. Codigo que falha calado e sempre mais caro que codigo que
+     * estoura.
+     */
+    document.addEventListener('click', (evento) => {
+        // O clique sintetico de fecharOsOutros cai aqui tambem: sem esta guarda, fechar um grupo
+        // dispararia o fechamento dos demais em cascata.
+        if (arrumando) return;
+
+        const grupo = evento.target.closest(GRUPO);
+
+        if (! grupo || ! evento.target.closest('button')) return;
+
+        setTimeout(() => {
+            if (! estaAberto(grupo)) return; // foi um fechamento: nada a organizar
+
+            fecharOsOutros(grupo);
+
+            // Rolar SO DEPOIS de os outros fecharem: a posicao muda quando eles somem, e rolar
+            // antes seria rolar para onde a lista estava, nao para onde ela ficou.
+            setTimeout(
+                () => grupo.querySelector(ITENS)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }),
+                DEPOIS_DA_ANIMACAO,
+            );
+        }, DEPOIS_DA_ANIMACAO);
+    }, true);
+
+    /*
+     * E na carga da pagina tambem.
+     *
+     * A preferencia guardada pode ter tres grupos abertos de antes desta regra existir, e ai a
+     * primeira tela ja apareceria com a navegacao gigante. Fica aberto o grupo da pagina ATUAL,
+     * que e o unico que a pessoa tem motivo para estar olhando agora.
+     */
+    window.addEventListener('load', () => {
+        setTimeout(() => {
+            const abertos = [...document.querySelectorAll(GRUPO)].filter(estaAberto);
+
+            if (abertos.length < 2) return;
+
+            const doItemAtivo = abertos.find((g) => g.querySelector('.fi-active, [aria-current="page"]'));
+
+            fecharOsOutros(doItemAtivo ?? abertos[0]);
+        }, 600);
+    });
+}
