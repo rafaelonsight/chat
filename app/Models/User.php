@@ -126,6 +126,58 @@ class User extends Authenticatable implements FilamentUser
         return (bool) ($this->admin || $this->operador);
     }
 
+    /**
+     * Esta pessoa consegue abrir esta conversa?
+     *
+     * ESPELHA O ESCOPO Acesso de proposito, e isso e uma duplicacao consciente: o escopo sabe
+     * FILTRAR uma consulta, e aqui a pergunta e ao contrario — dada uma conversa, quem pode
+     * ve-la. Fazer isso em SQL sairia num emaranhado de NOT EXISTS para responder algo que se
+     * le em cinco linhas.
+     *
+     * Como duplicacao de regra e como as duas versoes se afastam calados, existe um teste que
+     * compara as duas: para cada usuario e cada conversa, o que este metodo diz tem de bater com
+     * o que o escopo devolve.
+     */
+    public function podeVer(\App\Models\Conversation $conversa): bool
+    {
+        if ($this->veTudo()) {
+            return true;
+        }
+
+        if (($canais = $this->canalIds()) !== [] && ! in_array($conversa->channel_id, $canais, true)) {
+            return false;
+        }
+
+        if (($times = $this->equipeIds()) !== []) {
+            // Restrito a time NAO ve conversa sem time: decisao do Rafael, a triagem e do
+            // chatbot ou de quem esta no time Triagem.
+            return $conversa->team_id !== null && in_array($conversa->team_id, $times, true);
+        }
+
+        return true;
+    }
+
+    /**
+     * Quem pode ser chamado numa nota desta conversa.
+     *
+     * SO QUEM CONSEGUE ABRIR A CONVERSA. Oferecer alguem que nao tem acesso seria armar uma
+     * decepcao: a pessoa recebe o aviso, clica, e cai num "conversa nao encontrada" — e agora
+     * sao dois problemas, o dela e a confianca no aviso.
+     *
+     * Filtra em PHP e nao no banco porque a equipe aqui tem dezenas de pessoas, nao milhares, e
+     * a regra vive num lugar so (podeVer acima). Clareza vale mais que uma consulta esperta.
+     *
+     * @return \Illuminate\Support\Collection<int, static>
+     */
+    public static function quePodemVer(\App\Models\Conversation $conversa): \Illuminate\Support\Collection
+    {
+        return static::where('tenant_id', $conversa->tenant_id)
+            ->orderBy('name')
+            ->get()
+            ->filter(fn (self $u) => $u->podeVer($conversa))
+            ->values();
+    }
+
     /** Se ela foi restringida a algo — o que a tela precisa saber para explicar uma lista vazia. */
     public function temAcessoRestrito(): bool
     {

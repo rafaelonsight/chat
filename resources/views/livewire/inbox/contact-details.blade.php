@@ -270,7 +270,19 @@
                         <div x-show="aberta">
                             @forelse ($notas as $nota)
                                 <div wire:key="nota-{{ $nota->id }}" class="mb-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 dark:border-amber-500/30 dark:bg-amber-500/10">
-                                    <p class="whitespace-pre-wrap text-xs text-amber-900 dark:text-amber-200">{{ $nota->descricao }}</p>
+                                    {{--
+                                        O @nome sai destacado.
+
+                                        e() ANTES do preg_replace, e nao depois: o texto vem de
+                                        quem digitou, e injetar marcacao em cima de texto cru
+                                        seria abrir a porta que o Blade fecha sozinho em todo
+                                        resto do sistema. Escapa primeiro, decora depois.
+                                    --}}
+                                    <p class="whitespace-pre-wrap text-xs text-amber-900 dark:text-amber-200">{!! preg_replace(
+                                        '/@([\p{L}][\p{L}0-9._-]{1,30})/u',
+                                        '<span class="rounded bg-amber-200/70 px-1 font-semibold dark:bg-amber-400/20">@$1</span>',
+                                        e($nota->descricao),
+                                    ) !!}</p>
                                     <p class="mt-0.5 text-[10px] text-amber-700/80 dark:text-amber-300/70">
                                         {{ $nota->created_at?->format('d/m H:i') }}
                                         @if ($nota->user) &middot; {{ $nota->user->name }} @endif

@@ -267,3 +267,28 @@ it('pedir os canais do usuario nao entra em recursao', function () {
 
     expect($ana->canalIds())->toBe([$vendas->id]);
 });
+
+it('o canal de tempo real recusa conversa fora do acesso', function () {
+    /*
+     * A OUTRA PORTA DA MESMA CASA.
+     *
+     * Esconder da lista e proteger a consulta nao bastaria se o canal de tempo real deixasse
+     * assinar qualquer conversa do tenant: o atendente restrito receberia as mensagens
+     * chegando ao vivo, sem nunca abrir a conversa.
+     *
+     * Funciona porque o visivelPara remove APENAS o escopo de tenant — o de acesso continua
+     * valendo ali dentro. Deu certo por construcao e nao por sorte, mas nao estava provado, e
+     * um withoutGlobalScope a mais naquela linha derrubaria a protecao em silencio.
+     */
+    [$t, $chefe, $ana, $vendas, $suporte] = cenarioAcesso('ac13');
+
+    $daMinha = convAc($vendas, '551199@s.whatsapp.net');
+    $doOutro = convAc($suporte, '551188@s.whatsapp.net');
+
+    $ana->canais()->attach($vendas->id);
+
+    $this->actingAs($ana);
+
+    expect(Conversation::visivelPara($ana, $daMinha->id))->toBeTrue()
+        ->and(Conversation::visivelPara($ana, $doOutro->id))->toBeFalse();
+});

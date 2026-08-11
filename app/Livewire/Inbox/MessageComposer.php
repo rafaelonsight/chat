@@ -39,6 +39,17 @@ class MessageComposer extends Component
      */
     public ?int $respondendoA = null;
 
+    /**
+     * Quem a pessoa escolheu chamar na nota, por id.
+     *
+     * Preenchido pela lista suspensa do "@". Existe alem do texto porque nome digitado e
+     * ambiguo e nome escolhido nao e — e porque a tela precisa mostrar ANTES de salvar quem vai
+     * ser avisado. Aviso que a pessoa descobre depois de mandar e aviso que ela nao queria.
+     *
+     * @var array<int, int>
+     */
+    public array $mencionados = [];
+
     /** Template escolhido quando a janela de 24h esta fechada: la, texto livre nao sai. */
     public ?int $templateId = null;
 
@@ -224,6 +235,42 @@ class MessageComposer extends Component
         $this->dispatch('abrir-conversa', conversationId: $conversa->id);
     }
 
+    /**
+     * Quem foi chamado nesta nota: o escolhido na lista mais o digitado no texto.
+     *
+     * O CRUZAMENTO COM QUEM PODE VER e o que impede a mencao de virar vazamento pelo avesso:
+     * sem ele, bastaria escrever "@fulano" para dar a fulano um aviso com o TEXTO da nota e o
+     * nome do cliente de uma conversa que ele nao tem permissao de abrir.
+     *
+     * O nome digitado casa pelo PRIMEIRO nome, sem acento e sem caixa — e so quando um so
+     * usuario casa. Dois "Ana" na equipe e ambiguidade, e adivinhar qual das duas seria pior
+     * que nao avisar nenhuma.
+     *
+     * @return \Illuminate\Support\Collection<int, \App\Models\User>
+     */
+    private function quemFoiChamado(Conversation $conversa): \Illuminate\Support\Collection
+    {
+        $podem = \App\Models\User::quePodemVer($conversa);
+
+        $escolhidos = $podem->whereIn('id', $this->mencionados);
+
+        $digitados = collect();
+
+        preg_match_all('/@([\p{L}][\p{L}0-9._-]{1,30})/u', (string) $this->corpo, $achados);
+
+        foreach ($achados[1] ?? [] as $pedaco) {
+            $casam = $podem->filter(
+                fn ($u) => \Illuminate\Support\Str::slug($u->primeiroNome()) === \Illuminate\Support\Str::slug($pedaco),
+            );
+
+            if ($casam->count() === 1) {
+                $digitados->push($casam->first());
+            }
+        }
+
+        return $escolhidos->merge($digitados)->unique('id')->values();
+    }
+
     private function salvarNota(Conversation $conversa): void
     {
         $this->validate(['corpo' => 'required|string|max:4000']);
@@ -235,10 +282,24 @@ class MessageComposer extends Component
             'descricao'       => trim($this->corpo),
         ]);
 
+        /*
+         * E AVISA QUEM FOI CHAMADO.
+         *
+         * A lista vem de dois lugares de proposito: do que a pessoa ESCOLHEU na lista suspensa
+         * ($this->mencionados) e do que ela DIGITOU no texto. Confiar so na escolha faria
+         * quem digita "@celso" direto, sem esperar a lista aparecer, achar que chamou alguem
+         * quando nao chamou — silencio com cara de sucesso, que e o pior tipo de erro.
+         */
+        $chamados = $this->quemFoiChamado($conversa);
+
+        if ($chamados->isNotEmpty()) {
+            \App\Support\AvisoDeMencao::enviar(auth()->user(), $conversa, $this->corpo, $chamados);
+        }
+
         // De proposito NAO toca ultima_msg_em: essa coluna responde "quem esta
         // esperando ha mais tempo". Nota nossa subindo a conversa na fila faria
         // a ordenacao mentir sobre o cliente.
-        $this->reset(['corpo', 'anexo']);
+        $this->reset(['corpo', 'anexo', 'mencionados']);
         $this->dispatch('abrir-conversa', conversationId: $conversa->id);
     }
 
@@ -311,6 +372,21 @@ class MessageComposer extends Component
             : null;
 
         return view('livewire.inbox.message-composer', [
+            /*
+             * Quem pode ser chamado nesta conversa. So carrega em modo nota: fora dele a lista
+             * nao aparece, e buscar usuario em toda renderizacao do compositor seria pagar
+             * consulta para uma lista que ninguem vai abrir.
+             */
+            'mencionaveis' => $this->nota && $conversa
+                ? \App\Models\User::quePodemVer($conversa)
+                    ->map(fn ($u) => [
+                        'id'       => $u->id,
+                        'nome'     => $u->name,
+                        'primeiro' => $u->primeiroNome(),
+                    ])
+                    ->all()
+                : [],
+
             'modelos' => $this->conversationId
                 ? MessageTemplate::ativos()->orderBy('titulo')->limit(30)->get()
                 : collect(),

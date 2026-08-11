@@ -41,6 +41,24 @@ class Atendimento extends BaseDashboard
         return '';
     }
 
+    /**
+     * ?conversa=123 abre aquela conversa direto.
+     *
+     * E o outro lado do aviso de mencao: sem isto, o "Abrir conversa" do sino jogaria a pessoa
+     * na inbox e deixaria ela procurar na lista qual era — com o aviso ja marcado como lido,
+     * porque ela clicou. O caminho tem de terminar onde promete.
+     *
+     * O acesso NAO e conferido aqui: a conversa e resolvida pelo escopo de acesso quando a tela
+     * carrega, entao id de conversa alheia simplesmente nao acha nada. Conferir de novo aqui
+     * seria uma segunda copia da regra para manter em sincronia.
+     */
+    public function mount(): void
+    {
+        if ($id = request()->integer('conversa')) {
+            $this->js('$dispatch("abrir-conversa", { conversationId: '.$id.' })');
+        }
+    }
+
     public function getWidgets(): array
     {
         return [];

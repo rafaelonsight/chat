@@ -55,6 +55,17 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::CONTENT_START,
                 fn (): string => view('filament.aviso-sem-canal')->render(),
             )
+            /*
+             * O SINO DO PAINEL.
+             *
+             * Entrou junto com a mencao em nota: chamar alguem sem ter onde o chamado aparecer
+             * nao chama ninguem. E o polling fica DESLIGADO de proposito — o canal
+             * App.Models.User.{id} ja estava autorizado e o Reverb ja esta de pe, entao o aviso
+             * chega empurrado. Com polling ligado, cada atendente com a tela aberta bateria no
+             * servidor a cada poucos segundos para quase sempre ouvir "nada de novo".
+             */
+            ->databaseNotifications()
+            ->databaseNotificationsPolling(null)
             ->login()
             // Sem isto, funcionario do cliente que esquece a senha depende de alguem com
             // acesso ao banco. Para revender, isso e constrangedor antes de ser tecnico.

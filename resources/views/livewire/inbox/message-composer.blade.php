@@ -55,9 +55,38 @@
         </div>
 
         @if ($nota)
-            <div class="mb-2 flex items-center gap-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
-                <span>&#128274;</span>
-                <span>Nota interna: fica no histórico da conversa e <strong>não é enviada ao cliente</strong>.</span>
+            <div class="mb-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+                <div class="flex items-center gap-2">
+                    <span>&#128274;</span>
+                    <span>Nota interna: fica no histórico da conversa e <strong>não é enviada ao cliente</strong>. Escreva <strong>@</strong> para chamar alguém.</span>
+                </div>
+
+                {{--
+                    QUEM VAI SER AVISADO, MOSTRADO ANTES DE SALVAR.
+
+                    Aviso que a pessoa descobre depois de mandar e aviso que ela nao queria — e
+                    aqui isso importa mais que o normal, porque o texto da nota viaja dentro do
+                    aviso. Ver os nomes antes e a diferenca entre chamar alguem e vazar um
+                    comentario para quem nao era.
+                --}}
+                @php
+                    $chamados = collect($mencionaveis)->whereIn('id', $mencionados);
+                @endphp
+
+                @if ($chamados->isNotEmpty())
+                    <div class="mt-1.5 flex flex-wrap items-center gap-1 border-t border-amber-200 pt-1.5">
+                        <span class="text-amber-700">Avisando:</span>
+                        @foreach ($chamados as $quem)
+                            <button type="button"
+                                    wire:click="$set('mencionados', {{ json_encode(array_values(array_diff($mencionados, [$quem['id']]))) }})"
+                                    class="group flex items-center gap-1 rounded-full bg-amber-200/70 px-2 py-0.5 font-medium text-amber-900 hover:bg-amber-300"
+                                    title="Não avisar {{ $quem['nome'] }}">
+                                {{ $quem['primeiro'] }}
+                                <span class="text-amber-700 group-hover:text-amber-900">&times;</span>
+                            </button>
+                        @endforeach
+                    </div>
+                @endif
             </div>
         @endif
 
@@ -301,11 +330,124 @@
                  PARASSE de escrever, que e exatamente quando ele deixa de ser util. Tres
                  segundos e o intervalo entre avisos; o Baileys mantem o "digitando" aceso
                  nesse meio tempo. --}}
-            <input type="text" wire:model="corpo" autocomplete="off" data-atalho="responder"
-                   x-on:input.throttle.3000ms="$wire.digitando(true)"
-                   x-on:blur="$wire.digitando(false)"
-                   placeholder="{{ $nota ? 'Nota interna, só a equipe vê' : ($anexo ? 'Legenda (opcional)' : 'Escreva uma mensagem') }}"
-                   class="flex-1 rounded border px-3 py-2 text-sm {{ $nota ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-300' }}">
+            {{--
+                O CAMPO, E A LISTA DO "@" EM CIMA DELE.
+
+                A lista vive no Alpine e nao no servidor: filtrar nome enquanto se digita e
+                estado de tela, e cada tecla virando ida ao servidor daria a sensacao de campo
+                travado justamente em quem digita rapido. A escolha, sim, avisa o servidor —
+                e o proprio nome escolhido e o que a nota vai guardar.
+
+                A lista SO OFERECE quem consegue abrir esta conversa (User::quePodemVer): chamar
+                quem nao tem acesso seria armar uma decepcao com clique e tudo.
+            --}}
+            {{--
+                A LISTA VEM DO ATRIBUTO, E NAO DE DENTRO DO x-data.
+
+                Parece detalhe e nao e: o x-data e avaliado UMA VEZ, no primeiro desenho do
+                elemento. Ligar o modo nota faz o Livewire redesenhar, mas o Alpine mantem o
+                estado que ja tinha — entao a lista ficava congelada no vazio do momento em que
+                a nota estava desligada, e o "@" nao abria nada. Sem erro no console, sem nada:
+                so uma lista que nunca aparecia.
+
+                Lendo do atributo na hora do uso, o valor e sempre o do ultimo desenho, porque
+                atributo o Livewire atualiza.
+            --}}
+            <div class="relative flex-1"
+                 data-mencionaveis="{{ json_encode($mencionaveis) }}"
+                 x-data="{
+                    pessoas: [],
+                    aberto: false,
+                    busca: '',
+                    indice: 0,
+
+                    get achados() {
+                        const b = this.busca.toLowerCase();
+
+                        return this.pessoas
+                            .filter((p) => p.primeiro.toLowerCase().startsWith(b) || p.nome.toLowerCase().includes(b))
+                            .slice(0, 6);
+                    },
+
+                    /* Abre so quando o cursor esta DENTRO de um @palavra: um arroba no meio de
+                       um e-mail digitado nao e um pedido de mencao. */
+                    aoDigitar(el) {
+                        /*
+                           A LISTA E RELIDA A CADA TECLA, do atributo, pelo elemento que veio no
+                           evento — e nao por this.$el.
+
+                           Duas armadilhas juntas moram aqui. A primeira: x-data e avaliado uma
+                           vez so, entao uma lista lida ali dentro fica congelada no primeiro
+                           desenho, quando o modo nota ainda estava desligado e ela era vazia.
+                           A segunda: this.$el nao existe dentro de um getter do Alpine, e como
+                           eu tinha posto um try/catch em volta, o erro virava silencio e a
+                           lista voltava vazia sem nenhuma pista no console.
+
+                           Aqui nao ha nem estado velho nem silencio: o elemento vem no evento,
+                           e o atributo e sempre o do ultimo desenho.
+                        */
+                        const caixa = el.closest('[data-mencionaveis]');
+                        this.pessoas = JSON.parse(caixa?.dataset.mencionaveis || '[]');
+
+                        const antes = el.value.slice(0, el.selectionStart);
+                        const achou = antes.match(/@([\p{L}0-9._-]*)$/u);
+
+                        this.aberto = Boolean(achou) && this.pessoas.length > 0;
+                        this.busca = achou ? achou[1] : '';
+                        this.indice = 0;
+                    },
+
+                    escolher(p, el) {
+                        if (! p) return;
+
+                        const pos = el.selectionStart;
+                        const antes = el.value.slice(0, pos).replace(/@([\p{L}0-9._-]*)$/u, '@' + p.primeiro + ' ');
+
+                        el.value = antes + el.value.slice(pos);
+
+                        /* corpo em segundo plano (false) e mencionados ao vivo: a segunda
+                           chamada leva a primeira de carona no mesmo pedido, e a volta redesenha
+                           as etiquetas de quem sera avisado. */
+                        $wire.set('corpo', el.value, false);
+                        $wire.set('mencionados', [...new Set([...$wire.get('mencionados'), p.id])]);
+
+                        this.aberto = false;
+                        el.focus();
+                    },
+
+                    andar(passo) {
+                        const total = this.achados.length;
+                        if (total) this.indice = (this.indice + passo + total) % total;
+                    },
+                 }">
+
+                <input type="text" wire:model="corpo" autocomplete="off" data-atalho="responder"
+                       x-on:input.throttle.3000ms="$wire.digitando(true)"
+                       x-on:input="aoDigitar($el)"
+                       x-on:blur="$wire.digitando(false); setTimeout(() => aberto = false, 150)"
+                       x-on:keydown.arrow-down="if (aberto) { $event.preventDefault(); andar(1) }"
+                       x-on:keydown.arrow-up="if (aberto) { $event.preventDefault(); andar(-1) }"
+                       x-on:keydown.escape="aberto = false"
+                       x-on:keydown.enter="if (aberto) { $event.preventDefault(); escolher(achados[indice], $el) }"
+                       placeholder="{{ $nota ? 'Nota interna, só a equipe vê — @ chama alguém' : ($anexo ? 'Legenda (opcional)' : 'Escreva uma mensagem') }}"
+                       class="w-full rounded border px-3 py-2 text-sm {{ $nota ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-300' }}">
+
+                {{-- Sobe em vez de descer: embaixo do campo ela cairia atras da barra de
+                     escrever, que e o unico lugar onde nao se pode ler nada. --}}
+                <div x-show="aberto && achados.length" x-cloak
+                     class="absolute bottom-full left-0 z-30 mb-1 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-white/10 dark:bg-gray-800">
+                    <template x-for="(p, i) in achados" :key="p.id">
+                        <button type="button"
+                                x-on:mousedown.prevent="escolher(p, $el.closest('div').parentElement.querySelector('input'))"
+                                :class="i === indice ? 'bg-amber-50 dark:bg-amber-500/10' : ''"
+                                class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-amber-50 dark:hover:bg-amber-500/10">
+                            <span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-amber-500/20 text-[11px] font-semibold text-amber-700 dark:text-amber-300"
+                                  x-text="p.primeiro.charAt(0).toUpperCase()"></span>
+                            <span class="truncate text-gray-800 dark:text-gray-100" x-text="p.nome"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
 
             <button type="submit" wire:loading.attr="disabled" wire:target="enviar,anexo"
                     class="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-60 {{ $nota ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700' }}">
