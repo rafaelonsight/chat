@@ -44,8 +44,8 @@ class Conversation extends Model
 
             $tenantId = $conversa->tenant_id ?: \App\Support\TenantContext::get();
 
-            if ($tenantId && $triagem = \App\Models\Team::triagemDe((int) $tenantId)) {
-                $conversa->team_id = $triagem->id;
+            if ($tenantId && $padrao = \App\Models\Team::padraoDe((int) $tenantId)) {
+                $conversa->team_id = $padrao->id;
             }
         });
     }

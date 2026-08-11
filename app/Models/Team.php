@@ -25,6 +25,12 @@ class Team extends Model
      */
     public const TRIAGEM = 'Triagem';
 
+    /*
+     * O NOME E SO O NOME. Quem manda e a coluna 'padrao': a constante acima serve para batizar a
+     * equipe quando a conta nasce, e nada mais. Renomear a equipe nao quebra nada — foi
+     * exatamente esse o defeito que a marca veio consertar.
+     */
+
     public const ATENDENTE = 'atendente';
 
     public const SUPERVISOR = 'supervisor';
@@ -50,12 +56,53 @@ class Team extends Model
      * A consulta e por indice (tenant_id, nome) e acontece na CRIACAO de conversa, nao a cada
      * mensagem. Economia errada e a que troca uma consulta barata por uma resposta velha.
      */
-    public static function triagemDe(int $tenantId): ?self
+    public static function padraoDe(int $tenantId): ?self
     {
         return static::withoutGlobalScope('tenant')
             ->where('tenant_id', $tenantId)
-            ->where('nome', self::TRIAGEM)
+            ->where('padrao', true)
             ->first();
+    }
+
+    /**
+     * A equipe padrao NAO SE APAGA.
+     *
+     * Pedido do Rafael, e a razao e concreta: ela e o endereco da fila de entrada. Sem ela,
+     * conversa nova nasce sem equipe — e desde que equipe virou permissao, sem equipe quer dizer
+     * invisivel para todo atendente que nao seja administrador. Apagar essa equipe nao quebra
+     * uma tela: apaga a porta de entrada do atendimento.
+     *
+     * A GUARDA VIVE NO MODELO, e nao so no botao da tela: a exclusao tambem acontece por
+     * console, por seeder e por codigo futuro. Regra que mora no botao e regra que o proximo
+     * caminho ignora.
+     */
+    protected static function booted(): void
+    {
+        /*
+         * DESATIVAR A PADRAO QUEBRA IGUAL A APAGAR, e por isso a guarda cobre as duas.
+         *
+         * Equipe desativada sai dos filtros e da lista de transferencia — mas a conversa nova
+         * continua caindo nela, porque a busca da padrao nao olha 'ativa' (e nao deve: a fila de
+         * entrada precisa existir mesmo que alguem a esconda). O resultado seria o pior dos dois
+         * mundos: mensagem entrando num lugar que ninguem consegue abrir.
+         */
+        static::updating(function (self $equipe) {
+            if ($equipe->padrao && $equipe->isDirty('ativa') && ! $equipe->ativa) {
+                throw new \App\Exceptions\EquipePadraoProtegida(
+                    'A equipe "'.$equipe->nome.'" e a padrao da conta: ela recebe as conversas '
+                    .'novas e nao pode ser desativada. Renomear pode.'
+                );
+            }
+        });
+
+        static::deleting(function (self $equipe) {
+            if ($equipe->padrao) {
+                throw new \App\Exceptions\EquipePadraoProtegida(
+                    'A equipe "'.$equipe->nome.'" e a padrao da conta: ela recebe as conversas '
+                    .'novas e nao pode ser excluida. Marque outra como padrao antes, se precisar.'
+                );
+            }
+        });
     }
 
     protected $fillable = ['tenant_id', 'nome', 'descricao', 'cor', 'ativa'];

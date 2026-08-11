@@ -74,7 +74,7 @@ class PrimeirosPassos
                  * "equipe criada" faria este passo nascer concluido — e passo que comeca pronto
                  * nao ensina nada, so mente sobre o quanto a conta esta configurada.
                  */
-                'feito'  => Team::where('nome', '!=', Team::TRIAGEM)->exists(),
+                'feito'  => Team::where('padrao', false)->exists(),
             ],
             [
                 'chave'  => 'horario',

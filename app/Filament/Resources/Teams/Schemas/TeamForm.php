@@ -37,6 +37,9 @@ class TeamForm
             Toggle::make('ativa')
                 ->label('Ativa')
                 ->default(true)
+                // Na padrao o botao vem travado: o modelo recusaria a mudanca, e oferecer para
+                // depois negar e pior que nao oferecer.
+                ->disabled(fn (?\App\Models\Team $record) => (bool) $record?->padrao)
                 ->helperText('Equipe desativada não aparece para transferência nem no filtro do atendimento.'),
         ]);
     }

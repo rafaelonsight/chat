@@ -21,10 +21,29 @@ class Tenant extends Model
         static::created(function (Tenant $conta) {
             // tenant_id explicito: o escopo global preenche pelo contexto, e ao criar uma conta
             // o contexto ainda e de outra (ou de nenhuma).
-            Team::withoutGlobalScope('tenant')->firstOrCreate(
+            $padrao = Team::withoutGlobalScope('tenant')->firstOrCreate(
                 ['tenant_id' => $conta->id, 'nome' => Team::TRIAGEM],
-                ['descricao' => 'Fila de entrada: conversa nova cai aqui até ser direcionada.', 'ativa' => true],
+                [
+                    'descricao' => 'Fila de entrada: conversa nova cai aqui até ser direcionada.',
+                    'ativa'     => true,
+                ],
             );
+
+            /*
+             * forceFill porque 'padrao' esta FORA do fillable — e essa e a protecao.
+             *
+             * A marca decide onde cai TODA conversa nova e quais equipes nao podem ser
+             * apagadas. Campo com esse peso nao pode ser setado por um formulario que um dia
+             * receba um campo a mais sem ninguem notar. Mesmo tratamento que o 'operador' do
+             * usuario tem aqui.
+             *
+             * (E foi ela que me pegou: passei 'padrao' => true dentro do firstOrCreate, o
+             * Eloquent descartou calado, e oito testes falharam apontando para outro lugar. Era
+             * a sexta vez que essa armadilha me pegou neste projeto.)
+             */
+            if (! $padrao->padrao) {
+                $padrao->forceFill(['padrao' => true])->save();
+            }
         });
     }
 

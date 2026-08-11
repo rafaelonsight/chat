@@ -37,10 +37,32 @@ class TeamsTable
                     ->badge()
                     ->color(fn ($state) => $state > 0 ? 'danger' : 'gray'),
 
+                /*
+                 * DIZ QUE ELA E A PADRAO, em vez de so esconder o botao de apagar.
+                 *
+                 * Botao que desaparece sem explicacao vira suspeita de defeito: a pessoa acha
+                 * que a tela quebrou. Com a etiqueta ali, a ausencia do botao passa a ter
+                 * motivo visivel.
+                 */
+                TextColumn::make('padrao')
+                    ->label('')
+                    ->state(fn ($record) => $record->padrao ? 'padrão' : '')
+                    ->badge()
+                    ->color('warning')
+                    ->tooltip(fn ($record) => $record->padrao
+                        ? 'Recebe as conversas novas. Não pode ser excluída.'
+                        : null),
+
                 IconColumn::make('ativa')->label('Ativa')->boolean(),
             ])
             ->defaultSort('nome')
-            ->recordActions([EditAction::make(), DeleteAction::make()])
+            ->recordActions([
+                EditAction::make(),
+                // Escondido, e nao desabilitado: a guarda de verdade esta no modelo (que
+                // recusa a exclusao por qualquer caminho). Aqui e so nao oferecer o que vai
+                // ser negado — oferecer e negar depois e pior que nao oferecer.
+                DeleteAction::make()->hidden(fn ($record) => (bool) $record->padrao),
+            ])
             ->emptyStateHeading('Nenhuma equipe ainda')
             ->emptyStateDescription('Sem equipe, o atendimento funciona igual ao de hoje: todos veem tudo.');
     }
