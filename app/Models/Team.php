@@ -15,9 +15,48 @@ class Team extends Model
 {
     use BelongsToTenant;
 
+    /**
+     * A equipe que existe em toda licenca.
+     *
+     * E o endereco da FILA DE ENTRADA. Desde que time virou permissao — quem esta num time nao
+     * ve conversa sem time —, a conversa que acabou de chegar precisava de um dono desde o
+     * primeiro segundo, senao ela nasceria invisivel para todo mundo que nao e administrador.
+     * Ficar sem esta equipe e ficar sem porta de entrada.
+     */
+    public const TRIAGEM = 'Triagem';
+
     public const ATENDENTE = 'atendente';
 
     public const SUPERVISOR = 'supervisor';
+
+    /**
+     * A Triagem desta conta, ou null se alguem a apagou.
+     *
+     * DEVOLVE null EM VEZ DE CRIAR NA HORA, de proposito: criar equipe dentro do caminho de
+     * gravar uma mensagem faria a entrada de mensagem depender de uma escrita a mais, e uma
+     * falha ali derrubaria o recebimento — trocar "conversa sem time" por "mensagem perdida"
+     * seria um pessimo negocio. Quem chama trata o null seguindo sem time.
+     *
+     * SEM MEMORIA ESTATICA, e essa linha foi aprendida errando.
+     *
+     * Eu tinha guardado o resultado num array estatico "para nao repetir a consulta numa
+     * rajada". Duas coisas quebraram: nos testes os ids de conta se repetem entre casos, e a
+     * memoria devolvia a equipe de um caso anterior — ja apagada. A conversa nascia apontando
+     * para uma equipe orfa, e ficava invisivel para todo mundo. Cinquenta testes cairam.
+     *
+     * E o mesmo valeria em producao onde mais doi: um worker do Horizon vive horas, e guardaria
+     * a equipe velha depois de qualquer renomeacao ou exclusao.
+     *
+     * A consulta e por indice (tenant_id, nome) e acontece na CRIACAO de conversa, nao a cada
+     * mensagem. Economia errada e a que troca uma consulta barata por uma resposta velha.
+     */
+    public static function triagemDe(int $tenantId): ?self
+    {
+        return static::withoutGlobalScope('tenant')
+            ->where('tenant_id', $tenantId)
+            ->where('nome', self::TRIAGEM)
+            ->first();
+    }
 
     protected $fillable = ['tenant_id', 'nome', 'descricao', 'cor', 'ativa'];
 

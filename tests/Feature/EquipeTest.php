@@ -78,7 +78,10 @@ it('equipe nao vaza entre tenants', function () {
     [, $adminB] = cenarioEquipe('eq5');
     $this->actingAs($adminB);
 
-    expect(Team::count())->toBe(0);
+    // 1 e nao 0: a Triagem vem de fabrica em toda licenca. O que este teste guarda continua
+    // valendo — o Suporte da outra conta nao aparece aqui.
+    expect(Team::count())->toBe(1)
+        ->and(Team::first()->nome)->toBe(Team::TRIAGEM);
 });
 
 // ------------------------------------------------------------ transferir
@@ -145,11 +148,17 @@ it('nao transfere para equipe de outro tenant', function () {
     $cv = convEq($c, '5584911111111@s.whatsapp.net');
     TenantContext::forget();
 
+    // A conversa nasce na Triagem, entao "nao transferiu" deixou de significar "esta em
+    // null": significa que a equipe continua a MESMA. Guardar o valor de antes diz isso sem
+    // depender de qual e ele.
+    $equipeAntes = $cv->team_id;
+
     Livewire::actingAs($ana)
         ->test(ConversationWindow::class, ['conversationId' => $cv->id])
         ->call('transferir', $doOutro->id);
 
-    expect($cv->refresh()->team_id)->toBeNull();
+    expect($cv->refresh()->team_id)->toBe($equipeAntes)
+        ->and($cv->team_id)->not->toBe($doOutro->id);
 });
 
 // ------------------------------------------------------------- inbox
@@ -253,7 +262,17 @@ it('sem equipe filtra so as nao roteadas', function () {
     [, , $ana, , $c] = cenarioEquipe('eqf');
     $suporte = Team::create(['nome' => 'Suporte']);
     convEq($c, '5584911111111@s.whatsapp.net', $suporte->id);
+    /*
+     * SEM EQUIPE DE VERDADE, e isso passou a exigir um empurrao.
+     *
+     * Desde que a Triagem virou padrao, conversa nova nunca nasce sem equipe — o filtro "Sem
+     * equipe" so encontra o que PERDEU o time depois (alguem limpou a mao, ou a Triagem foi
+     * apagada). O teste continua guardando o filtro; o que mudou e que ele precisa criar o
+     * estado que antes vinha de graca.
+     */
     $solta = convEq($c, '5584922222222@s.whatsapp.net');
+    $solta->forceFill(['team_id' => null])->save();
+
     TenantContext::forget();
 
     Livewire::actingAs($ana)
@@ -268,9 +287,11 @@ it('o seletor lista so as equipes ativas do tenant', function () {
     Team::create(['nome' => 'Desativada', 'ativa' => false]);
     TenantContext::forget();
 
+    // Suporte e Triagem: duas ativas. A desativada continua fora, que e o assunto do teste.
     Livewire::actingAs($ana)
         ->test(ConversationList::class)
-        ->assertViewHas('equipes', fn ($e) => $e->count() === 1 && $e->first()->nome === 'Suporte');
+        ->assertViewHas('equipes', fn ($e) => $e->pluck('nome')->sort()->values()->all()
+            === ['Suporte', Team::TRIAGEM]);
 });
 
 // ------------------------------------------------------------- painel

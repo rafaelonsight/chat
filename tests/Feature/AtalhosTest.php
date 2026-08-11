@@ -61,10 +61,18 @@ beforeEach(function () {
     $this->actingAs($this->pessoa);
 });
 
+/*
+ * 'todas' e nao 'sem'.
+ *
+ * A intencao aqui sempre foi "nao filtre por equipe" — e antes 'sem' servia para isso por
+ * acidente, porque nenhuma conversa tinha equipe. Quando a Triagem virou padrao em toda licenca,
+ * 'sem equipe' passou a devolver lista vazia, corretamente: nao existe mais conversa sem dono de
+ * fila. Quem quer a lista inteira pede 'todas', que e o que ela sempre quis dizer.
+ */
 function listaAberta($pessoa)
 {
     return Livewire::actingAs($pessoa)->test(ConversationList::class)
-        ->set('equipe', 'sem')->set('balde', 'meus');
+        ->set('equipe', 'todas')->set('balde', 'meus');
 }
 
 // ----------------------------------------------------------- navegar (j / k)

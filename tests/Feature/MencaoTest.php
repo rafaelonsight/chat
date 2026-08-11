@@ -164,7 +164,7 @@ it('a lista marca a conversa com mencao', function () {
     ]));
 
     Livewire::actingAs($this->pessoa)->test(ConversationList::class)
-        ->set('equipe', 'sem')->set('balde', 'grupos')
+        ->set('equipe', 'todas')->set('balde', 'grupos')
         ->assertSee('te chamaram');
 });
 

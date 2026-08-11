@@ -65,10 +65,16 @@ class PrimeirosPassos
                 'peso'   => self::RECOMENDADO,
                 'titulo' => 'Separar em equipes',
                 'porque' => 'Equipe é o que faz a conversa cair no grupo certo — vendas, suporte, '
-                    .'financeiro — em vez de todo mundo ver tudo.',
+                    .'financeiro — em vez de todo mundo ver tudo. A Triagem já existe: é onde a '
+                    .'conversa nova espera até ser direcionada.',
                 'acao'   => 'Criar equipe',
                 'url'    => route('filament.admin.resources.teams.index'),
-                'feito'  => Team::exists(),
+                /*
+                 * A TRIAGEM NAO CONTA. Ela vem de fabrica em toda licenca, entao contar como
+                 * "equipe criada" faria este passo nascer concluido — e passo que comeca pronto
+                 * nao ensina nada, so mente sobre o quanto a conta esta configurada.
+                 */
+                'feito'  => Team::where('nome', '!=', Team::TRIAGEM)->exists(),
             ],
             [
                 'chave'  => 'horario',

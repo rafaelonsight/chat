@@ -23,6 +23,31 @@ class Conversation extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new \App\Models\Scopes\Acesso('channel_id', 'team_id'));
+
+        /*
+         * CONVERSA NOVA CAI NA TRIAGEM.
+         *
+         * Este gancho fecha o buraco que a regra de acesso abriu: quem esta num time nao ve
+         * conversa sem time, entao conversa nascendo sem time nasceria invisivel para todo
+         * atendente — visivel so para administrador, que e justamente quem nao atende.
+         *
+         * So preenche quando ninguem escolheu: quem cria a conversa ja sabendo o time (chatbot,
+         * transferencia, campanha) manda o dela e este gancho nao encosta.
+         *
+         * E se a Triagem nao existir, segue sem time: nao ha desculpa para perder mensagem de
+         * cliente por causa de uma equipe apagada.
+         */
+        static::creating(function (Conversation $conversa) {
+            if ($conversa->team_id !== null) {
+                return;
+            }
+
+            $tenantId = $conversa->tenant_id ?: \App\Support\TenantContext::get();
+
+            if ($tenantId && $triagem = \App\Models\Team::triagemDe((int) $tenantId)) {
+                $conversa->team_id = $triagem->id;
+            }
+        });
     }
 
     public const NOVA           = 'nova';

@@ -144,7 +144,7 @@ it('filtrar por etiqueta de conversa acha pela conversa', function () {
     $this->conversa->tags()->attach($this->daConversa->id);
 
     $conversas = Livewire::actingAs($this->pessoa)->test(ConversationList::class)
-        ->set('equipe', 'sem')->set('balde', 'meus')
+        ->set('equipe', 'todas')->set('balde', 'meus')
         ->call('filtrarEtiqueta', (string) $this->daConversa->id)
         ->viewData('conversas');
 
@@ -156,7 +156,7 @@ it('filtrar por etiqueta de contato continua achando pelo contato', function () 
     $this->contato->tags()->attach($this->doContato->id);
 
     $conversas = Livewire::actingAs($this->pessoa)->test(ConversationList::class)
-        ->set('equipe', 'sem')->set('balde', 'meus')
+        ->set('equipe', 'todas')->set('balde', 'meus')
         ->call('filtrarEtiqueta', (string) $this->doContato->id)
         ->viewData('conversas');
 

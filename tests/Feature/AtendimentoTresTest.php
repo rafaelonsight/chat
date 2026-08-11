@@ -142,7 +142,7 @@ it('a conversa volta a aparecer no filtro de nao lidas', function () {
     $this->conversa->marcarNaoLida();
 
     $conversas = Livewire::actingAs($this->joao)->test(ConversationList::class)
-        ->set('equipe', 'sem')->set('balde', 'meus')->set('somenteNaoLidas', true)
+        ->set('equipe', 'todas')->set('balde', 'meus')->set('somenteNaoLidas', true)
         ->viewData('conversas');
 
     expect($conversas->pluck('id')->all())->toContain($this->conversa->id);

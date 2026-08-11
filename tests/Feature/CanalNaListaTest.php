@@ -75,7 +75,7 @@ beforeEach(function () {
 function listaDoAtendente($pessoa)
 {
     return Livewire::actingAs($pessoa)->test(ConversationList::class)
-        ->set('equipe', 'sem')
+        ->set('equipe', 'todas')
         ->set('balde', 'meus');
 }
 

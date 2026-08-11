@@ -249,7 +249,7 @@ it('a fixada sobe para o topo da lista', function () {
     $this->conversa->fixarPara($this->joao);
 
     $conversas = Livewire::actingAs($this->joao)->test(ConversationList::class)
-        ->set('equipe', 'sem')->set('balde', 'meus')
+        ->set('equipe', 'todas')->set('balde', 'meus')
         ->viewData('conversas');
 
     expect($conversas->first()->id)->toBe($this->conversa->id)
@@ -282,13 +282,13 @@ it('a conversa que EU fixei nao sobe na lista do outro atendente', function () {
 
     // Para o Joao, a fixada dele fura a fila.
     $doJoao = Livewire::actingAs($this->joao)->test(ConversationList::class)
-        ->set('equipe', 'sem')->set('balde', 'novos')
+        ->set('equipe', 'todas')->set('balde', 'novos')
         ->viewData('conversas');
 
     expect($doJoao->first()->id)->toBe($this->conversa->id);
 
     $conversas = Livewire::actingAs($maria)->test(ConversationList::class)
-        ->set('equipe', 'sem')->set('balde', 'novos')
+        ->set('equipe', 'todas')->set('balde', 'novos')
         ->viewData('conversas');
 
     // Para a Maria, nao: a fila dela segue a ordem de chegada.

@@ -7,6 +7,27 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Tenant extends Model
 {
+    /**
+     * Toda licenca nasce com a equipe Triagem.
+     *
+     * AQUI E NAO NO FORMULARIO DE CADASTRO: licenca tambem nasce por seeder, por comando e por
+     * teste, e equipe que depende de alguem lembrar de marcar uma caixinha e equipe que vai
+     * faltar justamente na conta criada com pressa. Faltando ela, toda conversa nova chega sem
+     * time — e desde que time virou permissao, sem time quer dizer invisivel para quem nao e
+     * administrador.
+     */
+    protected static function booted(): void
+    {
+        static::created(function (Tenant $conta) {
+            // tenant_id explicito: o escopo global preenche pelo contexto, e ao criar uma conta
+            // o contexto ainda e de outra (ou de nenhuma).
+            Team::withoutGlobalScope('tenant')->firstOrCreate(
+                ['tenant_id' => $conta->id, 'nome' => Team::TRIAGEM],
+                ['descricao' => 'Fila de entrada: conversa nova cai aqui até ser direcionada.', 'ativa' => true],
+            );
+        });
+    }
+
     protected $fillable = [
         'nome', 'slug', 'razao_social', 'nome_fantasia', 'documento', 'email', 'telefone',
         'fuso_horario',
