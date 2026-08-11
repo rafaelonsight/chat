@@ -23,6 +23,21 @@ Broadcast::channel('tenant.{tenantId}.conversations', function (User $user, int 
     return (int) $user->tenant_id === $tenantId;
 });
 
+/*
+ * QUEM ESTA ONLINE AGORA, por conta.
+ *
+ * Canal de PRESENCA: o array devolvido vira a lista de quem esta la dentro. Vai o nome inteiro
+ * porque esta lista e de colegas, nao de clientes — a pessoa precisa distinguir dois Celsos.
+ */
+Broadcast::channel('equipe.{tenantId}', function (User $user, int $tenantId) {
+    return (int) $user->tenant_id === $tenantId
+        ? ['id' => $user->id, 'nome' => $user->name, 'primeiro' => $user->primeiroNome()]
+        : false;
+});
+
+// Recado direto: so o dono do canal. Cada um escuta o proprio, como no canal do Filament.
+Broadcast::channel('recados.{userId}', fn (User $user, int $userId) => $user->id === $userId);
+
 // Canal proprio de cada usuario. O Filament assina este canal para as notificacoes
 // do painel; sem a definicao, o /broadcasting/auth recusava com 403 e o navegador
 // ficava tentando de novo, enchendo o console de erro. A regra e a obvia: cada um

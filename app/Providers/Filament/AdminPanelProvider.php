@@ -64,6 +64,22 @@ class AdminPanelProvider extends PanelProvider
              * chega empurrado. Com polling ligado, cada atendente com a tela aberta bateria no
              * servidor a cada poucos segundos para quase sempre ouvir "nada de novo".
              */
+            /*
+             * A BOLHA DO CHAT DA EQUIPE, em toda tela do painel.
+             *
+             * BODY_END e nao dentro de uma pagina: falar com um colega acontece no meio de
+             * outra coisa. Se morasse numa pagina propria, perguntar algo custaria sair de onde
+             * se estava — e quem perde o lugar nao pergunta.
+             *
+             * A guarda do auth()->check() existe porque este gancho tambem roda na tela de
+             * login, e uma bolha de chat ali seria um convite para um chat que nao existe.
+             */
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn (): string => auth()->check()
+                    ? \Illuminate\Support\Facades\Blade::render('<livewire:chat-interno />')
+                    : '',
+            )
             ->databaseNotifications()
             ->databaseNotificationsPolling(null)
             ->login()
