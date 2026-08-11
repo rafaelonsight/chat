@@ -149,3 +149,11 @@ Route::prefix('chat-do-site/{chave}')
 // O widget em si. Servido pelo app para quem instala colar UMA linha, e para a correcao de
 // amanha chegar sozinha em todos os sites que ja instalaram.
 Route::get('/widget.js', App\Http\Controllers\WidgetDoSiteController::class)->name('widget');
+
+/*
+ * A proposta que o cliente abre pelo link.
+ *
+ * PUBLICA E SEM SESSAO, como a sala de video e a pagina de agendamento. O que protege e o token
+ * aleatorio: nao ha nada a adivinhar, e proposta em rascunho devolve 404 antes de renderizar.
+ */
+Route::get('/proposta/{token}', App\Livewire\Publico\Proposta::class)->name('proposta');
