@@ -4,13 +4,34 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
 use App\Support\Jid;
+use App\Support\PhoneNumber;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Contact extends Model
 {
     use BelongsToTenant;
+
+    /*
+     * NATUREZA e PAPEIS nao se confundem com o 'tipo' abaixo: tipo diz se o contato e uma pessoa
+     * ou um grupo do WhatsApp (coisa do canal); natureza diz se e CPF ou CNPJ (coisa do
+     * cadastro); papeis diz o que essa pessoa e para o negocio.
+     */
+    public const FISICA = 'fisica';
+
+    public const JURIDICA = 'juridica';
+
+    /** Os papeis possiveis. A pessoa pode ter varios: cliente que tambem fornece, tecnico que e colaborador. */
+    public const PAPEIS = [
+        'cliente' => 'Cliente',
+        'colaborador' => 'Colaborador',
+        'tecnico' => 'Técnico',
+        'fornecedor' => 'Fornecedor',
+        'vendedor' => 'Vendedor',
+    ];
 
     public const PESSOA = 'pessoa';
 
@@ -25,16 +46,37 @@ class Contact extends Model
         // e campo fora do fillable e descartado em SILENCIO — ja me custou tres rodadas
         // esta semana.
         'opt_out_em', 'opt_out_motivo',
+        // A ficha completa: natureza, documento e papeis. Entram no fillable porque a
+        // importacao de lista e a consulta de CNPJ preenchem por atribuicao em massa — e
+        // campo de fora e descartado em silencio, como o comentario acima ja avisa.
+        'natureza', 'documento', 'razao_social', 'nome_fantasia', 'papeis', 'nascimento',
     ];
 
     protected $casts = [
         'anonimizado_em' => 'datetime',
-        'opt_out_em'     => 'datetime',
+        'opt_out_em' => 'datetime',
         'arquivado_em' => 'datetime',
         'bloqueado_em' => 'datetime',
+        'nascimento' => 'date',
+        // Lista e nao texto: a pessoa pode ser cliente E fornecedora.
+        'papeis' => 'array',
     ];
 
     protected $attributes = ['tipo' => self::PESSOA];
+
+    public function ehJuridica(): bool
+    {
+        return $this->natureza === self::JURIDICA;
+    }
+
+    /** @return array<int, string> Os papeis por extenso, para a tela. */
+    public function papeisPorExtenso(): array
+    {
+        return collect($this->papeis ?? [])
+            ->map(fn (string $p) => self::PAPEIS[$p] ?? $p)
+            ->values()
+            ->all();
+    }
 
     protected static function booted(): void
     {
@@ -103,12 +145,12 @@ class Contact extends Model
         return $this->arquivado_em !== null;
     }
 
-    public function scopeAtivos(\Illuminate\Database\Eloquent\Builder $q): \Illuminate\Database\Eloquent\Builder
+    public function scopeAtivos(Builder $q): Builder
     {
         return $q->whereNull('arquivado_em')->whereNull('bloqueado_em');
     }
 
-    public function fieldValues(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function fieldValues(): HasMany
     {
         return $this->hasMany(ContactFieldValue::class);
     }
@@ -119,7 +161,7 @@ class Contact extends Model
         return $this->fieldValues()->pluck('valor', 'contact_field_id')->all();
     }
 
-    public function tags(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class)
             // created_at no pivot para a tela poder dizer QUANDO a etiqueta foi posta.
@@ -137,10 +179,23 @@ class Contact extends Model
         return $this->tipo === self::GRUPO;
     }
 
+    /**
+     * Como esta pessoa se chama na tela — e o unico lugar que decide isso.
+     *
+     * A EMPRESA CADASTRADA PELO CNPJ entra sem 'nome' digitado a mao: quem preenche pelo documento
+     * recebe razao social e fantasia da Receita, e mais nada. Sem os dois nesta ordem, ela
+     * apareceria na caixa de entrada como um telefone.
+     *
+     * FANTASIA ANTES DE RAZAO SOCIAL porque e por ela que o cliente se reconhece: ninguem atende
+     * dizendo "Comercio de Oculos Central LTDA". E o 'nome' vem antes das duas — se alguem
+     * corrigiu a mao, a correcao vale mais que o dado da Receita.
+     */
     public function nomeExibicao(): string
     {
-        if ($this->nome) {
-            return $this->nome;
+        foreach ([$this->nome, $this->nome_fantasia, $this->razao_social] as $candidato) {
+            if (filled($candidato)) {
+                return $candidato;
+            }
         }
 
         if ($this->eGrupo()) {
@@ -235,7 +290,7 @@ class Contact extends Model
      */
     public static function acharPorTelefone(?string $telefone): ?self
     {
-        $formas = \App\Support\PhoneNumber::variantes($telefone);
+        $formas = PhoneNumber::variantes($telefone);
 
         if ($formas === []) {
             return null;
@@ -279,7 +334,7 @@ class Contact extends Model
      */
     public function telefoneDiscavel(): ?string
     {
-        return \App\Support\PhoneNumber::discavel($this->telefone_e164) ?: $this->telefone_e164;
+        return PhoneNumber::discavel($this->telefone_e164) ?: $this->telefone_e164;
     }
 
     public static function jidDoTelefone(string $e164): string

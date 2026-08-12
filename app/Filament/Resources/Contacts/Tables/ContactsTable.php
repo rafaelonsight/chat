@@ -5,12 +5,16 @@ namespace App\Filament\Resources\Contacts\Tables;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Tag;
+use App\Services\DadosDoContato;
+use App\Support\Documento;
 use Filament\Actions\Action;
 use Filament\Actions\EditAction;
-use Filament\Tables\Columns\TextColumn;
+use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
 use Illuminate\Support\HtmlString;
@@ -40,14 +44,35 @@ class ContactsTable
                     ->description(fn (Contact $record) => match (true) {
                         $record->bloqueado() => 'bloqueado'.($record->bloqueio_motivo ? ': '.$record->bloqueio_motivo : ''),
                         $record->arquivado() => 'arquivado',
-                        default              => null,
+                        default => null,
                     }),
+
+                // O papel vem logo depois do nome porque e a segunda pergunta de quem abre a lista:
+                // quem e essa pessoa para o negocio. Etiqueta e outra coisa — ela e do atendimento.
+                TextColumn::make('papeis')
+                    ->label('Tipo')
+                    ->badge()
+                    ->formatStateUsing(fn (string $state) => Contact::PAPEIS[$state] ?? $state)
+                    ->color('gray')
+                    ->placeholder('—'),
 
                 TextColumn::make('telefone_e164')
                     ->label('Telefone')
                     ->searchable()
                     ->copyable()
                     ->copyMessage('Numero copiado')
+                    ->placeholder('—'),
+
+                // Guardado em digitos, mostrado pontuado — e a busca aceita os dois jeitos,
+                // porque ninguem lembra se digitou com ponto quando vai procurar.
+                TextColumn::make('documento')
+                    ->label('CPF / CNPJ')
+                    ->formatStateUsing(fn (?string $state) => Documento::formatar($state))
+                    ->copyable()
+                    ->copyMessage('Documento copiado')
+                    ->searchable(query: fn ($query, string $search) => $query->where(
+                        'documento', 'like', '%'.Documento::digitos($search).'%'
+                    ))
                     ->placeholder('—'),
 
                 TextColumn::make('instagram')
@@ -148,6 +173,22 @@ class ContactsTable
                         blank: fn ($query) => $query->whereNull('bloqueado_em'),
                     ),
 
+                SelectFilter::make('papel')
+                    ->label('Tipo de pessoa')
+                    ->options(Contact::PAPEIS)
+                    // Coluna json: o filtro pergunta se a lista CONTEM o papel, e nao se e igual
+                    // a ele — a mesma pessoa pode ser cliente e fornecedora ao mesmo tempo.
+                    ->query(fn ($query, array $data) => filled($data['value'])
+                        ? $query->whereJsonContains('papeis', $data['value'])
+                        : $query),
+
+                SelectFilter::make('natureza')
+                    ->label('Pessoa')
+                    ->options([
+                        Contact::FISICA => 'Física',
+                        Contact::JURIDICA => 'Jurídica',
+                    ]),
+
                 Filter::make('so_grupos')
                     ->label('Somente grupos')
                     ->query(fn ($query) => $query->where('tipo', 'grupo')),
@@ -192,7 +233,7 @@ class ContactsTable
                     ->color('gray')
                     ->visible(fn (): bool => (bool) auth()->user()?->admin)
                     ->action(function (Contact $record) {
-                        $servico = app(\App\Services\DadosDoContato::class);
+                        $servico = app(DadosDoContato::class);
                         $dados = $servico->exportar($record);
                         $nome = $servico->nomeDoArquivo($record);
 
@@ -222,7 +263,7 @@ class ContactsTable
                     ))
                     ->modalSubmitActionLabel('Apagar os dados')
                     ->action(function (Contact $record) {
-                        $r = app(\App\Services\DadosDoContato::class)->anonimizar($record);
+                        $r = app(DadosDoContato::class)->anonimizar($record);
 
                         Notification::make()
                             ->title('Dados removidos')
@@ -241,7 +282,7 @@ class ContactsTable
                         ? 'O contato volta a ser atendido pelo chatbot e pela resposta automática.'
                         : 'Bloqueado, ele NÃO recebe resposta do chatbot nem resposta automática. As mensagens dele continuam chegando no atendimento, para uma pessoa decidir.')
                     ->schema(fn (Contact $record) => $record->bloqueado() ? [] : [
-                        \Filament\Forms\Components\TextInput::make('motivo')
+                        TextInput::make('motivo')
                             ->label('Motivo')
                             ->maxLength(120)
                             ->helperText('Opcional, mas ajuda quem revisar depois.'),
