@@ -166,7 +166,38 @@ class ContactForm
                         ->dehydrateStateUsing(fn ($state) => filled($state)
                             ? (PhoneNumber::toE164($state) ?? $state)
                             : null)
-                        ->unique(ignoreRecord: true),
+                        /*
+                         * REPETIDO SE CONFERE NO NUMERO NORMALIZADO, e nao no que esta escrito.
+                         *
+                         * O ->unique() do Filament comparava o texto do campo — '(84) 99614-3373' —
+                         * com o que o banco guarda, que e '+5584996143373'. Nunca casava. Quem
+                         * barrava o repetido era a restricao do banco sobre o jid, e restricao de
+                         * banco vira ERRO 500 na cara de quem cadastra, nao aviso no campo.
+                         *
+                         * E confere as VARIANTES do numero: o mesmo telefone chega com e sem o
+                         * nono digito dependendo de onde veio. Duas fichas para a mesma linha
+                         * partem o historico da conversa em duas.
+                         *
+                         * O recorte por conta sai de graca no Contact::query(): o escopo de
+                         * inquilino ja esta ali. O mesmo cliente pode ser cliente de duas empresas
+                         * que usam o sistema, e o numero dele e o mesmo nos dois lugares.
+                         */
+                        ->rule(fn (?Contact $record) => function (string $attribute, $value, $fail) use ($record) {
+                            $formas = PhoneNumber::variantes($value);
+
+                            if (! $formas) {
+                                return;
+                            }
+
+                            $ja = Contact::query()
+                                ->whereIn('telefone_e164', $formas)
+                                ->when($record, fn ($q) => $q->whereKeyNot($record->getKey()))
+                                ->first();
+
+                            if ($ja) {
+                                $fail('Esse telefone já é de "'.$ja->nomeExibicao().'". Edite aquela ficha em vez de criar outra.');
+                            }
+                        }),
 
                     TextInput::make('email')
                         ->label('E-mail')
