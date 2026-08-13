@@ -1,5 +1,54 @@
 @import 'tailwindcss';
 
+/*
+ * A FONTE FALTAVA, e isso ficou muito tempo sem aparecer.
+ *
+ * O vite.config baixava a Instrument Sans pelo plugin e emitia os arquivos no build — e NADA os
+ * referenciava. O painel nao denunciava o problema porque o Filament hospeda a Inter dele por
+ * conta propria; so as paginas publicas (proposta e agendamento) ficavam com a fonte do sistema,
+ * enquanto o --font-sans logo abaixo prometia 'Instrument Sans'.
+ *
+ * O sintoma nunca foi "a fonte nao carregou": foi a pagina parecer sem acabamento, sem ninguem
+ * saber dizer por que.
+ *
+ * AS REGRAS FICAM ESCRITAS AQUI, e nao vindas do plugin: o caminho e estavel, nao depende de
+ * modulo virtual, e um arquivo que sai do lugar vira erro 404 visivel em vez de fonte que
+ * silenciosamente nao aplica. Os arquivos vivem em public/fontes.
+ *
+ * font-display: swap para o texto aparecer na hora com a fonte do sistema e trocar quando a
+ * nossa chegar — proposta que abre em branco por meio segundo custa mais que a troca de fonte.
+ *
+ * O 700 existe para o titulo grande: em 600, um display de 60px parece texto aumentado.
+ */
+@font-face {
+    font-family: 'Instrument Sans';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/fontes/instrument-sans-400.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Instrument Sans';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/fontes/instrument-sans-500.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Instrument Sans';
+    font-style: normal;
+    font-weight: 600;
+    font-display: swap;
+    src: url('/fontes/instrument-sans-600.woff2') format('woff2');
+}
+@font-face {
+    font-family: 'Instrument Sans';
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+    src: url('/fontes/instrument-sans-700.woff2') format('woff2');
+}
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 

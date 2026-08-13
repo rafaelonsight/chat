@@ -9,6 +9,11 @@
 
     <title>{{ $titulo ?? 'Agendar' }}</title>
 
+    {{-- A marca tambem na aba do cliente: a proposta fica aberta em segundo plano por dias, e
+         quem procura a aba procura o icone, nao o titulo. --}}
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>

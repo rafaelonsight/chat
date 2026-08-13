@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Exceptions\PropostaEnviadaProtegida;
 use App\Models\Concerns\BelongsToTenant;
+use App\Support\TenantContext;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 /**
@@ -19,6 +22,8 @@ use Illuminate\Support\Str;
 #[Fillable([
     'tenant_id', 'titulo', 'contact_id', 'cliente_nome', 'cliente_email',
     'conversation_id', 'validade', 'desconto', 'blocos', 'criada_por',
+    // O valor cheio ao lado do proposto, a condicao de pagamento e os selos da capa.
+    'valor_cheio_unico', 'valor_cheio_recorrente', 'vencimento_dia', 'primeiro_pagamento', 'selos',
 ])]
 class Proposal extends Model
 {
@@ -47,24 +52,28 @@ class Proposal extends Model
      * reuniao). O padrao declarado nos dois lugares custa duas linhas e fecha a duvida.
      */
     protected $attributes = [
-        'status'           => self::RASCUNHO,
-        'total_unico'      => 0,
+        'status' => self::RASCUNHO,
+        'total_unico' => 0,
         'total_recorrente' => 0,
-        'desconto'         => 0,
+        'desconto' => 0,
     ];
 
     protected function casts(): array
     {
         return [
-            'blocos'           => 'array',
-            'validade'         => 'date',
-            'enviada_em'       => 'datetime',
-            'vista_em'         => 'datetime',
-            'aceita_em'        => 'datetime',
-            'recusada_em'      => 'datetime',
-            'total_unico'      => 'decimal:2',
+            'blocos' => 'array',
+            'selos' => 'array',
+            'primeiro_pagamento' => 'date',
+            'valor_cheio_unico' => 'decimal:2',
+            'valor_cheio_recorrente' => 'decimal:2',
+            'validade' => 'date',
+            'enviada_em' => 'datetime',
+            'vista_em' => 'datetime',
+            'aceita_em' => 'datetime',
+            'recusada_em' => 'datetime',
+            'total_unico' => 'decimal:2',
             'total_recorrente' => 'decimal:2',
-            'desconto'         => 'decimal:2',
+            'desconto' => 'decimal:2',
         ];
     }
 
@@ -83,7 +92,7 @@ class Proposal extends Model
          */
         static::deleting(function (self $p) {
             if ($p->enviada_em !== null) {
-                throw new \App\Exceptions\PropostaEnviadaProtegida(
+                throw new PropostaEnviadaProtegida(
                     'A proposta '.$p->numero.' ja foi enviada ao cliente e nao pode ser apagada. '
                     .'Marque como recusada se o negocio nao andou.'
                 );
@@ -94,7 +103,7 @@ class Proposal extends Model
             // Aleatorio e nao sequencial: numero de proposta na URL deixaria qualquer um trocar
             // o 14 pelo 13 e ler a proposta do concorrente.
             $p->token ??= Str::random(40);
-            $p->numero ??= static::proximoNumero((int) ($p->tenant_id ?: \App\Support\TenantContext::get()));
+            $p->numero ??= static::proximoNumero((int) ($p->tenant_id ?: TenantContext::get()));
         });
     }
 
@@ -115,6 +124,52 @@ class Proposal extends Model
      * A corrida de dois cadastros simultaneos e fechada pelo indice unico (tenant_id, numero) —
      * aqui seria impossivel fechar, e o banco fecha de graca. Quem salva trata a colisao.
      */
+    /** Os selos da capa: frase curta que responde uma objecao antes de ela ser feita. */
+    public const SELOS = [
+        'Sem fidelidade',
+        'Sem taxa de cancelamento',
+        'Implantação acompanhada',
+        'Suporte por WhatsApp',
+        'Treinamento incluído',
+        'Cancelamento com 30 dias de aviso',
+    ];
+
+    /**
+     * O valor cheio, quando ele for maior que o proposto.
+     *
+     * A GUARDA E O METODO. Ancora menor que o preco nao e ancora: e erro de digitacao que a
+     * pagina transformaria num anuncio de aumento — o cliente leria "de R$ 300 por R$ 500". Na
+     * duvida a pagina nao mostra nada, que e sempre melhor que mostrar o contrario.
+     *
+     * @return array{cheio: float, agora: float, economia: float}|null
+     */
+    public function ancora(string $qual): ?array
+    {
+        [$cheio, $agora] = $qual === 'recorrente'
+            ? [$this->valor_cheio_recorrente, $this->total_recorrente]
+            : [$this->valor_cheio_unico, $this->total_unico];
+
+        $cheio = (float) $cheio;
+        $agora = (float) $agora;
+
+        if ($cheio <= 0 || $agora <= 0 || $cheio <= $agora) {
+            return null;
+        }
+
+        return ['cheio' => $cheio, 'agora' => $agora, 'economia' => $cheio - $agora];
+    }
+
+    /**
+     * O momento em que a proposta deixa de valer, para o contador da pagina.
+     *
+     * FIM DO DIA, e nao o comeco dele: quem recebe "valida ate 15/08" espera poder aceitar no dia
+     * 15. Um contador que zera a meia-noite do dia 14 cobraria um dia que foi prometido.
+     */
+    public function venceEm(): ?Carbon
+    {
+        return $this->validade?->copy()->endOfDay();
+    }
+
     public static function proximoNumero(int $tenantId, ?int $ano = null): string
     {
         $ano ??= (int) now()->format('Y');
@@ -181,7 +236,7 @@ class Proposal extends Model
         }
 
         $this->forceFill([
-            'total_unico'      => max(0, $unico - (float) $this->desconto),
+            'total_unico' => max(0, $unico - (float) $this->desconto),
             'total_recorrente' => $recorrente,
         ])->saveQuietly();
     }
@@ -227,8 +282,8 @@ class Proposal extends Model
     {
         $this->visualizacoes()->create([
             'vista_em' => now(),
-            'ip'       => $ip,
-            'agente'   => Str::limit((string) $agente, 250, ''),
+            'ip' => $ip,
+            'agente' => Str::limit((string) $agente, 250, ''),
         ]);
 
         $mudanca = ['vista_em' => $this->vista_em ?? now()];
@@ -268,10 +323,10 @@ class Proposal extends Model
         }
 
         $this->forceFill([
-            'status'        => self::ACEITA,
-            'aceita_em'     => now(),
-            'aceita_por'    => Str::limit(trim($nome), 155, ''),
-            'aceita_ip'     => $ip,
+            'status' => self::ACEITA,
+            'aceita_em' => now(),
+            'aceita_por' => Str::limit(trim($nome), 155, ''),
+            'aceita_ip' => $ip,
             'aceita_agente' => Str::limit((string) $agente, 250, ''),
         ])->save();
 
@@ -285,10 +340,10 @@ class Proposal extends Model
         }
 
         $this->forceFill([
-            'status'        => self::RECUSADA,
-            'recusada_em'   => now(),
+            'status' => self::RECUSADA,
+            'recusada_em' => now(),
             'recusa_motivo' => $motivo ? Str::limit(trim($motivo), 900, '') : null,
-            'aceita_ip'     => $ip,
+            'aceita_ip' => $ip,
         ])->save();
     }
 
