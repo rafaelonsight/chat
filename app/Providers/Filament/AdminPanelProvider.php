@@ -4,6 +4,7 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Atendimento;
 use App\Filament\Pages\Auth\Perfil;
+use App\Http\Middleware\LicencaValida;
 use App\Http\Middleware\SessaoBloqueada;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -197,6 +198,10 @@ class AdminPanelProvider extends PanelProvider
                 // Depois do StartSession e do Authenticate: a trava e por sessao, e
                 // precisa da sessao carregada e do usuario conhecido.
                 SessaoBloqueada::class,
+                // Depois da SessaoBloqueada: sessao destravada e a licenca invalida sao
+                // duas cortinas diferentes, e quem esta so com a sessao bloqueada nao
+                // precisa saber nada sobre a licenca da conta.
+                LicencaValida::class,
             ])
             ->authMiddleware([
                 Authenticate::class,

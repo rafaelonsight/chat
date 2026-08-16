@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Tenant extends Model
 {
@@ -84,5 +85,10 @@ class Tenant extends Model
     public function channels(): HasMany
     {
         return $this->hasMany(Channel::class);
+    }
+
+    public function license(): HasOne
+    {
+        return $this->hasOne(License::class);
     }
 }

@@ -61,8 +61,17 @@ class User extends Authenticatable implements FilamentUser
 
     // Fora do ambiente "local" o Filament exige que o model diga
     // explicitamente quem pode entrar no painel.
+    //
+    // O painel 'revenda' e o bastidor do fornecedor (cadastro de tenant, licenca):
+    // administrador de cliente que entrasse ali veria o nome e o CNPJ de todos os
+    // outros clientes. O painel do produto ('admin') continua aberto para todo
+    // mundo — o controle fino dele e por pagina, nao por painel.
     public function canAccessPanel(Panel $panel): bool
     {
+        if ($panel->getId() === 'revenda') {
+            return (bool) $this->operador;
+        }
+
         return true;
     }
 

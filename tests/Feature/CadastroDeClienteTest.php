@@ -1,6 +1,6 @@
 <?php
 
-use App\Filament\Pages\Clientes as Tela;
+use App\Filament\Revenda\Pages\Clientes as Tela;
 use App\Models\{Channel, Tenant, User};
 use App\Notifications\ConviteDeAcesso;
 use App\Services\CriarCliente;
@@ -86,8 +86,10 @@ it('esconde a tela de quem nao e operador, mesmo sendo administrador', function 
 });
 
 it('nega o acesso direto pela URL a quem nao e operador', function () {
+    // A tela mora no painel 'revenda' (admin.virtus.chat), dominio proprio — e nao mais
+    // em /admin/clientes.
     $this->actingAs($this->adminDeCliente)
-        ->get('/admin/clientes')
+        ->get('http://admin.virtus.chat/clientes')
         ->assertForbidden();
 });
 

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\License;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Notifications\ConviteDeAcesso;
@@ -19,6 +20,9 @@ use Throwable;
  */
 class CriarCliente
 {
+    /** Quantos dias de teste um cliente novo ganha antes de precisar de licença ativa. */
+    public const DIAS_DE_TRIAL = 14;
+
     /**
      * @param  array{nome:string, documento?:?string, email?:?string, telefone?:?string,
      *               fuso_horario?:?string, responsavel_nome:string, responsavel_email:string,
@@ -51,6 +55,17 @@ class CriarCliente
                 // senha do cliente e o proprio cliente, pelo link do convite.
                 'password'  => Str::password(40),
                 'admin'     => true,
+            ]);
+
+            // Toda conta nasce em trial: sem isto, o cliente criado agora ficaria sem
+            // licenca nenhuma, e o middleware que confere acesso trataria "sem licenca"
+            // como bloqueado — o cadastro pareceria ter dado certo e a pessoa nao
+            // conseguiria entrar.
+            License::create([
+                'tenant_id'  => $cliente->id,
+                'status'     => License::TRIAL,
+                'inicia_em'  => now(),
+                'vence_em'   => now()->addDays(self::DIAS_DE_TRIAL),
             ]);
 
             return [$cliente, $responsavel];

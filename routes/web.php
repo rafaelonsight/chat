@@ -110,6 +110,24 @@ Route::middleware('auth')->group(function () {
 });
 
 /*
+ * Licenca sem acesso: mesma razao de ficar fora do painel que a tela de sessao
+ * bloqueada — nao pode usar o layout do produto que ela existe para trancar.
+ */
+Route::middleware('auth')->get('/licenca-bloqueada', function (\Illuminate\Http\Request $pedido) {
+    $licenca = $pedido->user()->tenant?->license;
+
+    // Sem licenca, ou licenca valida: nao ha o que mostrar aqui.
+    if (! $licenca || $licenca->estaValida()) {
+        return redirect('/admin');
+    }
+
+    return view('licenca.bloqueada', [
+        'status' => $licenca->nomeDoStatus(),
+        'motivo' => $licenca->motivo,
+    ]);
+})->name('licenca.bloqueada');
+
+/*
  * A pagina publica de reserva.
  *
  * SEM AUTENTICACAO e sem tenant na URL: quem abre e o cliente do cliente, que nao tem conta

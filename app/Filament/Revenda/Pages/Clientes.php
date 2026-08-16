@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Pages;
+namespace App\Filament\Revenda\Pages;
 
 use App\Models\Channel;
 use App\Models\Contact;
@@ -13,19 +13,20 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Collection;
-use UnitEnum;
 
 /**
  * A tela do dono do produto: cadastrar e acompanhar os clientes.
  *
  * Formulario escrito a mao, seguindo o Cadastro: o comportamento importante aqui (o convite,
  * o desempate de slug, o tenant certo) e logica, nao configuracao de formulario.
+ *
+ * Mora no painel 'revenda' (admin.virtus.chat), e nao no painel do produto — ver
+ * RevendaPanelProvider. O $navigationGroup antigo ('Revenda') virou o nome do painel
+ * inteiro, entao nao faz mais sentido aqui dentro.
  */
 class Clientes extends Page
 {
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingOffice2;
-
-    protected static string|UnitEnum|null $navigationGroup = 'Revenda';
 
     protected static ?string $navigationLabel = 'Clientes';
 
@@ -35,7 +36,7 @@ class Clientes extends Page
 
     protected static ?string $slug = 'clientes';
 
-    protected string $view = 'filament.pages.clientes';
+    protected string $view = 'filament.revenda.pages.clientes';
 
     public string $nome = '';
 
