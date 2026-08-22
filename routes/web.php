@@ -59,6 +59,11 @@ Route::get('/saude', function () {
  * do painel, senao mostraria por tras justamente o que ela existe para esconder.
  */
 Route::middleware('auth')->group(function () {
+    // Cadastro Incorporado (Embedded Signup): o popup da Meta devolve code + ids por
+    // JS, e e o JS quem chama esta rota para trocar isso por um canal pronto.
+    Route::post('/canais/meta/conectar-incorporado', App\Http\Controllers\MetaEmbeddedSignupController::class)
+        ->name('canais.meta.conectar-incorporado');
+
     // POST e nao GET: bloquear muda estado, e link visitado por engano nao pode
     // trancar a tela de ninguem.
     Route::post('/sessao/bloquear', function (\Illuminate\Http\Request $pedido) {

@@ -120,6 +120,10 @@ return [
         // "ultima versao" significa o sistema mudar sozinho num sabado.
         'versao'       => env('META_API_VERSION', 'v23.0'),
         'timeout'      => (int) env('META_TIMEOUT', 20),
+        // Cadastro Incorporado (Embedded Signup v3): a 'Configuration' criada no Painel de
+        // Apps da Meta (WhatsApp > Cadastro Incorporado). Sem ela o botao de conectar nao
+        // sabe qual fluxo abrir - e um id proprio, diferente do app_id.
+        'config_id'    => env('META_EMBEDDED_CONFIG_ID'),
     ],
 
 ];

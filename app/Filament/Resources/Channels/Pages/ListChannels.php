@@ -33,9 +33,11 @@ class ListChannels extends ListRecords
                 Action::make('oficial')
                     ->label('WhatsApp oficial (Meta)')
                     ->icon('heroicon-o-check-badge')
-                    // Este continua com formulario porque ele PRECISA de dados que so a pessoa
-                    // tem: Phone Number ID, WABA e token. Nao ha o que adivinhar.
-                    ->url(static::getResource()::getUrl('create').'?tipo='.Channel::META_CLOUD),
+                    // Cadastro Incorporado: o popup da Meta devolve os tres identificadores
+                    // sozinho. O formulario manual (Phone Number ID, WABA, token) continua
+                    // existindo — e so nao e mais o primeiro caminho oferecido — em
+                    // create?tipo=meta_cloud, para quem precisar dele.
+                    ->url(static::getResource()::getUrl('conectar-meta')),
             ])
                 ->label('Novo canal')
                 ->icon('heroicon-o-plus')

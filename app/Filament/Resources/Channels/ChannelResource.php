@@ -66,6 +66,9 @@ class ChannelResource extends Resource
             // Endereco proprio para o QR: o cadastro leva direto para ca, e o link
             // pode ser mandado para o cliente conectar o numero dele sozinho.
             'conectar' => \App\Filament\Resources\Channels\Pages\ConectarChannel::route('/{record}/conectar'),
+            // O botao "Continuar com o Facebook" do Cadastro Incorporado. Sem {record}
+            // porque o canal ainda nao existe quando esta tela abre.
+            'conectar-meta' => \App\Filament\Resources\Channels\Pages\ConectarMetaIncorporado::route('/conectar-meta'),
         ];
     }
 }
