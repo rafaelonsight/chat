@@ -147,3 +147,78 @@ it('recusa quem não é admin', function () {
     expect(Channel::count())->toBe(0);
     Http::assertNothingSent();
 });
+
+/*
+ * Callback do link hospedado pela Meta (GET, nao POST).
+ *
+ * Existe porque o FB.login() classico com este config_id ficava preso na tela de
+ * "continuar como Fulano" e nunca completava — o link hospedado prova que a configuracao
+ * do lado da Meta esta certa, e volta por REDIRECT do navegador (query string), nao por
+ * postMessage. A pagina de retorno roda dentro do popup e manda a aba principal
+ * (window.opener) para o canal pronto, fechando o popup sozinho.
+ */
+
+it('cria o canal e devolve a página que fecha o popup, quando o retorno vem completo', function () {
+    Http::fake([
+        'graph.facebook.com/*/oauth/access_token*' => Http::response(['access_token' => 'EAA-token-da-waba-do-cliente']),
+        'graph.facebook.com/*/subscribed_apps*'    => Http::response(['success' => true]),
+        'graph.facebook.com/*'                     => Http::response([
+            'display_phone_number' => '+1 555-672-5603',
+            'verified_name'        => 'Cliente Novo',
+        ]),
+    ]);
+
+    $resposta = $this->actingAs($this->admin)
+        ->get(route('canais.meta.callback', pedidoDeConexao()));
+
+    $resposta->assertOk()
+        ->assertViewIs('filament.resources.channels.pages.conectar-meta-retorno')
+        ->assertViewHas('sucesso', true);
+
+    $canal = Channel::where('meta_waba_id', '3620023178150458')->firstOrFail();
+
+    expect($canal->meta_token)->toBe('EAA-token-da-waba-do-cliente')
+        ->and($canal->status)->toBe('open');
+
+    // A pagina precisa mandar a aba principal (window.opener) para o canal, nao so o
+    // popup — senao quem clicou fica olhando o resultado numa janela que tem de fechar
+    // na mao.
+    $resposta->assertSee('window.opener', false);
+});
+
+it('não cria canal e mostra o motivo quando falta o code no retorno', function () {
+    Http::fake(['graph.facebook.com/*' => Http::response(['access_token' => 'nao-deveria-chegar-aqui'])]);
+
+    $resposta = $this->actingAs($this->admin)
+        ->get(route('canais.meta.callback', pedidoDeConexao(['code' => ''])));
+
+    $resposta->assertStatus(422)->assertViewHas('sucesso', false);
+    expect(Channel::count())->toBe(0);
+    Http::assertNothingSent();
+});
+
+it('não cria canal e mostra o motivo quando falta waba_id/phone_number_id no retorno', function () {
+    Http::fake(['graph.facebook.com/*' => Http::response(['access_token' => 'nao-deveria-chegar-aqui'])]);
+
+    // E exatamente o que a Meta manda quando o assistente de escolher a WABA nao chega
+    // a completar: so o code, sem os outros dois.
+    $resposta = $this->actingAs($this->admin)
+        ->get(route('canais.meta.callback', ['code' => 'codigo-do-popup']));
+
+    $resposta->assertStatus(422)->assertViewHas('sucesso', false);
+    expect(Channel::count())->toBe(0);
+    Http::assertNothingSent();
+});
+
+it('recusa quem não é admin no retorno', function () {
+    $semPermissao = User::create([
+        'tenant_id' => $this->tenant->id, 'name' => 'Sem admin 2', 'email' => 'semadmin2@incorporado.test',
+        'password' => 'segredo123', 'admin' => false,
+    ]);
+
+    $resposta = $this->actingAs($semPermissao)
+        ->get(route('canais.meta.callback', pedidoDeConexao()));
+
+    $resposta->assertForbidden();
+    expect(Channel::count())->toBe(0);
+});

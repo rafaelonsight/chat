@@ -13,9 +13,9 @@
     <x-filament::section>
         <x-slot name="heading">Conectar pelo Facebook</x-slot>
         <x-slot name="description">
-            Abre o cadastro oficial da Meta: você escolhe ou cria a conta do WhatsApp Business
-            ali dentro, e o número, a conta e a credencial voltam prontos — sem copiar nada do
-            painel da Meta.
+            Abre o cadastro oficial da Meta numa janela: você escolhe ou cria a conta do
+            WhatsApp Business ali dentro, e o número, a conta e a credencial voltam prontos —
+            sem copiar nada do painel da Meta.
         </x-slot>
 
         <div class="flex flex-col items-start gap-3">
@@ -37,46 +37,14 @@
         </a>
     </p>
 
-    {{-- SDK do Facebook. async/defer: nao pode atrasar o resto da tela carregando. --}}
-    <script>
-        window.fbAsyncInit = function () {
-            FB.init({
-                appId: @json(config('services.meta.app_id')),
-                autoLogAppEvents: true,
-                xfbml: false,
-                version: 'v23.0',
-            });
-        };
-    </script>
-    <script async defer crossorigin="anonymous" src="https://connect.facebook.net/pt_BR/sdk.js"></script>
-
     <script>
         (function () {
-            const csrfToken = @json(csrf_token());
-            const urlConectar = @json(route('canais.meta.conectar-incorporado'));
+            const appId = @json(config('services.meta.app_id'));
             const configId = @json(config('services.meta.config_id'));
+            const redirectUri = @json(route('canais.meta.callback'));
 
-            // A v3 do Cadastro Incorporado NAO devolve waba_id/phone_number_id no "code" do
-            // FB.login: eles chegam por um evento de sessao, mandado pelo proprio popup via
-            // postMessage. Os dois lados (code + evento) tem de se encontrar aqui.
-            let sessaoRecebida = null;
-
-            window.addEventListener('message', function (event) {
-                if (event.origin !== 'https://www.facebook.com' && event.origin !== 'https://web.facebook.com') {
-                    return;
-                }
-
-                let dados;
-                try {
-                    dados = JSON.parse(event.data);
-                } catch (e) {
-                    return; // mensagem de outra origem que nao e do Cadastro Incorporado
-                }
-
-                if (dados.type === 'WA_EMBEDDED_SIGNUP' && dados.event === 'FINALIZE') {
-                    sessaoRecebida = dados.data || {};
-                }
-            });
+            let popup = null;
+            let vigia = null;
 
             window.onsightIniciarCadastroIncorporado = function () {
                 if (!configId) {
@@ -84,63 +52,46 @@
                     return;
                 }
 
-                mostrarStatus('Abrindo o Facebook…');
+                // Este e o link "Cadastro incorporado hospedado pela Meta" (Painel de Apps >
+                // WhatsApp > Torne-se um Provedor de Tecnologia): NAO e o FB.login() classico.
+                // O FB.login() com este config_id ficava preso na tela de "continuar como
+                // Fulano" e nunca chegava a mostrar a escolha da conta do WhatsApp — este link
+                // hospedado e o mesmo caminho que a propria Meta gera, e mostra o assistente
+                // completo.
+                const url = new URL('https://business.facebook.com/messaging/whatsapp/onboard/');
+                url.searchParams.set('app_id', appId);
+                url.searchParams.set('config_id', configId);
+                url.searchParams.set('extras', JSON.stringify({
+                    version: 'v4',
+                    sessionInfoVersion: '3',
+                    featureType: 'whatsapp_business_app_onboarding',
+                }));
+                url.searchParams.set('redirect_uri', redirectUri);
 
-                FB.login(function (response) {
-                    if (!response.authResponse || !response.authResponse.code) {
-                        mostrarErro('O Facebook fechou sem concluir a autorização. Tente de novo.');
-                        return;
-                    }
+                popup = window.open(url.toString(), 'onsight-cadastro-incorporado', 'width=620,height=780');
 
-                    enviarParaServidor(response.authResponse.code);
-                }, {
-                    config_id: configId,
-                    response_type: 'code',
-                    override_default_response_type: true,
-                    extras: { setup: {}, sessionInfoVersion: '3' },
-                });
-            };
-
-            function enviarParaServidor(code, tentativa) {
-                tentativa = tentativa || 0;
-
-                // O evento de sessao as vezes chega DEPOIS do callback do FB.login. Espera
-                // até 2s (20 x 100ms) antes de desistir e mandar sem os ids — nesse caso o
-                // servidor recusa com uma mensagem clara, em vez de travar aqui para sempre.
-                if (!sessaoRecebida && tentativa < 20) {
-                    mostrarStatus('Confirmando com o Facebook…');
-                    setTimeout(function () { enviarParaServidor(code, tentativa + 1); }, 100);
+                if (!popup) {
+                    mostrarErro('O navegador bloqueou a janela. Libere pop-ups para este site e tente de novo.');
                     return;
                 }
 
-                mostrarStatus('Conectando o número…');
+                mostrarStatus('Complete o cadastro na janela que abriu…');
 
-                fetch(urlConectar, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                    },
-                    body: JSON.stringify({
-                        code: code,
-                        waba_id: (sessaoRecebida && sessaoRecebida.waba_id) || '',
-                        phone_number_id: (sessaoRecebida && sessaoRecebida.phone_number_id) || '',
-                        business_id: (sessaoRecebida && sessaoRecebida.business_id) || null,
-                    }),
-                })
-                    .then(function (r) { return r.json().then(function (body) { return { status: r.status, body: body }; }); })
-                    .then(function (resultado) {
-                        if (resultado.status === 200 && resultado.body.ok) {
-                            window.location.href = resultado.body.redirect;
-                        } else {
-                            mostrarErro(resultado.body.erro || 'Não foi possível conectar. Tente de novo.');
-                        }
-                    })
-                    .catch(function () {
-                        mostrarErro('Falha de rede ao falar com o servidor. Tente de novo.');
-                    });
-            }
+                // O retorno (rota /canais/meta/callback) manda ESTA aba para o canal pronto e
+                // fecha o popup sozinho. Este vigia so serve para o caso de a pessoa fechar a
+                // janela na mao, sem terminar — sem ele o status "Complete o cadastro…" ficaria
+                // preso na tela para sempre.
+                clearInterval(vigia);
+                vigia = setInterval(function () {
+                    if (popup && popup.closed) {
+                        clearInterval(vigia);
+                        // Se deu certo, o proprio retorno ja navegou esta aba antes de fechar o
+                        // popup — chegar aqui com o popup fechado e sinal de que a pessoa
+                        // cancelou no meio do caminho.
+                        mostrarErro('A janela foi fechada antes de terminar. Clique de novo para tentar.');
+                    }
+                }, 500);
+            };
 
             function mostrarStatus(mensagem) {
                 const el = document.getElementById('onsight-status-meta');
