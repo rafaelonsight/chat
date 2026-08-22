@@ -49,15 +49,38 @@
             const appId = @json(config('services.meta.app_id'));
             const configId = @json(config('services.meta.config_id'));
             const redirectUri = @json(route('canais.meta.callback'));
+            const urlConectar = @json(route('canais.meta.conectar-incorporado'));
+            const csrfToken = @json(csrf_token());
+            // Constante DESTA aba, carregada uma vez — de proposito, nao vive em
+            // sessao. Ver o comentario em ConectarMetaIncorporado::class sobre por
+            // que sessao (compartilhada entre abas) misturaria duas reconexoes
+            // concorrentes.
+            const canalId = @json($canalId);
 
             let popup = null;
             let vigia = null;
+            let concluido = false;
+
+            window.addEventListener('message', function (event) {
+                if (event.origin !== window.location.origin) {
+                    return;
+                }
+                if (!event.data || event.data.type !== 'onsight-meta-signup-done') {
+                    return;
+                }
+
+                concluido = true;
+                clearInterval(vigia);
+                finalizarConexao(event.data.signupToken);
+            });
 
             window.onsightIniciarCadastroIncorporado = function () {
                 if (!configId) {
                     mostrarErro('O Cadastro Incorporado ainda não foi configurado no Painel de Apps da Meta (falta o config_id). Use "Preencher manualmente" por enquanto.');
                     return;
                 }
+
+                concluido = false;
 
                 // Este e o link "Cadastro incorporado hospedado pela Meta" (Painel de Apps >
                 // WhatsApp > Torne-se um Provedor de Tecnologia): NAO e o FB.login() classico.
@@ -84,21 +107,48 @@
 
                 mostrarStatus('Complete o cadastro na janela que abriu…');
 
-                // O retorno (rota /canais/meta/callback) manda ESTA aba para o canal pronto e
-                // fecha o popup sozinho. Este vigia so serve para o caso de a pessoa fechar a
-                // janela na mao, sem terminar — sem ele o status "Complete o cadastro…" ficaria
-                // preso na tela para sempre.
+                // Este vigia so serve para o caso de a pessoa fechar a janela na mao,
+                // sem terminar — sem ele o status "Complete o cadastro…" ficaria preso
+                // na tela para sempre. Se a mensagem de sucesso ja chegou (concluido),
+                // o popup fechar sozinho e o comportamento esperado, nao erro.
                 clearInterval(vigia);
                 vigia = setInterval(function () {
                     if (popup && popup.closed) {
                         clearInterval(vigia);
-                        // Se deu certo, o proprio retorno ja navegou esta aba antes de fechar o
-                        // popup — chegar aqui com o popup fechado e sinal de que a pessoa
-                        // cancelou no meio do caminho.
-                        mostrarErro('A janela foi fechada antes de terminar. Clique de novo para tentar.');
+                        if (!concluido) {
+                            mostrarErro('A janela foi fechada antes de terminar. Clique de novo para tentar.');
+                        }
                     }
                 }, 500);
             };
+
+            function finalizarConexao(signupToken) {
+                mostrarStatus('Conectando o número…');
+
+                fetch(urlConectar, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                    },
+                    body: JSON.stringify({
+                        signup_token: signupToken,
+                        canal_id: canalId,
+                    }),
+                })
+                    .then(function (r) { return r.json().then(function (body) { return { status: r.status, body: body }; }); })
+                    .then(function (resultado) {
+                        if (resultado.status === 200 && resultado.body.ok) {
+                            window.location.href = resultado.body.redirect;
+                        } else {
+                            mostrarErro(resultado.body.erro || 'Não foi possível conectar. Tente de novo.');
+                        }
+                    })
+                    .catch(function () {
+                        mostrarErro('Falha de rede ao falar com o servidor. Tente de novo.');
+                    });
+            }
 
             function mostrarStatus(mensagem) {
                 const el = document.getElementById('onsight-status-meta');

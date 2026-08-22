@@ -6,42 +6,50 @@ use App\Filament\Resources\Channels\ChannelResource;
 use App\Models\Channel;
 use App\Services\Canais\MetaEmbeddedSignup;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 /**
- * Cadastro Incorporado: dois caminhos que terminam no mesmo lugar.
+ * Cadastro Incorporado: dois passos que nao podem confiar na mesma sessao.
  *
- * `conectar` (POST) e para quando o JS da tela ja tem code + waba_id + phone_number_id em
- * mãos (via FB.login() + evento de sessao por postMessage). `retorno` (GET) e o callback
- * do link hospedado pela Meta — que roda numa pagina da Meta, nao num popup nosso, e volta
- * para ca por REDIRECT do navegador, com os dados na própria query string.
+ * `retorno` (GET) e o callback do link hospedado pela Meta — roda DENTRO DO POPUP,
+ * troca o code por token e guarda o resultado num cache de curta duracao, sob um id
+ * de uso unico. `conectar` (POST) e quem persiste no banco, chamado pela ABA
+ * PRINCIPAL depois que o popup manda esse id de volta por postMessage.
  *
- * Os dois so existem porque o FB.login() com este config_id nao estava completando o
- * assistente de escolha da WABA (ficava soo na tela de "continuar como Fulano" e fechava
- * sem waba_id/phone_number_id) — o link hospedado prova que a configuracao do lado da Meta
- * esta certa, entao a tela passou a abrir esse link num popup em vez de usar FB.login().
+ * Por que nao criar o canal direto em `retorno`: a unica forma de saber PARA QUAL
+ * canal esta reconexao era (criar um novo ou atualizar o canal X) e a aba que abriu
+ * o popup — nao a sessao do navegador, que e compartilhada entre abas. Guardar
+ * "canal X" numa chave de sessao fixa quebra no instante em que o mesmo admin abre
+ * uma segunda reconexao numa aba diferente antes de terminar a primeira: o retorno
+ * de uma aba acaba lido pela sessao que a OUTRA aba deixou por ultimo, e o token
+ * escolhido para o canal A e gravado no canal B, em silencio.
+ *
+ * A aba principal, ao contrario da sessao, nao tem esse problema — cada aba tem o
+ * proprio `canalId`, capturado no carregamento da pagina, isolado das outras.
+ *
+ * E por isso que o TOKEN nunca atravessa o navegador: o que o popup manda de volta
+ * pela postMessage e so o id do cache (um UUID que nao vale nada sem a sessao de
+ * administrador que o gerou), nao a credencial da Meta.
  */
 class MetaEmbeddedSignupController extends Controller
 {
-    public function conectar(Request $request, MetaEmbeddedSignup $signup): JsonResponse
+    /**
+     * Persiste no banco. Chamado pela aba principal, com o id do cache que o
+     * `retorno` gerou e, se for reconexao, o id do canal — que veio do JS da
+     * PROPRIA aba, nunca da sessao.
+     */
+    public function conectar(Request $request): JsonResponse
     {
-        // Mesmo portao da tela de Canais: quem nao pode ver Canais nao pode criar um.
         abort_unless((bool) auth()->user()?->admin, 403);
 
-        // Validator explicito, em vez de $request->validate(): quem chama e sempre JS
-        // esperando JSON, e nunca navegador esperando pagina. O atalho ->validate()
-        // decide isso sozinho e, quando erra a decisao, devolve um redirect (HTML) que o
-        // fetch() do JS nao sabe ler — e o sintoma vira "falha de rede" sem pista nenhuma
-        // do motivo real.
         $validador = Validator::make($request->all(), [
-            'code'            => ['required', 'string'],
-            'waba_id'         => ['required', 'string'],
-            'phone_number_id' => ['required', 'string'],
-            'business_id'     => ['nullable', 'string'],
+            'signup_token' => ['required', 'string'],
+            'canal_id'     => ['nullable', 'integer'],
         ]);
 
         if ($validador->fails()) {
@@ -50,13 +58,32 @@ class MetaEmbeddedSignupController extends Controller
 
         $dados = $validador->validated();
 
-        $r = $signup->conectar($dados['code'], $dados['waba_id'], $dados['phone_number_id']);
+        // pull: le e apaga na mesma operacao. Sem isto, chamar esta rota duas vezes
+        // com o mesmo signup_token (o relay do popup falhando e sendo repetido,
+        // por exemplo) criaria ou atualizaria o canal duas vezes com um token que
+        // a Meta ja considerou entregue.
+        $pendente = Cache::pull("meta_signup:{$dados['signup_token']}");
 
-        if (! $r['ok']) {
-            return response()->json(['ok' => false, 'erro' => $r['erro']], 422);
+        if ($pendente === null) {
+            return response()->json([
+                'ok'   => false,
+                'erro' => 'Esta conexão expirou ou já foi usada. Clique em "Continuar com o Facebook" de novo.',
+            ], 422);
         }
 
-        $canal = $this->criarOuAtualizarCanal($r, $dados['waba_id'], $dados['phone_number_id'], $dados['business_id'] ?? null, null);
+        // Entre o retorno da Meta e este POST, a sessao pode ter mudado de conta —
+        // o id sozinho nao prova de quem e, e um id de outro tenant aqui criaria
+        // canal na conta errada.
+        if ($pendente['tenant_id'] !== auth()->user()->tenant_id) {
+            return response()->json(['ok' => false, 'erro' => 'Esta conexão pertence a outra conta.'], 403);
+        }
+
+        $canalId = $dados['canal_id'] ?? null;
+        $canalExistente = $canalId !== null
+            ? Channel::query()->where('tipo', Channel::META_CLOUD)->find($canalId)
+            : null;
+
+        $canal = $this->criarOuAtualizarCanal($pendente, $pendente['waba_id'], $pendente['phone_number_id'], $pendente['business_id'], $canalExistente);
 
         return response()->json([
             'ok'       => true,
@@ -65,24 +92,19 @@ class MetaEmbeddedSignupController extends Controller
     }
 
     /**
-     * Callback do Cadastro Incorporado hospedado pela Meta.
-     *
-     * Roda DENTRO DO POPUP (mesma origem nossa, porque e para ca que o redirect_uri
-     * aponta) — por isso o sucesso manda o OPENER (a aba principal) para o canal recem
-     * criado e fecha o popup sozinho, em vez de deixar a pessoa lendo o resultado numa
-     * janela pequena que ela precisaria fechar na mao.
+     * Callback do Cadastro Incorporado hospedado pela Meta. Roda DENTRO DO POPUP
+     * (mesma origem nossa, porque e para ca que o redirect_uri aponta): fala com a
+     * Meta, guarda o resultado por pouco tempo, e devolve so o id desse resultado
+     * para o popup mandar a aba principal terminar o resto.
      */
-    public function retorno(Request $request, MetaEmbeddedSignup $signup): Response|RedirectResponse
+    public function retorno(Request $request, MetaEmbeddedSignup $signup): Response
     {
         abort_unless((bool) auth()->user()?->admin, 403);
 
         // 'code' nunca vai para o log: e uma credencial de uso unico, mas ainda assim
         // uma credencial — o resto do projeto trata token do mesmo jeito (ver
         // MetaCloudEnviador), e o log nao pode ser a excecao.
-        Log::info('meta-embedded-signup: retorno do link hospedado', [
-            ...$request->query(),
-            'code' => $request->has('code') ? '(presente)' : '(ausente)',
-        ]);
+        Log::info('meta-embedded-signup: retorno do link hospedado', $this->parametrosParaExibir($request));
 
         $code = (string) $request->query('code', '');
 
@@ -113,15 +135,21 @@ class MetaEmbeddedSignupController extends Controller
             return $this->paginaDeErro($r['erro']);
         }
 
-        // Reconexao (token expirado/revogado) atualiza o canal que ja existe — se fosse
-        // Channel::create() sempre, cada reconexao duplicaria o canal e o historico da
-        // conversa ficaria preso no canal velho, morto. Ver ConectarMetaIncorporado::mount().
-        $canalId = session()->pull('meta_reconectar_canal_id');
-        $canalExistente = $canalId ? Channel::query()->where('tipo', Channel::META_CLOUD)->find($canalId) : null;
+        // 5 minutos: tempo de sobra para o JS do popup mandar a mensagem e a aba
+        // principal responder, curto o bastante para nao deixar token pendurado no
+        // cache se a aba principal tiver sido fechada no meio do caminho.
+        $signupToken = (string) Str::uuid();
+        Cache::put("meta_signup:{$signupToken}", [
+            'waba_id'         => $wabaId,
+            'phone_number_id' => $phoneNumberId,
+            'business_id'     => $businessId,
+            'token'           => $r['token'],
+            'nome'            => $r['nome'],
+            'numero'          => $r['numero'],
+            'tenant_id'       => auth()->user()->tenant_id,
+        ], now()->addMinutes(5));
 
-        $canal = $this->criarOuAtualizarCanal($r, $wabaId, $phoneNumberId, $businessId, $canalExistente);
-
-        return $this->paginaDeSucesso(ChannelResource::getUrl('edit', ['record' => $canal]));
+        return $this->paginaDeSucesso($signupToken);
     }
 
     /**
@@ -173,18 +201,18 @@ class MetaEmbeddedSignupController extends Controller
         ]);
     }
 
-    private function paginaDeSucesso(string $urlDoCanal): Response
+    private function paginaDeSucesso(string $signupToken): Response
     {
         return response()->view('filament.resources.channels.pages.conectar-meta-retorno', [
-            'sucesso' => true,
-            'destino' => $urlDoCanal,
+            'sucesso'     => true,
+            'signupToken' => $signupToken,
         ]);
     }
 
     private function paginaDeErro(string $mensagem): Response
     {
         return response()->view('filament.resources.channels.pages.conectar-meta-retorno', [
-            'sucesso' => false,
+            'sucesso'  => false,
             'mensagem' => $mensagem,
         ], 422);
     }

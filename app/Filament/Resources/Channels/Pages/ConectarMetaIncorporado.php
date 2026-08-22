@@ -17,10 +17,13 @@ use Filament\Resources\Pages\Page;
  *
  * Tambem serve para RECONECTAR um canal que ja existe (token expirado/revogado): a
  * mesma tela, so que chamada com ?canal={id} — ver EditChannel::getHeaderActions().
- * Quem decide se e criacao ou reconexao e a sessao, guardada aqui e lida por
- * MetaEmbeddedSignupController::retorno(), porque o retorno chega por um REDIRECT da
- * Meta, e nao ha como carimbar o id do canal na URL de retorno sem arriscar nao bater
- * com o redirect_uri cadastrado no Painel de Apps.
+ *
+ * $canalId fica exposto ao JS da view como uma CONSTANTE desta pagina, carregada uma
+ * vez — deliberadamente NAO fica em sessao. Sessao e por navegador, compartilhada
+ * entre abas; se o mesmo admin abrisse uma segunda reconexao numa aba diferente antes
+ * de terminar esta, a sessao passaria a apontar para o canal errado e o retorno da
+ * Meta atualizaria o canal errado, em silencio. Cada aba com o proprio canalId evita
+ * isso: ver MetaEmbeddedSignupController.
  */
 class ConectarMetaIncorporado extends Page
 {
@@ -30,15 +33,13 @@ class ConectarMetaIncorporado extends Page
 
     public bool $reconectando = false;
 
+    public ?int $canalId = null;
+
     public function mount(): void
     {
         $canalId = request()->query('canal');
 
         if ($canalId === null) {
-            // Criacao nova: nenhuma reconexao pendente deve sobrar de uma tentativa
-            // anterior cancelada, senao o retorno atualizaria o canal errado.
-            session()->forget('meta_reconectar_canal_id');
-
             return;
         }
 
@@ -47,12 +48,10 @@ class ConectarMetaIncorporado extends Page
         $canal = Channel::query()->where('tipo', Channel::META_CLOUD)->find($canalId);
 
         if ($canal === null) {
-            session()->forget('meta_reconectar_canal_id');
-
             return;
         }
 
-        session(['meta_reconectar_canal_id' => $canal->id]);
+        $this->canalId = $canal->id;
         $this->reconectando = true;
     }
 

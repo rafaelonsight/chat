@@ -31,11 +31,24 @@ class EditChannel extends EditRecord
             // Token expira ou e revogado (cliente trocou a senha, removeu o app do
             // Business Manager etc.) — sem isto a unica saida seria apagar o canal e
             // recriar, perdendo o id e desconectando o historico de conversas dele.
+            //
+            // Confirmacao antes de sair, de proposito: escolher a WABA errada no popup
+            // sobrescreve waba_id/phone_number_id/token deste canal em silencio — o
+            // mesmo numero de mensagens do cliente errado, sem aviso nenhum na hora.
             Action::make('reconectar_meta')
                 ->label('Reconectar pelo Facebook')
                 ->icon('heroicon-o-arrow-path')
                 ->color('gray')
                 ->visible(fn () => $this->record->tipo === Channel::META_CLOUD)
+                ->requiresConfirmation()
+                ->modalHeading('Reconectar '.($this->record->nome ?? 'este canal').'?')
+                ->modalDescription(
+                    'Isto troca a conta do WhatsApp Business, o número e a credencial deste '
+                    .'canal pelo que você escolher no Facebook a seguir. Se escolher a conta '
+                    .'errada, as conversas deste canal passam a sair pelo número errado — '
+                    .'confira com cuidado antes de continuar.'
+                )
+                ->modalSubmitActionLabel('Continuar para o Facebook')
                 ->url(fn () => ChannelResource::getUrl('conectar-meta').'?canal='.$this->record->id),
 
             // O equivalente do QR Code no oficial: perguntar a Meta se a configuracao

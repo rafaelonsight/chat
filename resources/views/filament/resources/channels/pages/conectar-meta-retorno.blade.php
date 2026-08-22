@@ -8,15 +8,18 @@
 @if ($sucesso)
     <p>Conectado! Voltando para o canal…</p>
     <script>
-        // Mesma origem do OnChat (e para ca que o redirect_uri aponta), entao da para
-        // mandar a aba PRINCIPAL para o canal recem-criado e fechar este popup sozinho —
-        // sem isso, a pessoa ficaria olhando o resultado numa janela pequena que ela
-        // precisaria fechar na mao para continuar.
+        // So o ID do resultado atravessa para a aba principal — o token continua
+        // so no servidor, dentro do cache, e nunca passa pelo navegador. E o
+        // window.opener (nao a sessao do navegador, compartilhada entre abas) quem
+        // sabe para qual canal esta reconexao era.
         if (window.opener && !window.opener.closed) {
-            window.opener.location.href = @json($destino);
+            window.opener.postMessage(
+                { type: "onsight-meta-signup-done", signupToken: @json($signupToken) },
+                window.location.origin
+            );
             window.close();
         } else {
-            window.location.href = @json($destino);
+            document.body.textContent = "Pode fechar esta janela e voltar para o OnChat.";
         }
     </script>
 @else
