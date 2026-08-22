@@ -222,3 +222,91 @@ it('recusa quem não é admin no retorno', function () {
     $resposta->assertForbidden();
     expect(Channel::count())->toBe(0);
 });
+
+it('nunca mostra o code na página de erro do retorno', function () {
+    // O code e credencial de uso unico, mas segredo em pagina de erro e log e o
+    // tipo de coisa que sobrevive num print de tela pedido de suporte.
+    Http::fake(['graph.facebook.com/*' => Http::response(['access_token' => 'nao-deveria-chegar-aqui'])]);
+
+    $resposta = $this->actingAs($this->admin)
+        ->get(route('canais.meta.callback', ['code' => 'segredo-nao-pode-aparecer']));
+
+    $resposta->assertStatus(422)
+        ->assertDontSee('segredo-nao-pode-aparecer')
+        ->assertSee('(presente)');
+});
+
+/*
+ * Reconexao: token expirado/revogado de um canal que ja existe. Diferente de criar,
+ * porque apagar e recriar perderia o id do canal e desconectaria o historico de
+ * conversas dele — ver EditChannel::getHeaderActions() e ConectarMetaIncorporado::mount().
+ */
+
+it('reconecta um canal existente em vez de criar outro, quando há reconexão pendente na sessão', function () {
+    $canal = Channel::create([
+        'nome' => 'Comercial', 'tipo' => Channel::META_CLOUD,
+        'meta_phone_number_id' => 'id-velho', 'meta_waba_id' => 'waba-velha',
+        'meta_token' => 'EAA-token-vencido', 'telefone_e164' => '+5541999998888',
+        'status' => 'close', 'ultimo_erro' => 'token expirado',
+    ])->refresh();
+
+    Http::fake([
+        'graph.facebook.com/*/oauth/access_token*' => Http::response(['access_token' => 'EAA-token-novo']),
+        'graph.facebook.com/*/subscribed_apps*'    => Http::response(['success' => true]),
+        'graph.facebook.com/*'                     => Http::response([
+            'display_phone_number' => '+1 555-000-0000',
+            'verified_name'        => 'Nome que a Meta devolveria',
+        ]),
+    ]);
+
+    $resposta = $this->actingAs($this->admin)
+        ->withSession(['meta_reconectar_canal_id' => $canal->id])
+        ->get(route('canais.meta.callback', pedidoDeConexao(['waba_id' => 'waba-nova', 'phone_number_id' => 'id-novo'])));
+
+    $resposta->assertOk()->assertViewHas('sucesso', true);
+
+    // UM canal so: reconectar nao pode duplicar.
+    expect(Channel::count())->toBe(1);
+
+    $canal->refresh();
+    expect($canal->meta_waba_id)->toBe('waba-nova')
+        ->and($canal->meta_phone_number_id)->toBe('id-novo')
+        ->and($canal->meta_token)->toBe('EAA-token-novo')
+        ->and($canal->status)->toBe('open')
+        ->and($canal->ultimo_erro)->toBeNull()
+        // nome e numero sao do canal que ja existia, escolhidos por quem usa o
+        // sistema — reconectar nao pode pisar num nome que a pessoa ja personalizou.
+        ->and($canal->nome)->toBe('Comercial')
+        ->and($canal->telefone_e164)->toBe('+5541999998888');
+
+    // A sessao nao pode sobrar: a proxima conexao (de um canal diferente) tem de
+    // ser tratada como criacao, nao reconexao deste canal de novo.
+    expect(session('meta_reconectar_canal_id'))->toBeNull();
+});
+
+it('a tela de conectar marca a sessão e muda o título quando chamada com ?canal=', function () {
+    $canal = Channel::create([
+        'nome' => 'Comercial', 'tipo' => Channel::META_CLOUD,
+        'meta_phone_number_id' => 'id', 'meta_waba_id' => 'waba',
+    ])->refresh();
+
+    $resposta = $this->actingAs($this->admin)
+        ->get(\App\Filament\Resources\Channels\ChannelResource::getUrl('conectar-meta').'?canal='.$canal->id);
+
+    $resposta->assertOk()->assertSee('Reconectar pelo Facebook');
+    expect(session('meta_reconectar_canal_id'))->toBe($canal->id);
+});
+
+it('a tela de conectar não marca reconexão para canal de outro tenant', function () {
+    $outroTenant = Tenant::create(['nome' => 'Outro', 'slug' => 'outro-tenant']);
+    $canalAlheio = Channel::withoutGlobalScopes()->create([
+        'tenant_id' => $outroTenant->id, 'nome' => 'Nao e meu', 'tipo' => Channel::META_CLOUD,
+        'meta_phone_number_id' => 'id', 'meta_waba_id' => 'waba',
+    ]);
+
+    $resposta = $this->actingAs($this->admin)
+        ->get(\App\Filament\Resources\Channels\ChannelResource::getUrl('conectar-meta').'?canal='.$canalAlheio->id);
+
+    $resposta->assertOk()->assertSee('Conectar pelo Facebook')->assertDontSee('Reconectar pelo Facebook');
+    expect(session('meta_reconectar_canal_id'))->toBeNull();
+});

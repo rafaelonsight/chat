@@ -28,6 +28,16 @@ class EditChannel extends EditRecord
                 ->modalCancelActionLabel('Fechar')
                 ->modalContent(fn () => view('filament.channel-qr-modal', ['channel' => $this->record])),
 
+            // Token expira ou e revogado (cliente trocou a senha, removeu o app do
+            // Business Manager etc.) — sem isto a unica saida seria apagar o canal e
+            // recriar, perdendo o id e desconectando o historico de conversas dele.
+            Action::make('reconectar_meta')
+                ->label('Reconectar pelo Facebook')
+                ->icon('heroicon-o-arrow-path')
+                ->color('gray')
+                ->visible(fn () => $this->record->tipo === Channel::META_CLOUD)
+                ->url(fn () => ChannelResource::getUrl('conectar-meta').'?canal='.$this->record->id),
+
             // O equivalente do QR Code no oficial: perguntar a Meta se a configuracao
             // funciona, em vez de descobrir com cliente na linha.
             Action::make('conferir')

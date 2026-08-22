@@ -11,11 +11,16 @@
     </div>
 
     <x-filament::section>
-        <x-slot name="heading">Conectar pelo Facebook</x-slot>
+        <x-slot name="heading">{{ $reconectando ? 'Reconectar pelo Facebook' : 'Conectar pelo Facebook' }}</x-slot>
         <x-slot name="description">
-            Abre o cadastro oficial da Meta numa janela: você escolhe ou cria a conta do
-            WhatsApp Business ali dentro, e o número, a conta e a credencial voltam prontos —
-            sem copiar nada do painel da Meta.
+            @if ($reconectando)
+                Abre o cadastro oficial da Meta numa janela para renovar a credencial deste
+                canal — nome, número e histórico de conversas continuam os mesmos.
+            @else
+                Abre o cadastro oficial da Meta numa janela: você escolhe ou cria a conta do
+                WhatsApp Business ali dentro, e o número, a conta e a credencial voltam prontos —
+                sem copiar nada do painel da Meta.
+            @endif
         </x-slot>
 
         <div class="flex flex-col items-start gap-3">
@@ -29,13 +34,15 @@
         </div>
     </x-filament::section>
 
-    <p class="text-xs text-gray-500">
-        Prefere preencher os dados você mesmo (Phone Number ID, WABA ID e token)?
-        <a href="{{ \App\Filament\Resources\Channels\ChannelResource::getUrl('create') }}?tipo={{ \App\Models\Channel::META_CLOUD }}"
-           class="text-primary-600 underline hover:no-underline dark:text-primary-400">
-            Preencher manualmente
-        </a>
-    </p>
+    @unless ($reconectando)
+        <p class="text-xs text-gray-500">
+            Prefere preencher os dados você mesmo (Phone Number ID, WABA ID e token)?
+            <a href="{{ \App\Filament\Resources\Channels\ChannelResource::getUrl('create') }}?tipo={{ \App\Models\Channel::META_CLOUD }}"
+               class="text-primary-600 underline hover:no-underline dark:text-primary-400">
+                Preencher manualmente
+            </a>
+        </p>
+    @endunless
 
     <script>
         (function () {

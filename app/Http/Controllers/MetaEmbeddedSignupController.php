@@ -56,7 +56,7 @@ class MetaEmbeddedSignupController extends Controller
             return response()->json(['ok' => false, 'erro' => $r['erro']], 422);
         }
 
-        $canal = $this->criarCanal($r, $dados['waba_id'], $dados['phone_number_id'], $dados['business_id'] ?? null);
+        $canal = $this->criarOuAtualizarCanal($r, $dados['waba_id'], $dados['phone_number_id'], $dados['business_id'] ?? null, null);
 
         return response()->json([
             'ok'       => true,
@@ -76,14 +76,20 @@ class MetaEmbeddedSignupController extends Controller
     {
         abort_unless((bool) auth()->user()?->admin, 403);
 
-        Log::info('meta-embedded-signup: retorno do link hospedado', $request->query());
+        // 'code' nunca vai para o log: e uma credencial de uso unico, mas ainda assim
+        // uma credencial — o resto do projeto trata token do mesmo jeito (ver
+        // MetaCloudEnviador), e o log nao pode ser a excecao.
+        Log::info('meta-embedded-signup: retorno do link hospedado', [
+            ...$request->query(),
+            'code' => $request->has('code') ? '(presente)' : '(ausente)',
+        ]);
 
         $code = (string) $request->query('code', '');
 
         if ($code === '') {
             return $this->paginaDeErro(
                 'A Meta não devolveu o "code" de autorização. Parâmetros recebidos: '
-                .json_encode($request->query())
+                .json_encode($this->parametrosParaExibir($request))
             );
         }
 
@@ -97,7 +103,7 @@ class MetaEmbeddedSignupController extends Controller
         if ($wabaId === '' || $phoneNumberId === '') {
             return $this->paginaDeErro(
                 'Recebi o code, mas faltou waba_id/phone_number_id na volta. Parâmetros '
-                .'recebidos: '.json_encode($request->query())
+                .'recebidos: '.json_encode($this->parametrosParaExibir($request))
             );
         }
 
@@ -107,27 +113,63 @@ class MetaEmbeddedSignupController extends Controller
             return $this->paginaDeErro($r['erro']);
         }
 
-        $canal = $this->criarCanal($r, $wabaId, $phoneNumberId, $businessId);
+        // Reconexao (token expirado/revogado) atualiza o canal que ja existe — se fosse
+        // Channel::create() sempre, cada reconexao duplicaria o canal e o historico da
+        // conversa ficaria preso no canal velho, morto. Ver ConectarMetaIncorporado::mount().
+        $canalId = session()->pull('meta_reconectar_canal_id');
+        $canalExistente = $canalId ? Channel::query()->where('tipo', Channel::META_CLOUD)->find($canalId) : null;
+
+        $canal = $this->criarOuAtualizarCanal($r, $wabaId, $phoneNumberId, $businessId, $canalExistente);
 
         return $this->paginaDeSucesso(ChannelResource::getUrl('edit', ['record' => $canal]));
     }
 
     /**
+     * Sem 'code': e uma credencial de uso unico e curto, mas segredo em log e em pagina
+     * de erro e o tipo de coisa que aparece num print de tela pedido de suporte.
+     */
+    private function parametrosParaExibir(Request $request): array
+    {
+        return [
+            ...$request->query(),
+            'code' => $request->has('code') ? '(presente)' : '(ausente)',
+        ];
+    }
+
+    /**
      * @param  array{token: string, numero: ?string, nome: ?string}  $r
      */
-    private function criarCanal(array $r, string $wabaId, string $phoneNumberId, ?string $businessId): Channel
-    {
-        return Channel::create([
-            'tenant_id'            => auth()->user()->tenant_id,
+    private function criarOuAtualizarCanal(
+        array $r,
+        string $wabaId,
+        string $phoneNumberId,
+        ?string $businessId,
+        ?Channel $canalExistente,
+    ): Channel {
+        $dados = [
             'tipo'                 => Channel::META_CLOUD,
-            'nome'                 => $r['nome'] ?: Channel::nomeProvisorio(),
             'meta_phone_number_id' => $phoneNumberId,
             'meta_waba_id'         => $wabaId,
             'meta_business_id'     => $businessId,
             'meta_token'           => $r['token'],
-            'telefone_e164'        => $r['numero'],
             'status'               => 'open',
             'conectado_em'         => now(),
+            'ultimo_erro'          => null,
+        ];
+
+        if ($canalExistente !== null) {
+            // O nome e o numero sao do canal que ja existe, escolhidos por quem usa o
+            // sistema — a reconexao nao pode pisar num nome que a pessoa ja personalizou.
+            $canalExistente->update($dados);
+
+            return $canalExistente;
+        }
+
+        return Channel::create([
+            ...$dados,
+            'tenant_id'     => auth()->user()->tenant_id,
+            'nome'          => $r['nome'] ?: Channel::nomeProvisorio(),
+            'telefone_e164' => $r['numero'],
         ]);
     }
 
