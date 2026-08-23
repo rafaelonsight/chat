@@ -8,6 +8,7 @@ use App\Services\Canais\MetaSocialSignup;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -124,6 +125,24 @@ class MetaSocialSignupController extends Controller
             ? Channel::query()->where('tipo', Channel::MESSENGER)->find($canalId)
             : null;
 
+        $trocouDePagina = $canalExistente !== null
+            && $canalExistente->meta_page_id !== null
+            && $canalExistente->meta_page_id !== $pagina['id'];
+
+        if ($trocouDePagina) {
+            // Nao bloqueia — a pessoa ja escolheu a Pagina na tela, forcar de novo so
+            // para confirmar seria fricção sem muito ganho. Mas isto NAO pode ficar
+            // calado: e exatamente o tipo de troca que devolve o canal errado a quem
+            // nao notou (mesmo cuidado do lado do Instagram).
+            Log::warning('reconexao do messenger trocou de pagina', [
+                'canal'         => $canalExistente->id,
+                'pagina_antiga' => $canalExistente->meta_page_id,
+                'pagina_nova'   => $pagina['id'],
+                'nome_antigo'   => $canalExistente->meta_page_nome,
+                'nome_novo'     => $pagina['nome'],
+            ]);
+        }
+
         $dadosDoCanal = [
             'meta_page_id'   => $pagina['id'],
             'meta_page_nome' => $pagina['nome'],
@@ -145,6 +164,15 @@ class MetaSocialSignupController extends Controller
                 'nome'         => $pagina['nome'],
                 'conectado_em' => now(),
             ]);
+        }
+
+        if ($trocouDePagina) {
+            // Flash de sessao, nao campo na resposta JSON: o navegador so mostra isto
+            // depois de navegar para a pagina de edicao (window.location.href), entao
+            // precisa sobreviver ate essa PROXIMA requisicao — exatamente o que
+            // session()->flash faz. Mesma chave que o lado do Instagram usa, lida em
+            // EditChannel::mount().
+            session()->flash('aviso_troca_de_conta_social', "Este canal estava conectado à Página \"{$canalExistente->meta_page_nome}\" e agora passou a ser \"{$pagina['nome']}\". Se não era essa a intenção, reconecte com a Página certa.");
         }
 
         return response()->json(['ok' => true, 'redirect' => ChannelResource::getUrl('edit', ['record' => $canal])]);

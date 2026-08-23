@@ -172,6 +172,43 @@ it('reconecta um canal do Messenger existente em vez de criar outro', function (
         ->and($canal->nome)->toBe('Antiga');
 });
 
+it('avisa quando a reconexão troca de Página do Messenger', function () {
+    fakesDeListagem();
+    $canal = Channel::create([
+        'nome' => 'Antiga', 'tipo' => Channel::MESSENGER,
+        'meta_page_id' => 'page-velha', 'meta_page_nome' => 'Página Velha',
+        'meta_token' => 'TOKEN-VELHO', 'status' => 'open',
+    ])->refresh();
+
+    $uuid = guardarPaginasPendentes([paginaUm()], $this->tenant->id);
+
+    $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
+        'uuid' => $uuid, 'page_id' => 'page-1', 'canal_id' => $canal->id,
+    ])->assertOk();
+
+    expect(session('aviso_troca_de_conta_social'))->not->toBeNull();
+
+    $canal->refresh();
+    expect($canal->meta_page_id)->toBe('page-1');
+});
+
+it('não avisa quando a reconexão é da mesma Página do Messenger', function () {
+    fakesDeListagem();
+    $canal = Channel::create([
+        'nome' => 'Antiga', 'tipo' => Channel::MESSENGER,
+        'meta_page_id' => 'page-1', 'meta_page_nome' => 'Loja Principal',
+        'meta_token' => 'TOKEN-VELHO', 'status' => 'open',
+    ])->refresh();
+
+    $uuid = guardarPaginasPendentes([paginaUm()], $this->tenant->id);
+
+    $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
+        'uuid' => $uuid, 'page_id' => 'page-1', 'canal_id' => $canal->id,
+    ])->assertOk();
+
+    expect(session('aviso_troca_de_conta_social'))->toBeNull();
+});
+
 it('recusa uuid inexistente ou expirado, sem criar canal', function () {
     $resposta = $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
         'uuid' => (string) Illuminate\Support\Str::uuid(), 'page_id' => 'page-1',

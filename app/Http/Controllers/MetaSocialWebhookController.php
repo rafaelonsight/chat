@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\AcharCanalMetaSocial;
 use App\Http\Controllers\Concerns\VerificaAssinaturaMeta;
 use App\Jobs\ProcessMetaSocialWebhook;
 use App\Models\Channel;
@@ -18,12 +19,18 @@ use Illuminate\Http\Response;
  * todos os canais, com o canal descoberto do payload.
  *
  * O que muda e o FORMATO: aqui o objeto e "page" ou "instagram" (nao
- * "whatsapp_business_account"), e mensagem chega em "entry.0.messaging" (nao
+ * "whatsapp_business_account"), e mensagem chega em "entry.N.messaging" (nao
  * "entry.0.changes.0.value.messages"). Comentario do Instagram e um terceiro formato -
- * "entry.0.changes" com field "comments" - dentro do MESMO objeto "instagram".
+ * "entry.N.changes" com field "comments" - dentro do MESMO objeto "instagram".
+ *
+ * O canal aqui e so "melhor esforco" pela entry.0, para o registro de diagnostico
+ * (WebhookEvent so tem UMA coluna channel_id). Quando a Meta batela varias entries de
+ * canais diferentes no mesmo POST, quem resolve CADA UMA de verdade e o job
+ * (ProcessMetaSocialWebhook), nao este controller.
  */
 class MetaSocialWebhookController extends Controller
 {
+    use AcharCanalMetaSocial;
     use VerificaAssinaturaMeta;
 
     public function verificar(Request $request): Response
@@ -62,39 +69,10 @@ class MetaSocialWebhookController extends Controller
 
     private function acharCanal(array $payload): ?Channel
     {
-        $objeto = (string) data_get($payload, 'object', '');
-
-        if ($objeto === 'page') {
-            $pageId = data_get($payload, 'entry.0.messaging.0.recipient.id');
-
-            if (! $pageId) {
-                return null;
-            }
-
-            return Channel::withoutGlobalScope('tenant')
-                ->where('tipo', Channel::MESSENGER)
-                ->where('meta_page_id', (string) $pageId)
-                ->first();
-        }
-
-        if ($objeto === 'instagram') {
-            // Mensagem direta: o id da conta dona da caixa de entrada vem em
-            // recipient.id, igual ao Messenger. Comentario: nao ha "recipient" (nao e
-            // conversa), e o id da conta vem no proprio "entry.0.id".
-            $igId = data_get($payload, 'entry.0.messaging.0.recipient.id')
-                ?: data_get($payload, 'entry.0.id');
-
-            if (! $igId) {
-                return null;
-            }
-
-            return Channel::withoutGlobalScope('tenant')
-                ->where('tipo', Channel::INSTAGRAM)
-                ->where('meta_ig_account_id', (string) $igId)
-                ->first();
-        }
-
-        return null;
+        return $this->acharCanalDaEntry(
+            (string) data_get($payload, 'object', ''),
+            (array) data_get($payload, 'entry.0', []),
+        );
     }
 
     private function rotuloDoEvento(array $payload): string

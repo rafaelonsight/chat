@@ -7,6 +7,7 @@ use App\Models\Channel;
 use App\Services\Canais\MetaInstagramSignup;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -20,8 +21,10 @@ use Illuminate\Support\Facades\Log;
  *
  * O 'state' e o que impede um "code" forjado (de uma conta do Instagram que nao e a
  * pessoa que clicou aqui) de ser aceito: ele tem que casar com o que
- * ConectarMetaSocial guardou na sessao ANTES de mostrar o link — sem essa conferencia,
- * a volta valeria so por ter chegado num GET autenticado.
+ * ConectarMetaSocial guardou no CACHE (nao sessao — sessao e compartilhada entre abas
+ * do mesmo navegador, e o mount() da tela roda a cada carregamento; duas abas abertas
+ * ao mesmo tempo sobrescreveriam uma a state da outra). Cache::pull consome o state na
+ * mesma operacao que le, entao um state so vale uma vez.
  */
 class MetaInstagramSignupController extends Controller
 {
@@ -29,14 +32,18 @@ class MetaInstagramSignupController extends Controller
     {
         abort_unless((bool) auth()->user()?->admin, 403);
 
-        $estadoEsperado = (string) $request->session()->pull('instagram_oauth_state');
-        $canalId = $request->session()->pull('instagram_oauth_canal');
-
         $estadoRecebido = (string) $request->query('state', '');
+        $pendente = $estadoRecebido !== '' ? Cache::pull("instagram_oauth:{$estadoRecebido}") : null;
 
-        if ($estadoEsperado === '' || ! hash_equals($estadoEsperado, $estadoRecebido)) {
-            return $this->comErro(null, 'A conexão expirou ou foi aberta em outra aba. Clique em "Continuar com o Instagram" de novo.');
+        if ($pendente === null) {
+            return $this->comErro(null, 'A conexão expirou ou já foi usada. Clique em "Continuar com o Instagram" de novo.');
         }
+
+        if ($pendente['tenant_id'] !== auth()->user()->tenant_id) {
+            return $this->comErro(null, 'Esta conexão pertence a outra conta.');
+        }
+
+        $canalId = $pendente['canal_id'];
 
         $erroDoInstagram = $request->query('error_description') ?? $request->query('error');
 
@@ -62,9 +69,34 @@ class MetaInstagramSignupController extends Controller
             ? Channel::query()->where('tipo', Channel::INSTAGRAM)->find($canalId)
             : null;
 
+        $trocouDeConta = $canalExistente !== null
+            && $canalExistente->meta_ig_account_id !== null
+            && $canalExistente->meta_ig_account_id !== $r['ig_account_id'];
+
+        if ($trocouDeConta) {
+            // Nao bloqueia — a pessoa ja logou, forcar login de novo so para confirmar
+            // seria fricção sem muito ganho. Mas isto NAO pode ficar calado: e
+            // exatamente o tipo de troca que devolve o canal errado a quem nao notou.
+            Log::warning('reconexao do instagram trocou de conta', [
+                'canal'          => $canalExistente->id,
+                'conta_antiga'   => $canalExistente->meta_ig_account_id,
+                'conta_nova'     => $r['ig_account_id'],
+                'usuario_antigo' => $canalExistente->meta_ig_username,
+                'usuario_novo'   => $r['username'],
+            ]);
+        }
+
         $canal = $this->criarOuAtualizarCanal($r, $canalExistente);
 
-        return redirect(ChannelResource::getUrl('edit', ['record' => $canal]));
+        $redirect = redirect(ChannelResource::getUrl('edit', ['record' => $canal]));
+
+        if ($trocouDeConta) {
+            // Mesma chave que o lado do Messenger usa (MetaSocialSignupController),
+            // lida uma unica vez em EditChannel::mount().
+            $redirect->with('aviso_troca_de_conta_social', "Este canal estava conectado como @{$canalExistente->meta_ig_username} e agora passou a ser @{$r['username']}. Se não era essa a intenção, reconecte com a conta certa.");
+        }
+
+        return $redirect;
     }
 
     private function redirectUri(): string

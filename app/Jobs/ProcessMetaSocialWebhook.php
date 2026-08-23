@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Events\MessageStored;
+use App\Http\Controllers\Concerns\AcharCanalMetaSocial;
 use App\Models\{Channel, Contact, Conversation, Message, WebhookEvent};
 use App\Support\TenantContext;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Log;
  */
 class ProcessMetaSocialWebhook implements ShouldQueue
 {
+    use AcharCanalMetaSocial;
     use Queueable;
 
     public int $tries = 3;
@@ -38,28 +40,38 @@ class ProcessMetaSocialWebhook implements ShouldQueue
             return; // reentrega da Meta de algo que ja tratamos
         }
 
-        $canal = Channel::withoutGlobalScope('tenant')->find($evento->channel_id);
+        $objeto = (string) data_get($evento->payload, 'object', '');
 
-        if (! $canal) {
-            $evento->update(['erro' => 'canal nao existe mais', 'processado_em' => now()]);
-
-            return;
-        }
+        // TODAS as entries, nao so a 0: a Meta pode batelar varias no mesmo POST, cada
+        // uma de uma Pagina/conta diferente — resolver so pela 0 atribuia ou perdia em
+        // silencio o resto. Idempotencia por external_id torna reentrega/retry seguros
+        // mesmo reprocessando entries que ja deram certo.
+        $entries = (array) data_get($evento->payload, 'entry', []);
 
         try {
-            TenantContext::runAs($canal->tenant_id, function () use ($canal, $evento) {
-                foreach ((array) data_get($evento->payload, 'entry.0.messaging', []) as $item) {
-                    if (data_get($item, 'message')) {
-                        $this->mensagemDireta($canal, $item);
-                    }
+            foreach ($entries as $entry) {
+                $canal = $this->acharCanalDaEntry($objeto, (array) $entry);
+
+                if (! $canal) {
+                    Log::info('entry do webhook social sem canal correspondente', ['evento' => $evento->id]);
+
+                    continue;
                 }
 
-                foreach ((array) data_get($evento->payload, 'entry.0.changes', []) as $mudanca) {
-                    if (($mudanca['field'] ?? '') === 'comments') {
-                        $this->comentario($canal, (array) data_get($mudanca, 'value', []));
+                TenantContext::runAs($canal->tenant_id, function () use ($canal, $entry) {
+                    foreach ((array) data_get($entry, 'messaging', []) as $item) {
+                        if (data_get($item, 'message')) {
+                            $this->mensagemDireta($canal, $item);
+                        }
                     }
-                }
-            });
+
+                    foreach ((array) data_get($entry, 'changes', []) as $mudanca) {
+                        if (($mudanca['field'] ?? '') === 'comments') {
+                            $this->comentario($canal, (array) data_get($mudanca, 'value', []));
+                        }
+                    }
+                });
+            }
 
             $evento->update(['processado_em' => now(), 'erro' => null]);
         } catch (\Throwable $e) {

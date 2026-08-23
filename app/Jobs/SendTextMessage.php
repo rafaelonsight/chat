@@ -40,10 +40,19 @@ class SendTextMessage implements ShouldQueue
         TenantContext::runAs($mensagem->tenant_id, function () use ($mensagem, $enviadores) {
             $canal = $mensagem->conversation->channel;
 
+            // Resposta a comentario do Instagram NAO tem janela: e um comentario
+            // publico pendurado no outro (MetaInstagramEnviador::texto() manda para
+            // /{comment_id}/replies, nao para a API de mensagem), entao pode sair a
+            // qualquer momento. Sem este desvio, a conversa de um comentario ficava
+            // travada para sempre passadas 24h — pior ainda, o erro prometia "sai por
+            // template aprovado", caminho que nem existe para Messenger/Instagram
+            // (MetaTemplate e amarrado a WABA, que estes canais nao tem).
+            $respondendoComentario = $mensagem->respondeA?->tipo === 'comentario_ig';
+
             // Fora da janela de 24h a API oficial RECUSA texto livre. Barrar aqui e
             // nao so na tela porque a mensagem pode ter sido enfileirada com a janela
             // aberta e chegar a vez dela depois de fechada — fila nao anda instantanea.
-            if (! $mensagem->conversation->podeEnviarLivre()) {
+            if (! $respondendoComentario && ! $mensagem->conversation->podeEnviarLivre()) {
                 $mensagem->update([
                     'status' => Message::STATUS_FAILED,
                     'erro'   => 'Janela de 24 horas fechada: neste canal, fora dela só sai template aprovado.',

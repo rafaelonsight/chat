@@ -14,6 +14,23 @@ class EditChannel extends EditRecord
 {
     protected static string $resource = ChannelResource::class;
 
+    public function mount(int | string $record): void
+    {
+        parent::mount($record);
+
+        // Flash de reconexao que trocou de conta/Pagina em silencio (Messenger e
+        // Instagram, ver MetaSocialSignupController/MetaInstagramSignupController) —
+        // sem isto o aviso ficava so no log, nunca chegava a quem reconectou.
+        if ($aviso = session('aviso_troca_de_conta_social')) {
+            Notification::make()
+                ->warning()
+                ->title('Atenção: a reconexão trocou de conta')
+                ->body($aviso)
+                ->persistent()
+                ->send();
+        }
+    }
+
     protected function getHeaderActions(): array
     {
         return [
