@@ -51,7 +51,11 @@
                 @endif
             </x-slot>
 
-            <x-filament::button tag="a" href="{{ $urlInstagram }}">
+            {{-- Bruto de proposito (sem escapar): $urlInstagram e montada so com
+                 config fixa e um state aleatorio alfanumerico, nunca com dado de
+                 usuario. Escapar aqui duplicava o "&" em "&amp;amp;" — o
+                 componente do botao ja escapa uma vez, e {{ }} escaparia de novo. --}}
+            <x-filament::button tag="a" href="{!! $urlInstagram !!}">
                 Continuar com o Instagram
             </x-filament::button>
         </x-filament::section>
