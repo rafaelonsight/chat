@@ -46,6 +46,14 @@ class ListChannels extends ListRecords
                     // perguntar antes — a chave nasce sozinha (Channel::booted()), e o que
                     // falta e so mostrar o <script> para colar no site.
                     ->action(fn () => $this->criarParaSite()),
+
+                Action::make('meta_social')
+                    ->label('Facebook e Instagram (Meta)')
+                    ->icon('heroicon-o-chat-bubble-left-right')
+                    // Mesmo espirito do Cadastro Incorporado: FB.login() devolve as
+                    // Paginas, a pessoa escolhe qual, e Messenger (sempre) e Instagram
+                    // (se marcado) nascem prontos, sem digitar id nenhum.
+                    ->url(static::getResource()::getUrl('conectar-meta-social')),
             ])
                 ->label('Novo canal')
                 ->icon('heroicon-o-plus')

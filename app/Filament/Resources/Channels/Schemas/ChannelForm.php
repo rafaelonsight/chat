@@ -113,6 +113,21 @@ class ChannelForm
                 ->maxLength(500)
                 ->columnSpanFull(),
 
+            // ----------------------------------------------------- messenger/instagram
+            // Somente leitura, sem formulario manual alternativo: ao contrario do
+            // oficial, aqui nao existe "Phone Number ID" para copiar do painel da Meta
+            // — o login pelo Facebook e o unico caminho, entao nao ha o que preencher
+            // a mao. Ver ConectarMetaSocial/EditChannel::reconectar_meta_social.
+            Placeholder::make('meta_page_nome')
+                ->label('Página do Facebook')
+                ->content(fn ($record) => $record?->meta_page_nome ?: '—')
+                ->visible(fn (Get $get) => in_array($get('tipo'), [Channel::MESSENGER, Channel::INSTAGRAM], true)),
+
+            Placeholder::make('meta_ig_username')
+                ->label('Conta do Instagram')
+                ->content(fn ($record) => $record?->meta_ig_username ? '@'.$record->meta_ig_username : '—')
+                ->visible(fn (Get $get) => $get('tipo') === Channel::INSTAGRAM),
+
             // ---------------------------------------------------------- evolution
             // Derivados: gerados ao salvar ou vindos do proprio WhatsApp.
             Placeholder::make('instance_name')

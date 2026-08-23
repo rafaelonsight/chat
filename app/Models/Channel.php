@@ -20,10 +20,18 @@ class Channel extends Model
     /** O chat que fica no site do cliente. Sem numero, sem provedor. */
     public const SITE = 'site';
 
+    /** Facebook Messenger. Pendurado numa Pagina, nao numa WABA. */
+    public const MESSENGER = 'messenger';
+
+    /** Instagram: direct e comentario de post. Pendurado na mesma Pagina do Messenger. */
+    public const INSTAGRAM = 'instagram';
+
     public const TIPOS = [
         self::EVOLUTION  => 'WhatsApp via Evolution (não oficial)',
         self::META_CLOUD => 'WhatsApp oficial (Meta Cloud API)',
         self::SITE       => 'Chat no site',
+        self::MESSENGER  => 'Messenger (Facebook)',
+        self::INSTAGRAM  => 'Instagram (direct e comentários)',
     ];
 
     protected $fillable = [
@@ -31,6 +39,7 @@ class Channel extends Model
         'webhook_secret', 'telefone_e164', 'status', 'conectado_em', 'ultimo_erro',
         'site_key', 'site_dominio', 'site_saudacao',
         'meta_phone_number_id', 'meta_waba_id', 'meta_token', 'meta_business_id',
+        'meta_page_id', 'meta_page_nome', 'meta_ig_account_id', 'meta_ig_username',
     ];
 
     protected $casts = [
@@ -126,7 +135,7 @@ class Channel extends Model
      */
     public function exigeJanela(): bool
     {
-        return $this->tipo === self::META_CLOUD;
+        return in_array($this->tipo, [self::META_CLOUD, self::MESSENGER, self::INSTAGRAM], true);
     }
 
     public function ehSite(): bool

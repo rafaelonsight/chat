@@ -21,6 +21,8 @@ class Enviadores
             Channel::EVOLUTION  => app(EvolutionEnviador::class),
             Channel::META_CLOUD => app(MetaCloudEnviador::class),
             Channel::SITE       => app(SiteEnviador::class),
+            Channel::MESSENGER  => app(MetaMessengerEnviador::class),
+            Channel::INSTAGRAM  => app(MetaInstagramEnviador::class),
             default             => throw new ConfiguracaoInvalida(
                 "Canal \"{$canal->nome}\" tem tipo \"{$canal->tipo}\", que nao sabe enviar."
             ),

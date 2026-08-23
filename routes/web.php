@@ -20,6 +20,18 @@ Route::get('/webhooks/meta/whatsapp', [\App\Http\Controllers\MetaWebhookControll
 Route::post('/webhooks/meta/whatsapp', [\App\Http\Controllers\MetaWebhookController::class, 'receber'])
     ->name('webhooks.meta');
 
+/*
+ * Messenger e Instagram: MESMO app da Meta, mesma logica de URL unica, mas um
+ * endpoint separado do WhatsApp porque o formato do payload (objeto "page"/"instagram",
+ * array "messaging") e diferente do formato do WhatsApp (objeto "whatsapp_business_account",
+ * "changes"/"value"). Registrado no painel da Meta como callback dos dois objetos.
+ */
+Route::get('/webhooks/meta/social', [\App\Http\Controllers\MetaSocialWebhookController::class, 'verificar'])
+    ->name('webhooks.meta.social.verificar');
+
+Route::post('/webhooks/meta/social', [\App\Http\Controllers\MetaSocialWebhookController::class, 'receber'])
+    ->name('webhooks.meta.social');
+
 // O login do OnChat e o do painel Filament: mesma sessao web. Este alias existe
 // porque o middleware 'auth' redireciona para a rota chamada 'login'.
 Route::get('/login', fn () => redirect('/admin/login'))->name('login');
@@ -68,6 +80,15 @@ Route::middleware('auth')->group(function () {
     // mesma origem nossa, e volta por redirect do navegador (nao por postMessage).
     Route::get('/canais/meta/callback', [App\Http\Controllers\MetaEmbeddedSignupController::class, 'retorno'])
         ->name('canais.meta.callback');
+
+    // Messenger/Instagram: FB.login() roda na propria pagina (sem popup), entao as
+    // duas chamadas (listar Paginas, depois conectar a escolhida) sao so JS->rota,
+    // sem problema de sessao compartilhada entre abas.
+    Route::post('/canais/meta/social/listar-paginas', [App\Http\Controllers\MetaSocialSignupController::class, 'listarPaginas'])
+        ->name('canais.meta.social.listar-paginas');
+
+    Route::post('/canais/meta/social/conectar', [App\Http\Controllers\MetaSocialSignupController::class, 'conectar'])
+        ->name('canais.meta.social.conectar');
 
     // POST e nao GET: bloquear muda estado, e link visitado por engano nao pode
     // trancar a tela de ninguem.

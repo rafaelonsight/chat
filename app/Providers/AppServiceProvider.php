@@ -28,6 +28,20 @@ class AppServiceProvider extends ServiceProvider
             (string) config('services.meta.versao'),
             (int) config('services.meta.timeout'),
         ));
+        $this->app->singleton(\App\Services\Canais\MetaSocialSignup::class, fn () => new \App\Services\Canais\MetaSocialSignup(
+            (string) config('services.meta.app_id'),
+            (string) config('services.meta.app_secret'),
+            (string) config('services.meta.versao'),
+            (int) config('services.meta.timeout'),
+        ));
+        $this->app->singleton(\App\Services\Canais\MetaMessengerEnviador::class, fn () => new \App\Services\Canais\MetaMessengerEnviador(
+            (string) config('services.meta.versao'),
+            (int) config('services.meta.timeout'),
+        ));
+        $this->app->singleton(\App\Services\Canais\MetaInstagramEnviador::class, fn () => new \App\Services\Canais\MetaInstagramEnviador(
+            (string) config('services.meta.versao'),
+            (int) config('services.meta.timeout'),
+        ));
 
         $this->app->singleton(\App\Services\EvolutionService::class, fn () => new \App\Services\EvolutionService(
             (string) config('services.evolution.url'),

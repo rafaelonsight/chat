@@ -69,6 +69,10 @@ class ChannelResource extends Resource
             // O botao "Continuar com o Facebook" do Cadastro Incorporado. Sem {record}
             // porque o canal ainda nao existe quando esta tela abre.
             'conectar-meta' => \App\Filament\Resources\Channels\Pages\ConectarMetaIncorporado::route('/conectar-meta'),
+            // Messenger/Instagram: mesma logica sem {record} — pode nascer 0, 1 ou 2
+            // canais desta tela (Messenger sempre, Instagram se a Pagina tiver e a
+            // pessoa marcar).
+            'conectar-meta-social' => \App\Filament\Resources\Channels\Pages\ConectarMetaSocial::route('/conectar-meta-social'),
         ];
     }
 }
