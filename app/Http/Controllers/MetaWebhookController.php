@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\VerificaAssinaturaMeta;
 use App\Jobs\ProcessMetaWebhook;
 use App\Models\Channel;
 use App\Models\WebhookEvent;
@@ -23,6 +24,8 @@ use Illuminate\Http\Response;
  */
 class MetaWebhookController extends Controller
 {
+    use VerificaAssinaturaMeta;
+
     /**
      * Verificacao da inscricao (GET).
      *
@@ -32,20 +35,7 @@ class MetaWebhookController extends Controller
      */
     public function verificar(Request $request): Response
     {
-        $esperado = (string) config('services.meta.verify_token');
-        $recebido = (string) $request->query('hub_verify_token');
-
-        abort_if($esperado === '', 500, 'META_VERIFY_TOKEN nao configurado.');
-
-        // hash_equals: comparacao de tempo constante. Com == daria para descobrir o
-        // token caractere por caractere medindo o tempo de resposta.
-        abort_unless(
-            $request->query('hub_mode') === 'subscribe' && hash_equals($esperado, $recebido),
-            403,
-        );
-
-        return response((string) $request->query('hub_challenge'), 200)
-            ->header('Content-Type', 'text/plain');
+        return $this->respostaDoDesafio($request);
     }
 
     /**
@@ -90,25 +80,6 @@ class MetaWebhookController extends Controller
         // 200 sempre, inclusive quando nao achamos o canal: a Meta reentrega em erro, e
         // reentregar algo que nunca vamos conseguir tratar so gera repeticao infinita.
         return response()->json(['ok' => true]);
-    }
-
-    /**
-     * A Meta assina o CORPO CRU com o App Secret.
-     *
-     * Tem de ser o corpo cru, byte a byte: se reserializar o JSON, a ordem das chaves ou
-     * o escape de acento muda e a assinatura nunca casa — e o erro parece "assinatura
-     * invalida" quando o problema e nosso.
-     */
-    private function conferirAssinatura(Request $request): void
-    {
-        $segredo = (string) config('services.meta.app_secret');
-
-        abort_if($segredo === '', 500, 'META_APP_SECRET nao configurado.');
-
-        $cabecalho = (string) $request->header('X-Hub-Signature-256');
-        $nosso = 'sha256='.hash_hmac('sha256', $request->getContent(), $segredo);
-
-        abort_unless($cabecalho !== '' && hash_equals($nosso, $cabecalho), 403);
     }
 
     private function acharCanal(array $payload): ?Channel
