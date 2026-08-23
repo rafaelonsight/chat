@@ -44,6 +44,11 @@ class MetaCloudEnviador implements Enviador
             ->throw();
     }
 
+    public function podeReagir(): bool
+    {
+        return true;
+    }
+
     /**
      * A API oficial nao tem "digitando" que da para ligar e desligar.
      *

@@ -20,6 +20,11 @@ class EvolutionEnviador implements Enviador
         $this->evolution->sendReaction($this->instancia($canal), $destino, $alvo, $emoji);
     }
 
+    public function podeReagir(): bool
+    {
+        return true;
+    }
+
     public function podeDigitando(): bool
     {
         return true;

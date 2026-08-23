@@ -54,6 +54,11 @@ class SiteEnviador implements Enviador
 
     public function reagir(Channel $canal, string $destino, array $alvo, string $emoji): void {}
 
+    public function podeReagir(): bool
+    {
+        return true;
+    }
+
     /** Apagar mudaria a tela do visitante sem ele entender; fica para quando houver desfazer. */
     public function podeApagar(): bool
     {

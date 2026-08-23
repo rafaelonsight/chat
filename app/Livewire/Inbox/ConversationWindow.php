@@ -179,8 +179,9 @@ class ConversationWindow extends Component
             : collect();
 
         $podeApagar = $this->canalApaga();
+        $podeReagir = $this->canalReage();
 
-        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'pessoas', 'eventos', 'linha', 'podeApagar', 'etiquetasDeConversa', 'procurado', 'paraEncaminhar'));
+        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'pessoas', 'eventos', 'linha', 'podeApagar', 'podeReagir', 'etiquetasDeConversa', 'procurado', 'paraEncaminhar'));
     }
 
     public function assumir(): void
@@ -353,6 +354,10 @@ class ConversationWindow extends Component
             return;
         }
 
+        if (! $this->canalReage()) {
+            return;
+        }
+
         // Clicar no mesmo emoji de novo tira a reacao, como no WhatsApp.
         $novo = ($emoji !== '' && $mensagem->reacao_nossa === $emoji) ? '' : $emoji;
 
@@ -405,6 +410,14 @@ class ConversationWindow extends Component
         $canal = \App\Models\Conversation::find($this->conversationId)?->channel;
 
         return $canal ? app(\App\Services\Canais\Enviadores::class)->para($canal)->podeApagar() : false;
+    }
+
+    /** O canal desta conversa consegue reagir? Messenger e Instagram nao tem esse endpoint. */
+    public function canalReage(): bool
+    {
+        $canal = \App\Models\Conversation::find($this->conversationId)?->channel;
+
+        return $canal ? app(\App\Services\Canais\Enviadores::class)->para($canal)->podeReagir() : false;
     }
 
     /**

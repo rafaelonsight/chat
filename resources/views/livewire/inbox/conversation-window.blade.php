@@ -489,7 +489,11 @@
                         o que a pessoa nao quer fazer no meio de um atendimento.
 
                         Clicar no mesmo emoji de novo tira a reacao, como no WhatsApp.
+
+                        So aparece em canal que tem esse endpoint: Messenger e Instagram nao
+                        oferecem reacao por API, e um botao que sempre falha e pior que nenhum.
                     --}}
+                    @if ($podeReagir)
                     <div class="relative shrink-0 {{ $entrada ? 'order-last' : 'order-first' }}"
                          x-data="{ aberto: false }" x-on:click.outside="aberto = false">
                         <button type="button" x-on:click="aberto = !aberto"
@@ -513,6 +517,7 @@
                             @endforeach
                         </div>
                     </div>
+                    @endif
 
                     @if ($m->reacao_cliente || $m->reacao_nossa)
                         <span class="order-last flex shrink-0 items-center gap-0.5 self-end rounded-full border border-slate-200 bg-white px-1.5 py-0.5 text-xs shadow-sm">

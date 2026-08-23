@@ -92,6 +92,16 @@ interface Enviador
     public function reagir(Channel $canal, string $destino, array $alvo, string $emoji): void;
 
     /**
+     * Este canal consegue reagir a uma mensagem?
+     *
+     * NAO no Messenger nem no Instagram: o Send API deles simplesmente nao tem endpoint de
+     * reacao (o toque duplo que o cliente ve no aplicativo e coisa do aplicativo, nao uma
+     * operacao que a Pagina pode disparar). A pergunta existe pela mesma razao de
+     * podeApagar() — nao oferecer um botao que nunca funciona.
+     */
+    public function podeReagir(): bool;
+
+    /**
      * Este canal consegue apagar uma mensagem ja enviada?
      *
      * A resposta e NAO para a API oficial da Meta, que simplesmente nao tem essa operacao. Nao
