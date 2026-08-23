@@ -6,13 +6,17 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 /*
- * Conexao de Messenger e Instagram pelo Login do Facebook.
+ * Conexao do Messenger pelo Login do Facebook.
  *
  * Duas rotas, na MESMA aba (sem popup, ao contrario do Cadastro Incorporado do
  * WhatsApp): `listarPaginas` troca o token curto do FB.login() por um de longa
- * duracao, lista as Paginas e guarda o resultado (com token de cada uma) num cache de
- * curta duracao — devolvendo ao navegador so o que ele precisa para desenhar a
- * escolha. `conectar` persiste no banco, usando o uuid desse cache.
+ * duracao e lista as Paginas — devolvendo ao navegador so o que ele precisa para
+ * desenhar a escolha. `conectar` persiste no banco, usando o uuid desse cache.
+ *
+ * SO MESSENGER. O Instagram tem login proprio, sem Pagina — ver
+ * MetaInstagramSignupTest.php. Isso foi descoberto testando de verdade: o app deste
+ * projeto tem o Instagram no produto novo da Meta (Business Login for Instagram), que
+ * nao aceita a permissao antiga vinculada a Pagina.
  */
 
 beforeEach(function () {
@@ -36,12 +40,10 @@ function fakesDeListagem(): void
     Http::fake([
         'graph.facebook.com/*/oauth/access_token*' => Http::response(['access_token' => 'USER-TOKEN-LONGO']),
         'graph.facebook.com/*/me/accounts*'        => Http::response(['data' => [
-            ['id' => 'page-com-ig', 'name' => 'Loja Principal', 'access_token' => 'PAGE-TOKEN-COM-IG'],
-            ['id' => 'page-sem-ig', 'name' => 'Loja Sem Instagram', 'access_token' => 'PAGE-TOKEN-SEM-IG'],
+            ['id' => 'page-1', 'name' => 'Loja Principal', 'access_token' => 'PAGE-TOKEN-1'],
+            ['id' => 'page-2', 'name' => 'Loja Secundaria', 'access_token' => 'PAGE-TOKEN-2'],
         ]]),
         'graph.facebook.com/*/subscribed_apps*' => Http::response(['success' => true]),
-        'graph.facebook.com/*/page-com-ig*'     => Http::response(['instagram_business_account' => ['id' => 'ig-123', 'username' => 'minhaloja']]),
-        'graph.facebook.com/*/page-sem-ig*'     => Http::response([]),
     ]);
 }
 
@@ -57,14 +59,9 @@ function guardarPaginasPendentes(array $paginas, ?int $tenantId = null): string
     return $uuid;
 }
 
-function paginaComInstagram(): array
+function paginaUm(): array
 {
-    return ['id' => 'page-com-ig', 'nome' => 'Loja Principal', 'token' => 'PAGE-TOKEN-COM-IG', 'tem_instagram' => true, 'ig_account_id' => 'ig-123', 'ig_username' => 'minhaloja'];
-}
-
-function paginaSemInstagram(): array
-{
-    return ['id' => 'page-sem-ig', 'nome' => 'Loja Sem Instagram', 'token' => 'PAGE-TOKEN-SEM-IG', 'tem_instagram' => false, 'ig_account_id' => null, 'ig_username' => null];
+    return ['id' => 'page-1', 'nome' => 'Loja Principal', 'token' => 'PAGE-TOKEN-1'];
 }
 
 /*
@@ -72,7 +69,7 @@ function paginaSemInstagram(): array
  * (com token) no cache. Quem persiste e sempre o conectar.
  */
 
-it('lista as páginas com token e diz quais têm Instagram, sem devolver token ao navegador', function () {
+it('lista as páginas com token, sem devolver token ao navegador', function () {
     fakesDeListagem();
 
     $resposta = $this->actingAs($this->admin)
@@ -82,19 +79,17 @@ it('lista as páginas com token e diz quais têm Instagram, sem devolver token a
 
     $paginas = $resposta->json('paginas');
     expect($paginas)->toHaveCount(2)
-        ->and($paginas[0]['id'])->toBe('page-com-ig')
-        ->and($paginas[0]['tem_instagram'])->toBeTrue()
-        ->and($paginas[0]['ig_username'])->toBe('minhaloja')
-        ->and($paginas[1]['tem_instagram'])->toBeFalse();
+        ->and($paginas[0]['id'])->toBe('page-1')
+        ->and($paginas[0]['nome'])->toBe('Loja Principal');
 
     // Nenhum campo de token no que volta para o navegador.
-    $resposta->assertDontSee('PAGE-TOKEN-COM-IG')->assertDontSee('PAGE-TOKEN-SEM-IG');
+    $resposta->assertDontSee('PAGE-TOKEN-1')->assertDontSee('PAGE-TOKEN-2');
 
     $uuid = $resposta->json('uuid');
     $pendente = Cache::get("meta_social:{$uuid}");
     expect($pendente)->not->toBeNull()
         ->and($pendente['tenant_id'])->toBe($this->tenant->id)
-        ->and($pendente['paginas'][0]['token'])->toBe('PAGE-TOKEN-COM-IG');
+        ->and($pendente['paginas'][0]['token'])->toBe('PAGE-TOKEN-1');
 });
 
 it('erro claro quando a conta não administra nenhuma Página', function () {
@@ -107,7 +102,6 @@ it('erro claro quando a conta não administra nenhuma Página', function () {
         ->postJson(route('canais.meta.social.listar-paginas'), ['token' => 'token-curto']);
 
     $resposta->assertStatus(422)->assertJson(['ok' => false]);
-    expect(Cache::get('meta_social'))->toBeNull();
 });
 
 it('erro claro quando a troca de token falha', function () {
@@ -132,63 +126,25 @@ it('recusa listar páginas para quem não é admin', function () {
 });
 
 /*
- * conectar (POST): persiste. Sempre cria o Messenger; o Instagram e opcional.
+ * conectar (POST): persiste.
  */
 
-it('cria o canal do Messenger quando não marca conectar_instagram', function () {
+it('cria o canal do Messenger', function () {
     fakesDeListagem();
-    $uuid = guardarPaginasPendentes([paginaComInstagram()], $this->tenant->id);
+    $uuid = guardarPaginasPendentes([paginaUm()], $this->tenant->id);
 
     $resposta = $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
-        'uuid' => $uuid, 'page_id' => 'page-com-ig', 'conectar_instagram' => false,
+        'uuid' => $uuid, 'page_id' => 'page-1',
     ]);
 
     $resposta->assertOk()->assertJson(['ok' => true]);
 
-    expect(Channel::count())->toBe(1);
     $canal = Channel::where('tipo', Channel::MESSENGER)->firstOrFail();
-    expect($canal->meta_page_id)->toBe('page-com-ig')
-        ->and($canal->meta_token)->toBe('PAGE-TOKEN-COM-IG')
+    expect($canal->meta_page_id)->toBe('page-1')
+        ->and($canal->meta_token)->toBe('PAGE-TOKEN-1')
         ->and($canal->status)->toBe('open');
 
-    Http::assertSent(fn ($r) => str_contains($r->url(), '/page-com-ig/subscribed_apps'));
-});
-
-it('cria os dois canais quando marca conectar_instagram numa página que tem Instagram', function () {
-    fakesDeListagem();
-    $uuid = guardarPaginasPendentes([paginaComInstagram()], $this->tenant->id);
-
-    $resposta = $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
-        'uuid' => $uuid, 'page_id' => 'page-com-ig', 'conectar_instagram' => true,
-    ]);
-
-    $resposta->assertOk()->assertJson(['ok' => true]);
-    expect(Channel::count())->toBe(2);
-
-    $messenger = Channel::where('tipo', Channel::MESSENGER)->firstOrFail();
-    $instagram = Channel::where('tipo', Channel::INSTAGRAM)->firstOrFail();
-
-    expect($messenger->meta_page_id)->toBe('page-com-ig')
-        ->and($instagram->meta_page_id)->toBe('page-com-ig')
-        ->and($instagram->meta_ig_account_id)->toBe('ig-123')
-        ->and($instagram->meta_ig_username)->toBe('minhaloja')
-        ->and($instagram->nome)->toBe('@minhaloja')
-        ->and($instagram->status)->toBe('open');
-
-    Http::assertSent(fn ($r) => str_contains($r->url(), '/ig-123/subscribed_apps'));
-});
-
-it('marca conectar_instagram numa página sem Instagram cria só o Messenger', function () {
-    fakesDeListagem();
-    $uuid = guardarPaginasPendentes([paginaSemInstagram()], $this->tenant->id);
-
-    $resposta = $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
-        'uuid' => $uuid, 'page_id' => 'page-sem-ig', 'conectar_instagram' => true,
-    ]);
-
-    $resposta->assertOk();
-    expect(Channel::count())->toBe(1)
-        ->and(Channel::first()->tipo)->toBe(Channel::MESSENGER);
+    Http::assertSent(fn ($r) => str_contains($r->url(), '/page-1/subscribed_apps'));
 });
 
 it('reconecta um canal do Messenger existente em vez de criar outro', function () {
@@ -198,46 +154,27 @@ it('reconecta um canal do Messenger existente em vez de criar outro', function (
         'meta_page_id' => 'page-velha', 'meta_token' => 'TOKEN-VELHO', 'status' => 'close',
     ])->refresh();
 
-    $uuid = guardarPaginasPendentes([paginaComInstagram()], $this->tenant->id);
+    $uuid = guardarPaginasPendentes([paginaUm()], $this->tenant->id);
 
     $resposta = $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
-        'uuid' => $uuid, 'page_id' => 'page-com-ig', 'canal_id' => $canal->id,
+        'uuid' => $uuid, 'page_id' => 'page-1', 'canal_id' => $canal->id,
     ]);
 
     $resposta->assertOk();
     expect(Channel::count())->toBe(1);
 
     $canal->refresh();
-    expect($canal->meta_page_id)->toBe('page-com-ig')
-        ->and($canal->meta_token)->toBe('PAGE-TOKEN-COM-IG')
+    expect($canal->meta_page_id)->toBe('page-1')
+        ->and($canal->meta_token)->toBe('PAGE-TOKEN-1')
         ->and($canal->status)->toBe('open')
         // nome e do canal que ja existia — reconectar nao pode pisar num nome
         // que a pessoa ja personalizou.
         ->and($canal->nome)->toBe('Antiga');
 });
 
-it('reconectar um canal do Instagram para uma página sem Instagram recusa, sem tocar no canal', function () {
-    fakesDeListagem();
-    $canal = Channel::create([
-        'nome' => 'Instagram antigo', 'tipo' => Channel::INSTAGRAM,
-        'meta_page_id' => 'page-velha', 'meta_ig_account_id' => 'ig-velho', 'meta_token' => 'TOKEN-VELHO',
-    ])->refresh();
-
-    $uuid = guardarPaginasPendentes([paginaSemInstagram()], $this->tenant->id);
-
-    $resposta = $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
-        'uuid' => $uuid, 'page_id' => 'page-sem-ig', 'canal_id' => $canal->id,
-    ]);
-
-    $resposta->assertStatus(422)->assertJson(['ok' => false]);
-
-    $canal->refresh();
-    expect($canal->meta_ig_account_id)->toBe('ig-velho'); // nao mudou nada
-});
-
 it('recusa uuid inexistente ou expirado, sem criar canal', function () {
     $resposta = $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
-        'uuid' => (string) Illuminate\Support\Str::uuid(), 'page_id' => 'page-com-ig',
+        'uuid' => (string) Illuminate\Support\Str::uuid(), 'page_id' => 'page-1',
     ]);
 
     $resposta->assertStatus(422)->assertJson(['ok' => false]);
@@ -246,10 +183,10 @@ it('recusa uuid inexistente ou expirado, sem criar canal', function () {
 
 it('recusa uuid de outra conta, sem criar canal', function () {
     $outroTenant = Tenant::create(['nome' => 'Outro', 'slug' => 'outro-social']);
-    $uuid = guardarPaginasPendentes([paginaComInstagram()], $outroTenant->id);
+    $uuid = guardarPaginasPendentes([paginaUm()], $outroTenant->id);
 
     $resposta = $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
-        'uuid' => $uuid, 'page_id' => 'page-com-ig',
+        'uuid' => $uuid, 'page_id' => 'page-1',
     ]);
 
     $resposta->assertForbidden();
@@ -259,21 +196,21 @@ it('recusa uuid de outra conta, sem criar canal', function () {
 
 it('recusa reutilizar o mesmo uuid uma segunda vez', function () {
     fakesDeListagem();
-    $uuid = guardarPaginasPendentes([paginaComInstagram()], $this->tenant->id);
+    $uuid = guardarPaginasPendentes([paginaUm()], $this->tenant->id);
 
     $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
-        'uuid' => $uuid, 'page_id' => 'page-com-ig',
+        'uuid' => $uuid, 'page_id' => 'page-1',
     ])->assertOk();
 
     $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
-        'uuid' => $uuid, 'page_id' => 'page-com-ig',
+        'uuid' => $uuid, 'page_id' => 'page-1',
     ])->assertStatus(422);
 
     expect(Channel::count())->toBe(1);
 });
 
 it('recusa page_id que não está na lista guardada', function () {
-    $uuid = guardarPaginasPendentes([paginaComInstagram()], $this->tenant->id);
+    $uuid = guardarPaginasPendentes([paginaUm()], $this->tenant->id);
 
     $resposta = $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
         'uuid' => $uuid, 'page_id' => 'page-que-nunca-existiu',
@@ -283,12 +220,12 @@ it('recusa page_id que não está na lista guardada', function () {
     expect(Channel::count())->toBe(0);
 });
 
-it('não cria canal quando a inscrição do webhook do Messenger falha', function () {
+it('não cria canal quando a inscrição do webhook falha', function () {
     Http::fake(['graph.facebook.com/*/subscribed_apps*' => Http::response(['error' => ['message' => 'recusado']], 400)]);
-    $uuid = guardarPaginasPendentes([paginaComInstagram()], $this->tenant->id);
+    $uuid = guardarPaginasPendentes([paginaUm()], $this->tenant->id);
 
     $resposta = $this->actingAs($this->admin)->postJson(route('canais.meta.social.conectar'), [
-        'uuid' => $uuid, 'page_id' => 'page-com-ig',
+        'uuid' => $uuid, 'page_id' => 'page-1',
     ]);
 
     $resposta->assertStatus(422);
@@ -300,10 +237,10 @@ it('recusa quem não é admin no conectar', function () {
         'tenant_id' => $this->tenant->id, 'name' => 'Sem admin 2', 'email' => 'semadmin2@social.test',
         'password' => 'segredo123', 'admin' => false,
     ]);
-    $uuid = guardarPaginasPendentes([paginaComInstagram()], $this->tenant->id);
+    $uuid = guardarPaginasPendentes([paginaUm()], $this->tenant->id);
 
     $resposta = $this->actingAs($semPermissao)->postJson(route('canais.meta.social.conectar'), [
-        'uuid' => $uuid, 'page_id' => 'page-com-ig',
+        'uuid' => $uuid, 'page_id' => 'page-1',
     ]);
 
     $resposta->assertForbidden();

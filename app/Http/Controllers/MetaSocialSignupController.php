@@ -12,16 +12,18 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 /**
- * Conexao de Messenger e Instagram: dois passos, na MESMA aba (ao contrario do Cadastro
+ * Conexao do Messenger: dois passos, na MESMA aba (ao contrario do Cadastro
  * Incorporado do WhatsApp, que precisa de popup+postMessage porque o link e hospedado
  * pela Meta). Aqui o FB.login() roda na nossa propria pagina, entao nao ha problema de
  * sessao compartilhada entre abas — so ha duas chamadas ao servidor porque listar as
  * Paginas e escolher qual conectar sao dois momentos.
  *
+ * SO MESSENGER — o Instagram tem fluxo proprio, ver MetaInstagramSignupController.
+ *
  * O token de cada Pagina NUNCA chega ao navegador: `listarPaginas` guarda a lista
  * completa (com token) num cache de curta duracao sob um uuid de uso unico, e devolve
- * ao navegador so o que ele precisa para desenhar a escolha (id, nome, se tem
- * Instagram). `conectar` pega o token de volta so no servidor, pelo mesmo uuid.
+ * ao navegador so o que ele precisa para desenhar a escolha (id, nome). `conectar`
+ * pega o token de volta so no servidor, pelo mesmo uuid.
  */
 class MetaSocialSignupController extends Controller
 {
@@ -65,30 +67,22 @@ class MetaSocialSignupController extends Controller
         return response()->json([
             'ok'      => true,
             'uuid'    => $uuid,
-            'paginas' => array_map(fn (array $p) => [
-                'id'            => $p['id'],
-                'nome'          => $p['nome'],
-                'tem_instagram' => $p['tem_instagram'],
-                'ig_username'   => $p['ig_username'],
-            ], $r['paginas']),
+            'paginas' => array_map(fn (array $p) => ['id' => $p['id'], 'nome' => $p['nome']], $r['paginas']),
         ]);
     }
 
     /**
      * Persiste no banco. `canal_id` (quando presente, de uma reconexao) restringe a
-     * atualizar SO aquele canal, no tipo que ele ja tem — reconectar nao cria canal
-     * novo nem decide sozinho "tambem conectar o Instagram", porque a pessoa esta
-     * reconectando um canal especifico, nao escolhendo de novo o que criar.
+     * atualizar SO aquele canal.
      */
     public function conectar(Request $request, MetaSocialSignup $signup): JsonResponse
     {
         abort_unless((bool) auth()->user()?->admin, 403);
 
         $validador = Validator::make($request->all(), [
-            'uuid'               => ['required', 'string'],
-            'page_id'            => ['required', 'string'],
-            'conectar_instagram' => ['nullable', 'boolean'],
-            'canal_id'           => ['nullable', 'integer'],
+            'uuid'     => ['required', 'string'],
+            'page_id'  => ['required', 'string'],
+            'canal_id' => ['nullable', 'integer'],
         ]);
 
         if ($validador->fails()) {
@@ -119,94 +113,40 @@ class MetaSocialSignupController extends Controller
             return response()->json(['ok' => false, 'erro' => 'Página não encontrada na lista — tente conectar de novo.'], 422);
         }
 
-        $canalId = $dados['canal_id'] ?? null;
-        $canalExistente = $canalId !== null
-            ? Channel::query()->whereIn('tipo', [Channel::MESSENGER, Channel::INSTAGRAM])->find($canalId)
-            : null;
-
-        // Reconexao: so toca o canal que ja existe, no tipo que ele ja tem.
-        if ($canalExistente !== null) {
-            if ($canalExistente->tipo === Channel::INSTAGRAM) {
-                if (! $pagina['tem_instagram']) {
-                    return response()->json(['ok' => false, 'erro' => 'Essa Página não tem Instagram Profissional vinculado.'], 422);
-                }
-
-                $r = $signup->inscreverInstagram($pagina['ig_account_id'], $pagina['token']);
-
-                if (! $r['ok']) {
-                    return response()->json(['ok' => false, 'erro' => 'A Página foi autorizada, mas a inscrição do webhook do Instagram falhou: '.$r['erro']], 422);
-                }
-
-                $canalExistente->update([
-                    'meta_page_id'       => $pagina['id'],
-                    'meta_page_nome'     => $pagina['nome'],
-                    'meta_ig_account_id' => $pagina['ig_account_id'],
-                    'meta_ig_username'   => $pagina['ig_username'],
-                    'meta_token'         => $pagina['token'],
-                    'status'             => 'open',
-                    'ultimo_erro'        => null,
-                ]);
-            } else {
-                $r = $signup->inscreverPagina($pagina['id'], $pagina['token']);
-
-                if (! $r['ok']) {
-                    return response()->json(['ok' => false, 'erro' => 'A Página foi autorizada, mas a inscrição do webhook falhou: '.$r['erro']], 422);
-                }
-
-                $canalExistente->update([
-                    'meta_page_id'   => $pagina['id'],
-                    'meta_page_nome' => $pagina['nome'],
-                    'meta_token'     => $pagina['token'],
-                    'status'         => 'open',
-                    'ultimo_erro'    => null,
-                ]);
-            }
-
-            return response()->json(['ok' => true, 'redirect' => ChannelResource::getUrl('edit', ['record' => $canalExistente])]);
-        }
-
-        // Conexao nova: sempre cria o Messenger; o Instagram e opcional e so existe se
-        // a pessoa marcou a caixa E a Pagina realmente tem uma conta vinculada.
         $r = $signup->inscreverPagina($pagina['id'], $pagina['token']);
 
         if (! $r['ok']) {
-            return response()->json(['ok' => false, 'erro' => 'A Página foi autorizada, mas a inscrição do webhook do Messenger falhou: '.$r['erro']], 422);
+            return response()->json(['ok' => false, 'erro' => 'A Página foi autorizada, mas a inscrição do webhook falhou: '.$r['erro']], 422);
         }
 
-        $messenger = Channel::create([
-            'tenant_id'      => auth()->user()->tenant_id,
-            'tipo'           => Channel::MESSENGER,
-            'nome'           => $pagina['nome'],
+        $canalId = $dados['canal_id'] ?? null;
+        $canalExistente = $canalId !== null
+            ? Channel::query()->where('tipo', Channel::MESSENGER)->find($canalId)
+            : null;
+
+        $dadosDoCanal = [
             'meta_page_id'   => $pagina['id'],
             'meta_page_nome' => $pagina['nome'],
             'meta_token'     => $pagina['token'],
             'status'         => 'open',
-            'conectado_em'   => now(),
-        ]);
+            'ultimo_erro'    => null,
+        ];
 
-        $quiseramInstagram = (bool) ($dados['conectar_instagram'] ?? false);
-
-        if ($quiseramInstagram && $pagina['tem_instagram']) {
-            $rInstagram = $signup->inscreverInstagram($pagina['ig_account_id'], $pagina['token']);
-
-            // Falha aqui NAO desfaz o Messenger, que ja esta funcionando: fica registrado
-            // no ultimo_erro do canal do Instagram, que nasce mesmo assim, e a pessoa pode
-            // reconectar so ele depois pela tela de edicao.
-            $instagram = Channel::create([
-                'tenant_id'          => auth()->user()->tenant_id,
-                'tipo'               => Channel::INSTAGRAM,
-                'nome'               => $pagina['ig_username'] ? '@'.$pagina['ig_username'] : $pagina['nome'].' (Instagram)',
-                'meta_page_id'       => $pagina['id'],
-                'meta_page_nome'     => $pagina['nome'],
-                'meta_ig_account_id' => $pagina['ig_account_id'],
-                'meta_ig_username'   => $pagina['ig_username'],
-                'meta_token'         => $pagina['token'],
-                'status'             => $rInstagram['ok'] ? 'open' : 'connecting',
-                'conectado_em'       => $rInstagram['ok'] ? now() : null,
-                'ultimo_erro'        => $rInstagram['ok'] ? null : $rInstagram['erro'],
+        if ($canalExistente !== null) {
+            // Nome e do canal que ja existia — reconectar nao pode pisar num nome
+            // que a pessoa ja personalizou.
+            $canalExistente->update($dadosDoCanal);
+            $canal = $canalExistente;
+        } else {
+            $canal = Channel::create([
+                ...$dadosDoCanal,
+                'tenant_id'    => auth()->user()->tenant_id,
+                'tipo'         => Channel::MESSENGER,
+                'nome'         => $pagina['nome'],
+                'conectado_em' => now(),
             ]);
         }
 
-        return response()->json(['ok' => true, 'redirect' => ChannelResource::getUrl('index')]);
+        return response()->json(['ok' => true, 'redirect' => ChannelResource::getUrl('edit', ['record' => $canal])]);
     }
 }

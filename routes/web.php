@@ -90,6 +90,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/canais/meta/social/conectar', [App\Http\Controllers\MetaSocialSignupController::class, 'conectar'])
         ->name('canais.meta.social.conectar');
 
+    // Instagram: login direto (instagram.com), redirect comum na mesma aba — sem
+    // popup, sem postMessage. Ver MetaInstagramSignupController.
+    Route::get('/canais/instagram/callback', [App\Http\Controllers\MetaInstagramSignupController::class, 'retorno'])
+        ->name('canais.instagram.callback');
+
     // POST e nao GET: bloquear muda estado, e link visitado por engano nao pode
     // trancar a tela de ninguem.
     Route::post('/sessao/bloquear', function (\Illuminate\Http\Request $pedido) {

@@ -4,10 +4,14 @@ namespace App\Services\Canais;
 
 use App\Models\Channel;
 use App\Services\Canais\Concerns\EnviaPeloSendApi;
+use Illuminate\Support\Facades\Http;
 
 /**
  * Envio pelo Messenger, com o token da Pagina (nao existe token global de reserva:
  * cada Pagina e de um cliente diferente, sem numero "nosso" como no WhatsApp).
+ *
+ * graph.facebook.com/{versao}/me/... — "me" resolve para a Pagina do proprio token,
+ * que e exatamente a Pagina que este canal representa.
  */
 class MetaMessengerEnviador implements Enviador
 {
@@ -23,13 +27,78 @@ class MetaMessengerEnviador implements Enviador
         return $this->enviarMensagem($canal, $this->idDoDestino($destino, $canal), ['text' => $texto]);
     }
 
+    /**
+     * SEM LEGENDA: o Send API nao tem campo de legenda junto do anexo, ao contrario
+     * do WhatsApp. Mandar a legenda como mensagem separada criaria um segundo id de
+     * provedor sem Message nossa correspondente — melhor nao mandar do que mandar
+     * pela metade.
+     *
+     * @param  array{tipo: string, bytes: string, mime: ?string, nome: ?string, legenda: ?string}  $arquivo
+     */
     public function midia(Channel $canal, string $destino, array $arquivo, ?array $citar = null): array
     {
-        return $this->enviarAnexo($canal, $this->idDoDestino($destino, $canal), $arquivo);
+        $destinoId = $this->idDoDestino($destino, $canal);
+        $tipoAnexo = match ($arquivo['tipo']) {
+            'image', 'video', 'audio' => $arquivo['tipo'],
+            default                   => 'file',
+        };
+
+        $r = Http::withToken($this->token($canal))
+            ->timeout(max($this->timeout, 120))
+            ->attach('filedata', $arquivo['bytes'], $arquivo['nome'] ?: 'arquivo', ['Content-Type' => $arquivo['mime'] ?: 'application/octet-stream'])
+            ->post("https://graph.facebook.com/{$this->versao}/me/message_attachments", [
+                'message' => json_encode([
+                    'attachment' => ['type' => $tipoAnexo, 'payload' => ['is_reusable' => false]],
+                ]),
+            ])
+            ->throw()
+            ->json();
+
+        $attachmentId = (string) data_get($r, 'attachment_id');
+
+        if ($attachmentId === '') {
+            throw new \RuntimeException('a Meta aceitou o arquivo mas nao devolveu attachment_id.');
+        }
+
+        return $this->enviarMensagem($canal, $destinoId, [
+            'attachment' => ['type' => $tipoAnexo, 'payload' => ['attachment_id' => $attachmentId]],
+        ]);
     }
 
     public function nome(): string
     {
         return 'messenger';
+    }
+
+    /** @return array{external_id: ?string} */
+    private function enviarMensagem(Channel $canal, string $destinoId, array $mensagem): array
+    {
+        $r = $this->cliente($canal)
+            ->post("https://graph.facebook.com/{$this->versao}/me/messages", [
+                'recipient' => ['id' => $destinoId],
+                'message'   => $mensagem,
+            ])
+            ->throw()
+            ->json();
+
+        return ['external_id' => data_get($r, 'message_id')];
+    }
+
+    private function acaoDoRemetente(Channel $canal, string $destinoId, string $acao): void
+    {
+        $this->cliente($canal)
+            ->post("https://graph.facebook.com/{$this->versao}/me/messages", [
+                'recipient'     => ['id' => $destinoId],
+                'sender_action' => $acao,
+            ])
+            ->throw();
+    }
+
+    private function cliente(Channel $canal)
+    {
+        return Http::withToken($this->token($canal))
+            ->timeout($this->timeout)
+            ->acceptJson()
+            ->asJson();
     }
 }

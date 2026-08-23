@@ -42,6 +42,12 @@ class AppServiceProvider extends ServiceProvider
             (string) config('services.meta.versao'),
             (int) config('services.meta.timeout'),
         ));
+        $this->app->singleton(\App\Services\Canais\MetaInstagramSignup::class, fn () => new \App\Services\Canais\MetaInstagramSignup(
+            (string) config('services.meta.instagram_app_id'),
+            (string) config('services.meta.instagram_app_secret'),
+            (string) config('services.meta.versao'),
+            (int) config('services.meta.timeout'),
+        ));
 
         $this->app->singleton(\App\Services\EvolutionService::class, fn () => new \App\Services\EvolutionService(
             (string) config('services.evolution.url'),

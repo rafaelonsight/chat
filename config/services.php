@@ -124,6 +124,16 @@ return [
         // Apps da Meta (WhatsApp > Cadastro Incorporado). Sem ela o botao de conectar nao
         // sabe qual fluxo abrir - e um id proprio, diferente do app_id.
         'config_id'    => env('META_EMBEDDED_CONFIG_ID'),
+
+        /*
+         * Instagram e um app DIFERENTE dentro do mesmo Painel de Apps ("API do
+         * Instagram" / Business Login for Instagram) - id e chave secreta proprios,
+         * nao os do app_id/app_secret acima. O login vai direto para
+         * instagram.com, sem passar por uma Pagina do Facebook (diferente do
+         * Messenger, que usa o app_id/app_secret de cima).
+         */
+        'instagram_app_id'     => env('META_INSTAGRAM_APP_ID'),
+        'instagram_app_secret' => env('META_INSTAGRAM_APP_SECRET'),
     ],
 
 ];
