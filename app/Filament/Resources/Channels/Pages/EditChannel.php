@@ -51,22 +51,27 @@ class EditChannel extends EditRecord
                 ->modalSubmitActionLabel('Continuar para o Facebook')
                 ->url(fn () => ChannelResource::getUrl('conectar-meta').'?canal='.$this->record->id),
 
-            // Mesmo cuidado do reconectar_meta: escolher a Pagina errada troca o dono
-            // das conversas deste canal em silencio.
+            // Mesmo cuidado do reconectar_meta: escolher a Pagina/conta errada troca o
+            // dono das conversas deste canal em silencio. Messenger reconecta pelo
+            // Facebook (Pagina); Instagram loga direto no Instagram — sao caminhos
+            // diferentes, e o rotulo/aviso precisam dizer qual dos dois.
             Action::make('reconectar_meta_social')
-                ->label('Reconectar pelo Facebook')
+                ->label(fn () => $this->record->tipo === Channel::INSTAGRAM ? 'Reconectar pelo Instagram' : 'Reconectar pelo Facebook')
                 ->icon('heroicon-o-arrow-path')
                 ->color('gray')
                 ->visible(fn () => in_array($this->record->tipo, [Channel::MESSENGER, Channel::INSTAGRAM], true))
                 ->requiresConfirmation()
                 ->modalHeading('Reconectar '.($this->record->nome ?? 'este canal').'?')
-                ->modalDescription(
-                    'Isto troca a Página do Facebook e a credencial deste canal pelo que '
-                    .'você escolher a seguir. Se escolher a Página errada, as conversas '
-                    .'deste canal passam a sair pela conta errada — confira com cuidado '
-                    .'antes de continuar.'
-                )
-                ->modalSubmitActionLabel('Continuar para o Facebook')
+                ->modalDescription(fn () => $this->record->tipo === Channel::INSTAGRAM
+                    ? 'Isto troca a conta do Instagram e a credencial deste canal pela '
+                        .'que você escolher a seguir. Se logar com a conta errada, as '
+                        .'conversas deste canal passam a sair pela conta errada — confira '
+                        .'com cuidado antes de continuar.'
+                    : 'Isto troca a Página do Facebook e a credencial deste canal pelo que '
+                        .'você escolher a seguir. Se escolher a Página errada, as conversas '
+                        .'deste canal passam a sair pela conta errada — confira com cuidado '
+                        .'antes de continuar.')
+                ->modalSubmitActionLabel(fn () => $this->record->tipo === Channel::INSTAGRAM ? 'Continuar para o Instagram' : 'Continuar para o Facebook')
                 ->url(fn () => ChannelResource::getUrl('conectar-meta-social').'?canal='.$this->record->id),
 
             // O equivalente do QR Code para o chat de site: nao ha nada para "conectar" —

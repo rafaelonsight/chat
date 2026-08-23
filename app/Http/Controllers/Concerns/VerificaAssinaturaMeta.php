@@ -6,8 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
 /**
- * Verificacao generica de webhook da Graph API (WhatsApp, Messenger e Instagram usam a
- * mesma mecanica, porque os tres sao produtos do MESMO app da Meta):
+ * Verificacao generica de webhook da Graph API:
  *
  * 1. Handshake da inscricao (GET): a Meta manda um desafio e espera ele de volta em
  *    texto puro. JSON ou token errado, e a inscricao simplesmente nao completa.
@@ -17,6 +16,14 @@ use Illuminate\Http\Response;
  *
  * Extraido do MetaWebhookController (WhatsApp) quando o Messenger/Instagram precisaram
  * da mesma verificacao — nao muda o comportamento de quem ja usava.
+ *
+ * NAO SAO TODOS O MESMO APP: WhatsApp e Messenger vivem no app principal
+ * (META_APP_SECRET), mas o Instagram (login direto, "Business Login for Instagram")
+ * e um app SEPARADO da Meta, com id e chave secreta proprios
+ * (META_INSTAGRAM_APP_SECRET) — descoberto testando de verdade, quando um webhook do
+ * Instagram nunca chegou a criar WebhookEvent nenhum porque a assinatura dele nunca
+ * batia com a chave do app principal. conferirAssinatura() por isso aceita QUALQUER
+ * uma das chaves configuradas, nao so a primeira.
  */
 trait VerificaAssinaturaMeta
 {
@@ -40,13 +47,20 @@ trait VerificaAssinaturaMeta
 
     private function conferirAssinatura(Request $request): void
     {
-        $segredo = (string) config('services.meta.app_secret');
+        $segredos = array_filter([
+            (string) config('services.meta.app_secret'),
+            (string) config('services.meta.instagram_app_secret'),
+        ], fn (string $s) => $s !== '');
 
-        abort_if($segredo === '', 500, 'META_APP_SECRET nao configurado.');
+        abort_if($segredos === [], 500, 'Nenhum App Secret da Meta configurado.');
 
         $cabecalho = (string) $request->header('X-Hub-Signature-256');
-        $nosso = 'sha256='.hash_hmac('sha256', $request->getContent(), $segredo);
+        $corpo = $request->getContent();
 
-        abort_unless($cabecalho !== '' && hash_equals($nosso, $cabecalho), 403);
+        $bate = $cabecalho !== '' && collect($segredos)->contains(
+            fn (string $segredo) => hash_equals('sha256='.hash_hmac('sha256', $corpo, $segredo), $cabecalho)
+        );
+
+        abort_unless($bate, 403);
     }
 }
