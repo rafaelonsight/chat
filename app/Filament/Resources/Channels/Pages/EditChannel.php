@@ -51,6 +51,17 @@ class EditChannel extends EditRecord
                 ->modalSubmitActionLabel('Continuar para o Facebook')
                 ->url(fn () => ChannelResource::getUrl('conectar-meta').'?canal='.$this->record->id),
 
+            // O equivalente do QR Code para o chat de site: nao ha nada para "conectar" —
+            // o unico passo que falta e copiar o <script> para o HTML do site.
+            Action::make('ver_codigo_site')
+                ->label('Ver código de instalação')
+                ->icon('heroicon-o-code-bracket')
+                ->visible(fn () => $this->record->tipo === Channel::SITE)
+                ->modalHeading('Código de instalação')
+                ->modalSubmitAction(false)
+                ->modalCancelActionLabel('Fechar')
+                ->modalContent(fn () => view('filament.channel-site-modal', ['channel' => $this->record])),
+
             // O equivalente do QR Code no oficial: perguntar a Meta se a configuracao
             // funciona, em vez de descobrir com cliente na linha.
             Action::make('conferir')

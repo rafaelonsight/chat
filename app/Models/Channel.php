@@ -90,6 +90,14 @@ class Channel extends Model
             // A Evolution nao assina o payload do webhook: a autenticidade vem
             // deste segredo embutido na URL.
             $c->webhook_secret ??= Str::random(48);
+
+            // A chave vai dentro do <script> que a pessoa cola no HTML do site dela —
+            // e por isso PRECISA existir antes do trechoDoSite() ser mostrado pela
+            // primeira vez, e nao pode ser previsivel (e o unico portao entre um
+            // visitante do site e a conta de outro tenant, ver ChatDoSiteController).
+            if ($c->tipo === self::SITE) {
+                $c->site_key ??= 'sk_'.Str::lower(Str::random(29));
+            }
         });
 
         static::created(function (Channel $c) {

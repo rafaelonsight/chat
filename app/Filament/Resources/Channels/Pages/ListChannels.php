@@ -38,6 +38,14 @@ class ListChannels extends ListRecords
                     // existindo — e so nao e mais o primeiro caminho oferecido — em
                     // create?tipo=meta_cloud, para quem precisar dele.
                     ->url(static::getResource()::getUrl('conectar-meta')),
+
+                Action::make('site')
+                    ->label('Chat no site')
+                    ->icon('heroicon-o-code-bracket')
+                    // Sem formulario, no mesmo espirito do QR Code: aqui nao ha nada para
+                    // perguntar antes — a chave nasce sozinha (Channel::booted()), e o que
+                    // falta e so mostrar o <script> para colar no site.
+                    ->action(fn () => $this->criarParaSite()),
             ])
                 ->label('Novo canal')
                 ->icon('heroicon-o-plus')
@@ -74,5 +82,24 @@ class ListChannels extends ListRecords
         }
 
         return redirect(static::getResource()::getUrl('conectar', ['record' => $canal]));
+    }
+
+    /**
+     * Cria o canal do chat de site e vai direto para a edicao, de onde a acao
+     * "Ver codigo de instalacao" (EditChannel) mostra o <script> para colar.
+     *
+     * Sem QR Code e sem popup do Facebook aqui: o unico passo que falta depois de
+     * criar e copiar uma linha de HTML — nao ha "conectar" para esperar.
+     */
+    private function criarParaSite()
+    {
+        $canal = Channel::create([
+            'tenant_id' => auth()->user()->tenant_id,
+            'tipo'      => Channel::SITE,
+            'nome'      => 'Chat do site',
+            'status'    => 'open',
+        ])->refresh();
+
+        return redirect(static::getResource()::getUrl('edit', ['record' => $canal]));
     }
 }

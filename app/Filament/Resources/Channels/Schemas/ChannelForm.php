@@ -95,6 +95,24 @@ class ChannelForm
                 ->visible(fn (Get $get) => $get('tipo') === Channel::META_CLOUD)
                 ->maxLength(255),
 
+            // --------------------------------------------------------------- site
+            // A chave (site_key) nao aparece aqui para editar: ela nasce sozinha
+            // (Channel::booted()) e quem precisa dela e o <script> do site, mostrado
+            // pela acao "Ver codigo de instalacao" — nao um campo que da para apagar
+            // por descuido e quebrar o balao de todo mundo que ja colou o codigo.
+            TextInput::make('site_dominio')
+                ->label('Domínio do site')
+                ->helperText('So para sua referencia — nao trava o balao se estiver errado ou em branco.')
+                ->visible(fn (Get $get) => $get('tipo') === Channel::SITE)
+                ->maxLength(255),
+
+            TextInput::make('site_saudacao')
+                ->label('Mensagem de saudação')
+                ->helperText('O que aparece quando o balao abre, antes de a pessoa escrever.')
+                ->visible(fn (Get $get) => $get('tipo') === Channel::SITE)
+                ->maxLength(500)
+                ->columnSpanFull(),
+
             // ---------------------------------------------------------- evolution
             // Derivados: gerados ao salvar ou vindos do proprio WhatsApp.
             Placeholder::make('instance_name')
