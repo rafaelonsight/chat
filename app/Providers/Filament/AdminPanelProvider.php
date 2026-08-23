@@ -67,6 +67,16 @@ class AdminPanelProvider extends PanelProvider
              * servidor a cada poucos segundos para quase sempre ouvir "nada de novo".
              */
             /*
+             * RELOGIO E CONTA, sempre visiveis na barra superior — sem precisar abrir o
+             * menu do usuario para saber de qual conta e a sessao aberta. Fica logo antes do
+             * sino/avatar (GLOBAL_SEARCH_AFTER e o gancho dentro de fi-topbar-end, na mesma
+             * fileira deles), e nao dentro de uma pagina, porque vale para qualquer tela.
+             */
+            ->renderHook(
+                PanelsRenderHook::GLOBAL_SEARCH_AFTER,
+                fn (): string => view('filament.topbar-relogio')->render(),
+            )
+            /*
              * A BOLHA DO CHAT DA EQUIPE, em toda tela do painel.
              *
              * BODY_END e nao dentro de uma pagina: falar com um colega acontece no meio de
