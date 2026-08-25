@@ -212,6 +212,13 @@ Route::get('/widget.js', App\Http\Controllers\WidgetDoSiteController::class)->na
  */
 Route::get('/proposta/{token}', App\Livewire\Publico\Proposta::class)->name('proposta');
 
+Route::prefix('cadastro-cliente/{token}')->middleware('throttle:60,1')->name('onboarding.')->group(function () {
+    Route::get('/', [App\Http\Controllers\ClientOnboardingController::class, 'show'])->name('show');
+    Route::post('/consultar-cnpj', [App\Http\Controllers\ClientOnboardingController::class, 'cnpj'])->middleware('throttle:10,1')->name('cnpj');
+    Route::post('/consultar-cep', [App\Http\Controllers\ClientOnboardingController::class, 'cep'])->middleware('throttle:20,1')->name('cep');
+    Route::post('/enviar', [App\Http\Controllers\ClientOnboardingController::class, 'submit'])->middleware('throttle:5,10')->name('submit');
+});
+
 Route::prefix('portal/{token}')->middleware('throttle:60,1')->name('portal.')->group(function () {
     Route::get('/', [App\Http\Controllers\ClientPortalController::class, 'show'])->name('show');
     Route::post('/demandas', [App\Http\Controllers\ClientPortalController::class, 'storeTicket'])->middleware('throttle:10,1')->name('tickets.store');

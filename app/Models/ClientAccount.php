@@ -26,7 +26,8 @@ class ClientAccount extends Model
     ];
 
     protected $fillable = [
-        'tenant_id', 'parent_id', 'contact_id', 'type', 'name', 'email', 'phone', 'notes', 'archived_at',
+        'tenant_id', 'parent_id', 'contact_id', 'type', 'name', 'document', 'legal_name', 'trade_name',
+        'email', 'phone', 'cep', 'street', 'number', 'complement', 'district', 'city', 'state', 'notes', 'archived_at',
     ];
 
     protected $casts = ['archived_at' => 'datetime'];
