@@ -17,10 +17,13 @@ class Tag extends Model
 
     public const ITEM = 'item';
 
+    public const TICKET = 'ticket';
+
     public const CONTEXTOS = [
         self::CONTATO  => 'O contato — característica da pessoa, vale para sempre',
         self::CONVERSA => 'A conversa — o que aconteceu neste atendimento',
         self::ITEM     => 'O item do painel — oportunidade, tarefa, suporte ou outro trabalho',
+        self::TICKET   => 'A demanda — prioridade, assunto ou classificação do ticket',
     ];
 
     public function scopeDeContato($q)
@@ -38,10 +41,21 @@ class Tag extends Model
         return $q->where('contexto', self::ITEM);
     }
 
+    public function scopeDeTicket($q)
+    {
+        return $q->where('contexto', self::TICKET);
+    }
+
     public function boardItems(): BelongsToMany
     {
         return $this->belongsToMany(BoardItem::class)
             ->withPivot(['origem', 'aplicado_por', 'created_at']);
+    }
+
+    public function tickets(): BelongsToMany
+    {
+        return $this->belongsToMany(Ticket::class, 'ticket_tag')
+            ->withPivot(['applied_by', 'created_at']);
     }
 
     public function eDeConversa(): bool
