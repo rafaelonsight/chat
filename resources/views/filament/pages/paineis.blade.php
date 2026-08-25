@@ -10,34 +10,67 @@
         alguém lembrar que o outro existe.
     --}}
     @if ($funis->isNotEmpty())
-        <div class="flex flex-wrap items-center gap-2 border-b border-gray-200 pb-2 dark:border-white/10">
-            @foreach ($funis as $f)
-                <button type="button" wire:key="fn-{{ $f->id }}" wire:click="abrirFunil({{ $f->id }})"
-                        @class([
-                            'rounded-full px-3 py-1.5 text-sm transition',
-                            'bg-indigo-600 text-white' => $f->id === $funilId,
-                            'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5' => $f->id !== $funilId,
-                        ])>
-                    {{ $f->nome }}
-                    <span class="ml-1 text-[11px] opacity-70">{{ $f->stages()->count() }}</span>
-                </button>
-            @endforeach
+        <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-gray-900">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex min-w-0 flex-wrap items-center gap-2" role="tablist" aria-label="Painéis do CRM">
+                    @foreach ($funis as $f)
+                        <button type="button" role="tab" aria-selected="{{ $f->id === $funilId ? 'true' : 'false' }}"
+                                wire:key="fn-{{ $f->id }}" wire:click="abrirFunil({{ $f->id }})"
+                                @class([
+                                    'rounded-lg px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900',
+                                    'bg-emerald-600 text-white shadow-sm' => $f->id === $funilId,
+                                    'border border-gray-200 text-gray-700 hover:border-emerald-300 hover:bg-emerald-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-emerald-500/10' => $f->id !== $funilId,
+                                ])>
+                            {{ $f->nome }}
+                        </button>
+                    @endforeach
+                </div>
 
-            <button type="button" wire:click="$toggle('editandoFunis')"
-                    class="rounded-full border border-dashed border-gray-300 px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-50 dark:border-white/20 dark:text-gray-400 dark:hover:bg-white/5"
-                    title="Criar, renomear ou excluir funis">
-                + funil
-            </button>
+                <div class="flex shrink-0 items-center gap-2">
+                    <x-filament::button size="sm" color="gray" wire:click="$toggle('editandoFunis')">
+                        Gerenciar
+                    </x-filament::button>
+                    <x-filament::button size="sm" icon="heroicon-o-plus" wire:click="abrirCriacao">
+                        Novo painel
+                    </x-filament::button>
+                </div>
+            </div>
+
+            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Cada painel tem colunas e cartões próprios. Trocar de aba não altera os outros painéis.
+            </p>
         </div>
+    @endif
+
+    @if ($criandoFunil)
+        <x-filament::section>
+            <x-slot name="heading">Criar novo painel</x-slot>
+            <x-slot name="description">O painel atual será mantido. O novo começa com cinco colunas que você poderá editar.</x-slot>
+
+            <form wire:submit="criarFunil" class="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <label class="min-w-0 flex-1">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Nome do novo painel</span>
+                    <input type="text" wire:model="nomeDoNovoFunil" maxlength="60" autofocus
+                           placeholder="Ex.: Comercial, Suporte ou Cobrança"
+                           class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+                    @error('nomeDoNovoFunil') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                </label>
+
+                <div class="flex gap-2">
+                    <x-filament::button type="submit">Criar painel</x-filament::button>
+                    <x-filament::button type="button" color="gray" wire:click="cancelarCriacao">Cancelar</x-filament::button>
+                </div>
+            </form>
+        </x-filament::section>
     @endif
 
     {{-- ----------------------------------------------------- gerenciar os funis --}}
     @if ($editandoFunis)
         <x-filament::section>
-            <x-slot name="heading">Seus funis</x-slot>
+            <x-slot name="heading">Gerenciar painéis</x-slot>
             <x-slot name="description">
-                Cada funil tem as próprias etapas e os próprios cartões. Uma conversa fica em
-                <strong>um funil de cada vez</strong> — o cartão é a conversa, e ela está num
+                Cada painel tem as próprias etapas e os próprios cartões. Uma conversa fica em
+                <strong>um painel de cada vez</strong> — o cartão é a conversa, e ela está num
                 ponto de um processo.
             </x-slot>
 
@@ -58,21 +91,9 @@
                 @endforeach
             </div>
 
-            <div class="mt-4 flex flex-wrap items-end gap-2">
-                <label class="min-w-52 flex-1">
-                    <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Novo funil</span>
-                    <input type="text" wire:model="nomeDoNovoFunil" placeholder="Suporte, Pós-venda, Cobrança…"
-                           class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                    @error('nomeDoNovoFunil') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                </label>
-
-                <x-filament::button wire:click="criarFunil">Criar</x-filament::button>
+            <div class="mt-4 flex justify-end">
                 <x-filament::button color="gray" wire:click="$set('editandoFunis', false)">Fechar</x-filament::button>
             </div>
-
-            <p class="mt-3 text-xs text-gray-500">
-                O funil novo já nasce com as cinco colunas comuns. Renomeie as que não servirem.
-            </p>
         </x-filament::section>
     @endif
 

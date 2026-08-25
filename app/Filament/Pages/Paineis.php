@@ -6,6 +6,7 @@ use App\Models\Conversation;
 use App\Models\Funnel;
 use App\Models\FunnelStage;
 use BackedEnum;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use UnitEnum;
@@ -37,6 +38,9 @@ class Paineis extends Page
     public ?int $funilId = null;
 
     public bool $editandoFunis = false;
+
+    /** Formulario dedicado: criar painel nunca deve parecer renomear o atual. */
+    public bool $criandoFunil = false;
 
     public string $nomeDoNovoFunil = '';
 
@@ -75,7 +79,30 @@ class Paineis extends Page
 
         $this->funilId = Funnel::criarCom(mb_substr($nome, 0, 60))->id;
         $this->nomeDoNovoFunil = '';
+        $this->criandoFunil = false;
+        $this->editandoFunis = false;
         $this->carregarColunas();
+
+        Notification::make()
+            ->title('Painel criado')
+            ->body('O painel anterior continua disponível nas abas acima.')
+            ->success()
+            ->send();
+    }
+
+    public function abrirCriacao(): void
+    {
+        $this->resetErrorBag('nomeDoNovoFunil');
+        $this->nomeDoNovoFunil = '';
+        $this->editandoFunis = false;
+        $this->criandoFunil = true;
+    }
+
+    public function cancelarCriacao(): void
+    {
+        $this->resetErrorBag('nomeDoNovoFunil');
+        $this->nomeDoNovoFunil = '';
+        $this->criandoFunil = false;
     }
 
     public function renomearFunil(int $id, string $nome): void

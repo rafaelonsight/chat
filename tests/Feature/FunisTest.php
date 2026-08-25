@@ -73,6 +73,25 @@ it('da para ter mais de um funil, cada um com suas etapas', function () {
         ->and($tela->get('funilId'))->toBe(Funnel::where('nome', 'Suporte')->value('id'));
 });
 
+it('a criacao dedicada preserva o painel atual e abre o novo', function () {
+    $atual = Funnel::criarCom('Comercial');
+
+    $tela = Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('abrirCriacao')
+        ->assertSet('criandoFunil', true)
+        ->set('nomeDoNovoFunil', 'Suporte')
+        ->call('criarFunil')
+        ->assertHasNoErrors()
+        ->assertSet('criandoFunil', false);
+
+    $novo = Funnel::where('nome', 'Suporte')->firstOrFail();
+
+    expect(Funnel::pluck('nome')->all())->toContain('Comercial', 'Suporte')
+        ->and($atual->fresh())->not->toBeNull()
+        ->and($novo->stages)->toHaveCount(5)
+        ->and($tela->get('funilId'))->toBe($novo->id);
+});
+
 it('funil sem nome nao e criado', function () {
     Livewire::actingAs($this->admin)->test(Paineis::class)
         ->set('nomeDoNovoFunil', '   ')
