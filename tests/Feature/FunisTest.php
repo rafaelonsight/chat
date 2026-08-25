@@ -204,6 +204,24 @@ it('item aceita etiquetas proprias de painel', function () {
         ->and(BoardItem::first()->tags->first()->nome)->toBe('Aguardando retorno');
 });
 
+it('clicar na etiqueta alterna a selecao antes de salvar', function () {
+    $painel = Funnel::criarCom('Tarefas');
+    $etiqueta = Tag::create([
+        'tenant_id' => $this->conta->id,
+        'nome' => 'Importante',
+        'cor' => 'vermelho',
+        'contexto' => Tag::ITEM,
+    ]);
+
+    $tela = Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('abrirFunil', $painel->id)
+        ->call('alternarEtiqueta', $etiqueta->id)
+        ->assertSet('etiquetasDoItem', [$etiqueta->id]);
+
+    $tela->call('alternarEtiqueta', $etiqueta->id)
+        ->assertSet('etiquetasDoItem', []);
+});
+
 it('seletor de contato mostra pessoas salvas mas nao grupos', function () {
     Funnel::criarCom('Suporte');
     $pessoa = Contact::create([

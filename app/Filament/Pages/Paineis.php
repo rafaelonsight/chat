@@ -319,6 +319,23 @@ class Paineis extends Page
         $this->resetValidation();
     }
 
+    public function alternarEtiqueta(int $etiquetaId): void
+    {
+        if (! Tag::deItem()->whereKey($etiquetaId)->exists()) {
+            return;
+        }
+
+        $selecionadas = array_map('intval', $this->etiquetasDoItem);
+
+        if (in_array($etiquetaId, $selecionadas, true)) {
+            $selecionadas = array_values(array_diff($selecionadas, [$etiquetaId]));
+        } else {
+            $selecionadas[] = $etiquetaId;
+        }
+
+        $this->etiquetasDoItem = $selecionadas;
+    }
+
     public function salvarItem(): void
     {
         $regras = [

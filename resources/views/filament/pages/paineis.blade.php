@@ -257,12 +257,19 @@
                         @if ($etiquetasDeItem->isNotEmpty())
                             <div class="mt-2 flex flex-wrap gap-2">
                                 @foreach ($etiquetasDeItem as $etiqueta)
-                                    <label class="cursor-pointer">
-                                        <input type="checkbox" value="{{ $etiqueta->id }}" wire:model="etiquetasDoItem" class="peer sr-only">
-                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs ring-1 transition opacity-60 peer-checked:opacity-100 peer-checked:ring-2 {{ $etiqueta->classes() }}">
-                                            {{ $etiqueta->nome }}
-                                        </span>
-                                    </label>
+                                    @php $selecionada = in_array($etiqueta->id, array_map('intval', $etiquetasDoItem), true); @endphp
+                                    <button type="button" wire:key="etiqueta-item-{{ $etiqueta->id }}"
+                                            wire:click="alternarEtiqueta({{ $etiqueta->id }})"
+                                            aria-pressed="{{ $selecionada ? 'true' : 'false' }}"
+                                            @class([
+                                                'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ring-1 transition focus:outline-none focus:ring-2 focus:ring-emerald-500',
+                                                $etiqueta->classes(),
+                                                'opacity-60 hover:opacity-90' => ! $selecionada,
+                                                'font-semibold opacity-100 ring-2' => $selecionada,
+                                            ])>
+                                        @if ($selecionada)<span aria-hidden="true">✓</span>@endif
+                                        {{ $etiqueta->nome }}
+                                    </button>
                                 @endforeach
                             </div>
                         @else
