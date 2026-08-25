@@ -15,9 +15,12 @@ class Tag extends Model
 
     public const CONVERSA = 'conversa';
 
+    public const ITEM = 'item';
+
     public const CONTEXTOS = [
         self::CONTATO  => 'O contato — característica da pessoa, vale para sempre',
         self::CONVERSA => 'A conversa — o que aconteceu neste atendimento',
+        self::ITEM     => 'O item do painel — oportunidade, tarefa, suporte ou outro trabalho',
     ];
 
     public function scopeDeContato($q)
@@ -28,6 +31,17 @@ class Tag extends Model
     public function scopeDeConversa($q)
     {
         return $q->where('contexto', self::CONVERSA);
+    }
+
+    public function scopeDeItem($q)
+    {
+        return $q->where('contexto', self::ITEM);
+    }
+
+    public function boardItems(): BelongsToMany
+    {
+        return $this->belongsToMany(BoardItem::class)
+            ->withPivot(['origem', 'aplicado_por', 'created_at']);
     }
 
     public function eDeConversa(): bool

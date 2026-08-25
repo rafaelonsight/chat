@@ -1,7 +1,7 @@
 <?php
 
 use App\Filament\Pages\Paineis;
-use App\Models\{BoardField, BoardItem, Channel, Contact, Conversation, Funnel, FunnelStage, Tenant, User};
+use App\Models\{BoardField, BoardItem, Channel, Contact, Conversation, Funnel, FunnelStage, Tag, Tenant, User};
 use App\Support\TenantContext;
 use Livewire\Livewire;
 
@@ -180,6 +180,49 @@ it('item generico pode selecionar contato cadastrado e campos do painel', functi
 
     expect($item->contact_id)->toBe($contato->id)
         ->and($item->dados[(string) $valor->id] ?? $item->dados[$valor->id])->toBe('1490.00');
+});
+
+it('item aceita etiquetas proprias de painel', function () {
+    $painel = Funnel::criarCom('Tarefas');
+    $etapa = $painel->stages()->first();
+    $etiqueta = Tag::create([
+        'tenant_id' => $this->conta->id,
+        'nome' => 'Aguardando retorno',
+        'cor' => 'ambar',
+        'contexto' => Tag::ITEM,
+    ]);
+
+    Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('abrirFunil', $painel->id)
+        ->call('abrirNovoItem', $etapa->id)
+        ->set('tituloDoItem', 'Confirmar visita')
+        ->set('etiquetasDoItem', [$etiqueta->id])
+        ->call('salvarItem')
+        ->assertHasNoErrors();
+
+    expect(BoardItem::first()->tags)->toHaveCount(1)
+        ->and(BoardItem::first()->tags->first()->nome)->toBe('Aguardando retorno');
+});
+
+it('seletor de contato mostra pessoas salvas mas nao grupos', function () {
+    Funnel::criarCom('Suporte');
+    $pessoa = Contact::create([
+        'tenant_id' => $this->conta->id,
+        'nome' => 'Cliente salvo',
+        'jid' => 'cliente@teste.invalid',
+        'tipo' => Contact::PESSOA,
+    ]);
+    $grupo = Contact::create([
+        'tenant_id' => $this->conta->id,
+        'nome' => 'Grupo interno',
+        'jid' => '123@g.us',
+        'tipo' => Contact::GRUPO,
+    ]);
+
+    $contatos = Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->viewData('contatos')->pluck('id')->all();
+
+    expect($contatos)->toContain($pessoa->id)->not->toContain($grupo->id);
 });
 
 it('item so se move entre colunas do proprio painel', function () {

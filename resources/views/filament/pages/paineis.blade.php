@@ -252,6 +252,26 @@
                         </select>
                     </label>
 
+                    <fieldset class="md:col-span-2">
+                        <legend class="text-sm font-medium text-gray-700 dark:text-gray-200">Etiquetas</legend>
+                        @if ($etiquetasDeItem->isNotEmpty())
+                            <div class="mt-2 flex flex-wrap gap-2">
+                                @foreach ($etiquetasDeItem as $etiqueta)
+                                    <label class="cursor-pointer">
+                                        <input type="checkbox" value="{{ $etiqueta->id }}" wire:model="etiquetasDoItem" class="peer sr-only">
+                                        <span class="inline-flex rounded-full px-2.5 py-1 text-xs ring-1 transition opacity-60 peer-checked:opacity-100 peer-checked:ring-2 {{ $etiqueta->classes() }}">
+                                            {{ $etiqueta->nome }}
+                                        </span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                Nenhuma etiqueta de item cadastrada. Crie em Configurações → Etiquetas.
+                            </p>
+                        @endif
+                    </fieldset>
+
                     <label>
                         <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Prioridade</span>
                         <select wire:model="prioridadeDoItem" class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
@@ -373,6 +393,14 @@
 
                                 @if ($item->contact)
                                     <div class="mt-1 truncate text-xs text-emerald-700 dark:text-emerald-400">{{ $item->contact->nomeExibicao() }}</div>
+                                @endif
+
+                                @if ($item->tags->isNotEmpty())
+                                    <div class="mt-1.5 flex flex-wrap gap-1">
+                                        @foreach ($item->tags as $etiqueta)
+                                            <span class="rounded-full px-1.5 py-0.5 text-[10px] ring-1 {{ $etiqueta->classes() }}">{{ $etiqueta->nome }}</span>
+                                        @endforeach
+                                    </div>
                                 @endif
 
                                 <div class="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-gray-500">

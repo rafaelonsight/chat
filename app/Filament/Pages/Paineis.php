@@ -8,6 +8,7 @@ use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Funnel;
 use App\Models\FunnelStage;
+use App\Models\Tag;
 use App\Models\User;
 use BackedEnum;
 use Filament\Notifications\Notification;
@@ -75,6 +76,9 @@ class Paineis extends Page
 
     /** @var array<int|string, mixed> */
     public array $valoresDoItem = [];
+
+    /** @var array<int, int|string> */
+    public array $etiquetasDoItem = [];
 
     /** @var array<int, array{id: ?int, nome: string, cor: string, encerra: bool}> */
     public array $colunas = [];
@@ -283,6 +287,7 @@ class Paineis extends Page
         $this->prioridadeDoItem = 'normal';
         $this->prazoDoItem = null;
         $this->valoresDoItem = [];
+        $this->etiquetasDoItem = [];
         $this->editandoItem = true;
     }
 
@@ -304,6 +309,7 @@ class Paineis extends Page
         $this->prioridadeDoItem = $item->prioridade;
         $this->prazoDoItem = $item->prazo_em?->format('Y-m-d\TH:i');
         $this->valoresDoItem = $item->dados ?? [];
+        $this->etiquetasDoItem = $item->tags()->pluck('tags.id')->all();
         $this->editandoItem = true;
     }
 
@@ -322,6 +328,8 @@ class Paineis extends Page
             'responsavelDoItem' => 'nullable|integer',
             'prioridadeDoItem' => 'required|in:baixa,normal,alta,urgente',
             'prazoDoItem' => 'nullable|date',
+            'etiquetasDoItem' => 'array',
+            'etiquetasDoItem.*' => 'integer',
         ];
 
         foreach (BoardField::where('funnel_id', $this->funilId)->get() as $campo) {
@@ -355,12 +363,18 @@ class Paineis extends Page
         ];
 
         if ($this->itemId) {
-            BoardItem::where('funnel_id', $this->funilId)->findOrFail($this->itemId)->update($atributos);
+            $item = BoardItem::where('funnel_id', $this->funilId)->findOrFail($this->itemId);
+            $item->update($atributos);
             $mensagem = 'Item atualizado';
         } else {
-            BoardItem::create($atributos + ['etapa_em' => now()]);
+            $item = BoardItem::create($atributos + ['etapa_em' => now()]);
             $mensagem = 'Item criado';
         }
+
+        $etiquetasValidas = Tag::deItem()->whereIn('id', $this->etiquetasDoItem)->pluck('id');
+        $item->tags()->sync($etiquetasValidas->mapWithKeys(fn ($id) => [$id => [
+            'origem' => 'manual', 'aplicado_por' => auth()->id(), 'created_at' => now(),
+        ]])->all());
 
         $this->editandoItem = false;
         Notification::make()->title($mensagem)->success()->send();
@@ -491,7 +505,7 @@ class Paineis extends Page
         $itens = BoardItem::query()
             ->where('funnel_id', $this->funilId)
             ->whereNull('arquivado_em')
-            ->with(['contact', 'responsavel'])
+            ->with(['contact', 'responsavel', 'tags'])
             ->orderByDesc('etapa_em')
             ->get()
             ->groupBy('funnel_stage_id');
@@ -514,8 +528,10 @@ class Paineis extends Page
             'conversas'   => $conversas,
             'itens'       => $itens,
             'camposDoPainel' => BoardField::where('funnel_id', $this->funilId)->orderBy('ordem')->get(),
-            'contatos' => Contact::ativos()->orderBy('nome')->limit(300)->get(['id', 'nome', 'telefone_e164', 'email']),
+            'contatos' => Contact::ativos()->where('tipo', Contact::PESSOA)
+                ->orderBy('nome')->limit(300)->get(['id', 'nome', 'telefone_e164', 'email']),
             'responsaveis' => User::orderBy('name')->get(['id', 'name']),
+            'etiquetasDeItem' => Tag::deItem()->orderBy('nome')->get(),
             'foraDoFunil' => $foraDoFunil,
         ];
     }
