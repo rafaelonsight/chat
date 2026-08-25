@@ -2,9 +2,13 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\BoardField;
+use App\Models\BoardItem;
+use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Funnel;
 use App\Models\FunnelStage;
+use App\Models\User;
 use BackedEnum;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
@@ -46,6 +50,32 @@ class Paineis extends Page
 
     public bool $editandoColunas = false;
 
+    public bool $editandoCampos = false;
+
+    /** @var array<int, array{id: ?int, nome: string, tipo: string, opcoes: string, obrigatorio: bool}> */
+    public array $campos = [];
+
+    public ?int $itemId = null;
+
+    public ?int $itemEtapaId = null;
+
+    public bool $editandoItem = false;
+
+    public string $tituloDoItem = '';
+
+    public string $descricaoDoItem = '';
+
+    public ?int $contatoDoItem = null;
+
+    public ?int $responsavelDoItem = null;
+
+    public string $prioridadeDoItem = 'normal';
+
+    public ?string $prazoDoItem = null;
+
+    /** @var array<int|string, mixed> */
+    public array $valoresDoItem = [];
+
     /** @var array<int, array{id: ?int, nome: string, cor: string, encerra: bool}> */
     public array $colunas = [];
 
@@ -59,6 +89,7 @@ class Paineis extends Page
             ? $solicitado
             : Funnel::orderBy('ordem')->value('id');
         $this->carregarColunas();
+        $this->carregarCampos();
     }
 
     /** Troca de quadro. Cada um tem as proprias etapas e os proprios cartoes. */
@@ -71,6 +102,7 @@ class Paineis extends Page
         $this->funilId = $id;
         $this->editandoColunas = false;
         $this->carregarColunas();
+        $this->carregarCampos();
     }
 
     public function criarFunil(): void
@@ -88,6 +120,7 @@ class Paineis extends Page
         $this->criandoFunil = false;
         $this->editandoFunis = false;
         $this->carregarColunas();
+        $this->carregarCampos();
 
         Notification::make()
             ->title('Painel criado')
@@ -155,6 +188,201 @@ class Paineis extends Page
             ->map(fn ($e) => [
                 'id' => $e->id, 'nome' => $e->nome, 'cor' => $e->cor, 'encerra' => $e->encerra,
             ])->values()->all();
+    }
+
+    private function carregarCampos(): void
+    {
+        if (! $this->funilId) {
+            $this->campos = [];
+
+            return;
+        }
+
+        $this->campos = BoardField::where('funnel_id', $this->funilId)->orderBy('ordem')->get()
+            ->map(fn (BoardField $campo) => [
+                'id' => $campo->id,
+                'nome' => $campo->nome,
+                'tipo' => $campo->tipo,
+                'opcoes' => implode(', ', $campo->opcoes ?? []),
+                'obrigatorio' => $campo->obrigatorio,
+            ])->values()->all();
+    }
+
+    public function editarCampos(): void
+    {
+        $this->carregarCampos();
+        $this->editandoCampos = true;
+        $this->editandoColunas = false;
+    }
+
+    public function adicionarCampo(): void
+    {
+        $this->campos[] = [
+            'id' => null, 'nome' => '', 'tipo' => 'texto', 'opcoes' => '', 'obrigatorio' => false,
+        ];
+    }
+
+    public function removerCampo(int $indice): void
+    {
+        unset($this->campos[$indice]);
+        $this->campos = array_values($this->campos);
+    }
+
+    public function salvarCampos(): void
+    {
+        $this->validate([
+            'campos' => 'array',
+            'campos.*.nome' => 'required|string|max:60',
+            'campos.*.tipo' => 'required|in:'.implode(',', array_keys(BoardField::TIPOS)),
+        ]);
+
+        $mantidos = [];
+
+        foreach (array_values($this->campos) as $ordem => $dados) {
+            $valores = array_values(array_filter(array_map('trim', explode(',', $dados['opcoes'] ?? ''))));
+            $atributos = [
+                'nome' => trim($dados['nome']),
+                'tipo' => $dados['tipo'],
+                'opcoes' => $dados['tipo'] === 'lista' ? $valores : null,
+                'obrigatorio' => (bool) $dados['obrigatorio'],
+                'ordem' => $ordem,
+            ];
+
+            $campo = ! empty($dados['id'])
+                ? tap(BoardField::where('funnel_id', $this->funilId)->findOrFail($dados['id']))->update($atributos)
+                : BoardField::create($atributos + [
+                    'tenant_id' => auth()->user()->tenant_id,
+                    'funnel_id' => $this->funilId,
+                ]);
+
+            $mantidos[] = $campo->id;
+        }
+
+        BoardField::where('funnel_id', $this->funilId)->whereNotIn('id', $mantidos)->delete();
+        $this->editandoCampos = false;
+        $this->carregarCampos();
+
+        Notification::make()->title('Campos do painel atualizados')->success()->send();
+    }
+
+    public function abrirNovoItem(int $etapaId): void
+    {
+        $etapa = FunnelStage::where('funnel_id', $this->funilId)->find($etapaId);
+
+        if (! $etapa) {
+            return;
+        }
+
+        $this->resetValidation();
+        $this->itemId = null;
+        $this->itemEtapaId = $etapa->id;
+        $this->tituloDoItem = '';
+        $this->descricaoDoItem = '';
+        $this->contatoDoItem = null;
+        $this->responsavelDoItem = auth()->id();
+        $this->prioridadeDoItem = 'normal';
+        $this->prazoDoItem = null;
+        $this->valoresDoItem = [];
+        $this->editandoItem = true;
+    }
+
+    public function editarItem(int $id): void
+    {
+        $item = BoardItem::where('funnel_id', $this->funilId)->find($id);
+
+        if (! $item) {
+            return;
+        }
+
+        $this->resetValidation();
+        $this->itemId = $item->id;
+        $this->itemEtapaId = $item->funnel_stage_id;
+        $this->tituloDoItem = $item->titulo;
+        $this->descricaoDoItem = (string) $item->descricao;
+        $this->contatoDoItem = $item->contact_id;
+        $this->responsavelDoItem = $item->responsavel_id;
+        $this->prioridadeDoItem = $item->prioridade;
+        $this->prazoDoItem = $item->prazo_em?->format('Y-m-d\TH:i');
+        $this->valoresDoItem = $item->dados ?? [];
+        $this->editandoItem = true;
+    }
+
+    public function cancelarItem(): void
+    {
+        $this->editandoItem = false;
+        $this->resetValidation();
+    }
+
+    public function salvarItem(): void
+    {
+        $regras = [
+            'tituloDoItem' => 'required|string|max:160',
+            'descricaoDoItem' => 'nullable|string|max:5000',
+            'contatoDoItem' => 'nullable|integer',
+            'responsavelDoItem' => 'nullable|integer',
+            'prioridadeDoItem' => 'required|in:baixa,normal,alta,urgente',
+            'prazoDoItem' => 'nullable|date',
+        ];
+
+        foreach (BoardField::where('funnel_id', $this->funilId)->get() as $campo) {
+            $regras['valoresDoItem.'.$campo->id] = $campo->obrigatorio ? 'required' : 'nullable';
+        }
+
+        $this->validate($regras, [], ['tituloDoItem' => 'título']);
+
+        $etapa = FunnelStage::where('funnel_id', $this->funilId)->find($this->itemEtapaId);
+
+        if (! $etapa) {
+            $this->addError('tituloDoItem', 'A coluna escolhida não existe mais.');
+
+            return;
+        }
+
+        $contato = $this->contatoDoItem ? Contact::find($this->contatoDoItem) : null;
+        $responsavel = $this->responsavelDoItem ? User::find($this->responsavelDoItem) : null;
+
+        $atributos = [
+            'tenant_id' => auth()->user()->tenant_id,
+            'funnel_id' => $this->funilId,
+            'funnel_stage_id' => $etapa->id,
+            'contact_id' => $contato?->id,
+            'responsavel_id' => $responsavel?->id,
+            'titulo' => trim($this->tituloDoItem),
+            'descricao' => trim($this->descricaoDoItem) ?: null,
+            'prioridade' => $this->prioridadeDoItem,
+            'prazo_em' => $this->prazoDoItem ?: null,
+            'dados' => $this->valoresDoItem,
+        ];
+
+        if ($this->itemId) {
+            BoardItem::where('funnel_id', $this->funilId)->findOrFail($this->itemId)->update($atributos);
+            $mensagem = 'Item atualizado';
+        } else {
+            BoardItem::create($atributos + ['etapa_em' => now()]);
+            $mensagem = 'Item criado';
+        }
+
+        $this->editandoItem = false;
+        Notification::make()->title($mensagem)->success()->send();
+    }
+
+    public function moverItem(int $itemId, int $etapaId): void
+    {
+        $item = BoardItem::where('funnel_id', $this->funilId)->find($itemId);
+        $etapa = FunnelStage::where('funnel_id', $this->funilId)->find($etapaId);
+
+        if ($item && $etapa) {
+            $item->update(['funnel_stage_id' => $etapa->id, 'etapa_em' => now()]);
+        }
+    }
+
+    public function arquivarItem(int $itemId): void
+    {
+        BoardItem::where('funnel_id', $this->funilId)->whereKey($itemId)
+            ->update(['arquivado_em' => now()]);
+
+        $this->editandoItem = false;
+        Notification::make()->title('Item arquivado')->success()->send();
     }
 
     /**
@@ -260,6 +488,14 @@ class Paineis extends Page
             ->get()
             ->groupBy('funnel_stage_id');
 
+        $itens = BoardItem::query()
+            ->where('funnel_id', $this->funilId)
+            ->whereNull('arquivado_em')
+            ->with(['contact', 'responsavel'])
+            ->orderByDesc('etapa_em')
+            ->get()
+            ->groupBy('funnel_stage_id');
+
         // Quem ainda nao esta no funil. Sem esta coluna, por o primeiro cartao no quadro
         // exigiria abrir a conversa e voltar — e ninguem descobre sozinho que da para fazer
         // isso.
@@ -276,6 +512,10 @@ class Paineis extends Page
             'funilAberto' => $funis->firstWhere('id', $this->funilId),
             'etapas'      => $etapas,
             'conversas'   => $conversas,
+            'itens'       => $itens,
+            'camposDoPainel' => BoardField::where('funnel_id', $this->funilId)->orderBy('ordem')->get(),
+            'contatos' => Contact::ativos()->orderBy('nome')->limit(300)->get(['id', 'nome', 'telefone_e164', 'email']),
+            'responsaveis' => User::orderBy('name')->get(['id', 'name']),
             'foraDoFunil' => $foraDoFunil,
         ];
     }

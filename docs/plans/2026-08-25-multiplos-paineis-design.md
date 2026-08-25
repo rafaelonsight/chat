@@ -21,10 +21,15 @@ Suporte e Cobrança — sem que criar um painel pareça renomear ou substituir o
 
 ## Dados e segurança
 
-Cada painel continua sendo um `Funnel`, com suas próprias `FunnelStage`. Uma conversa pertence
-a uma etapa de apenas um painel por vez. Todas as consultas permanecem sob o escopo do tenant.
+Cada painel continua sendo um `Funnel`, com suas próprias `FunnelStage`. O `BoardItem` é o
+cartão genérico: não depende de canal ou conversa e pode opcionalmente apontar para um contato
+e um responsável. `BoardField` define campos extras por painel (texto, número, dinheiro, data,
+lista ou checkbox), e os valores ficam no JSON `dados` do cartão. Conversas continuam podendo
+aparecer no quadro, mas deixam de ser a única forma de criar cartões. Todas as consultas
+permanecem sob o escopo do tenant.
 
 ## Verificação
 
-O teste de Livewire cria um segundo painel, confirma que o primeiro permanece, valida as cinco
-etapas do novo e verifica que ele foi aberto automaticamente.
+Os testes Livewire cobrem criação de múltiplos painéis, abertura por URL, cartão sem conversa,
+seleção de contato existente, campo personalizado obrigatório e bloqueio de movimentação para
+uma coluna de outro painel.

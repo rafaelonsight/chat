@@ -1,7 +1,7 @@
 <?php
 
 use App\Filament\Pages\Paineis;
-use App\Models\{Channel, Contact, Conversation, Funnel, FunnelStage, Tenant, User};
+use App\Models\{BoardField, BoardItem, Channel, Contact, Conversation, Funnel, FunnelStage, Tenant, User};
 use App\Support\TenantContext;
 use Livewire\Livewire;
 
@@ -129,6 +129,78 @@ it('coluna nova nasce no funil que esta aberto', function () {
         ->call('salvarColunas');
 
     expect(FunnelStage::where('nome', 'Proposta enviada')->first()->funnel_id)->toBe($vendas->id);
+});
+
+// ========================================== cartoes genericos e personalizacao
+
+it('cria item generico sem conversa e sem contato', function () {
+    $painel = Funnel::criarCom('Tarefas');
+    $etapa = $painel->stages()->first();
+
+    Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('abrirFunil', $painel->id)
+        ->call('abrirNovoItem', $etapa->id)
+        ->set('tituloDoItem', 'Revisar proposta')
+        ->set('prioridadeDoItem', 'alta')
+        ->call('salvarItem')
+        ->assertHasNoErrors();
+
+    expect(BoardItem::count())->toBe(1)
+        ->and(BoardItem::first()->titulo)->toBe('Revisar proposta')
+        ->and(BoardItem::first()->contact_id)->toBeNull()
+        ->and(Conversation::count())->toBe(0);
+});
+
+it('item generico pode selecionar contato cadastrado e campos do painel', function () {
+    $painel = Funnel::criarCom('Comercial');
+    $etapa = $painel->stages()->first();
+    $contato = Contact::create([
+        'tenant_id' => $this->conta->id,
+        'nome' => 'Cliente existente',
+        'jid' => 'cliente-existente@teste.invalid',
+    ]);
+    $valor = BoardField::create([
+        'tenant_id' => $this->conta->id,
+        'funnel_id' => $painel->id,
+        'nome' => 'Valor',
+        'tipo' => 'dinheiro',
+        'obrigatorio' => true,
+    ]);
+
+    Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('abrirFunil', $painel->id)
+        ->call('abrirNovoItem', $etapa->id)
+        ->set('tituloDoItem', 'Plano empresarial')
+        ->set('contatoDoItem', $contato->id)
+        ->set('valoresDoItem.'.$valor->id, '1490.00')
+        ->call('salvarItem')
+        ->assertHasNoErrors();
+
+    $item = BoardItem::first();
+
+    expect($item->contact_id)->toBe($contato->id)
+        ->and($item->dados[(string) $valor->id] ?? $item->dados[$valor->id])->toBe('1490.00');
+});
+
+it('item so se move entre colunas do proprio painel', function () {
+    $comercial = Funnel::criarCom('Comercial');
+    $suporte = Funnel::criarCom('Suporte');
+    $item = BoardItem::create([
+        'tenant_id' => $this->conta->id,
+        'funnel_id' => $comercial->id,
+        'funnel_stage_id' => $comercial->stages()->first()->id,
+        'titulo' => 'Item',
+    ]);
+
+    $tela = Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('abrirFunil', $comercial->id)
+        ->call('moverItem', $item->id, $suporte->stages()->first()->id);
+
+    expect($item->fresh()->funnel_stage_id)->toBe($comercial->stages()->first()->id);
+
+    $tela->call('moverItem', $item->id, $comercial->stages()->skip(1)->first()->id);
+
+    expect($item->fresh()->funnel_stage_id)->toBe($comercial->stages()->skip(1)->first()->id);
 });
 
 // ================================================= o quadro mostra so um funil

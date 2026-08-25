@@ -160,9 +160,167 @@
         </x-filament::section>
     @endif
 
+    {{-- -------------------------------------------- campos personalizados do painel --}}
+    @if ($editandoCampos)
+        <x-filament::section>
+            <x-slot name="heading">Campos dos cartões</x-slot>
+            <x-slot name="description">
+                Estes campos aparecem somente nos cartões deste painel. Contato, responsável,
+                prioridade e prazo já fazem parte de todos os painéis.
+            </x-slot>
+
+            <div class="space-y-2">
+                @foreach ($campos as $i => $campo)
+                    <div wire:key="campo-{{ $i }}" class="grid gap-2 rounded-lg border border-gray-200 p-3 md:grid-cols-[1fr_11rem_1fr_auto_auto] md:items-center dark:border-white/10">
+                        <input type="text" wire:model="campos.{{ $i }}.nome" placeholder="Nome do campo"
+                               class="rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+
+                        <select wire:model.live="campos.{{ $i }}.tipo"
+                                class="rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+                            @foreach (\App\Models\BoardField::TIPOS as $valor => $rotulo)
+                                <option value="{{ $valor }}">{{ $rotulo }}</option>
+                            @endforeach
+                        </select>
+
+                        @if (($campo['tipo'] ?? '') === 'lista')
+                            <input type="text" wire:model="campos.{{ $i }}.opcoes" placeholder="Opção A, Opção B, Opção C"
+                                   class="rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+                        @else
+                            <span class="hidden text-xs text-gray-400 md:block">—</span>
+                        @endif
+
+                        <label class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+                            <input type="checkbox" wire:model="campos.{{ $i }}.obrigatorio" class="rounded border-gray-300">
+                            obrigatório
+                        </label>
+
+                        <button type="button" wire:click="removerCampo({{ $i }})"
+                                class="rounded px-2 py-1 text-sm text-gray-400 hover:bg-red-50 hover:text-red-600">Remover</button>
+
+                        @error("campos.{$i}.nome") <span class="text-xs text-red-600 md:col-span-5">{{ $message }}</span> @enderror
+                    </div>
+                @endforeach
+
+                @if (empty($campos))
+                    <p class="rounded-lg bg-gray-50 p-4 text-sm text-gray-500 dark:bg-white/5 dark:text-gray-400">
+                        Este painel ainda usa apenas os campos padrão.
+                    </p>
+                @endif
+            </div>
+
+            <div class="mt-3 flex flex-wrap gap-2">
+                <x-filament::button size="sm" color="gray" wire:click="adicionarCampo">Adicionar campo</x-filament::button>
+                <x-filament::button size="sm" wire:click="salvarCampos">Salvar campos</x-filament::button>
+                <x-filament::button size="sm" color="gray" wire:click="$set('editandoCampos', false)">Cancelar</x-filament::button>
+            </div>
+        </x-filament::section>
+    @endif
+
+    {{-- ------------------------------------------------ criar ou editar cartao generico --}}
+    @if ($editandoItem)
+        <x-filament::section>
+            <x-slot name="heading">{{ $itemId ? 'Editar item' : 'Novo item' }}</x-slot>
+            <x-slot name="description">Pode ser uma oportunidade, chamado, tarefa, cobrança ou qualquer outro trabalho.</x-slot>
+
+            <form wire:submit="salvarItem" class="space-y-4">
+                <div class="grid gap-3 md:grid-cols-2">
+                    <label class="md:col-span-2">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Título</span>
+                        <input type="text" wire:model="tituloDoItem" maxlength="160" autofocus
+                               placeholder="O que precisa ser acompanhado?"
+                               class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+                        @error('tituloDoItem') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
+                    </label>
+
+                    <label>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Contato</span>
+                        <select wire:model="contatoDoItem" class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+                            <option value="">Sem contato</option>
+                            @foreach ($contatos as $contato)
+                                <option value="{{ $contato->id }}">{{ $contato->nomeExibicao() }}{{ $contato->telefone_e164 ? ' · '.$contato->telefone_e164 : '' }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+
+                    <label>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Responsável</span>
+                        <select wire:model="responsavelDoItem" class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+                            <option value="">Sem responsável</option>
+                            @foreach ($responsaveis as $pessoa)
+                                <option value="{{ $pessoa->id }}">{{ $pessoa->name }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+
+                    <label>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Prioridade</span>
+                        <select wire:model="prioridadeDoItem" class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+                            <option value="baixa">Baixa</option>
+                            <option value="normal">Normal</option>
+                            <option value="alta">Alta</option>
+                            <option value="urgente">Urgente</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Prazo</span>
+                        <input type="datetime-local" wire:model="prazoDoItem"
+                               class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+                    </label>
+
+                    @foreach ($camposDoPainel as $campo)
+                        <label>
+                            <span class="text-sm font-medium text-gray-700 dark:text-gray-200">
+                                {{ $campo->nome }} @if ($campo->obrigatorio)<span class="text-red-500">*</span>@endif
+                            </span>
+
+                            @if ($campo->tipo === 'lista')
+                                <select wire:model="valoresDoItem.{{ $campo->id }}" class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+                                    <option value="">Selecione</option>
+                                    @foreach ($campo->opcoes ?? [] as $opcao)<option value="{{ $opcao }}">{{ $opcao }}</option>@endforeach
+                                </select>
+                            @elseif ($campo->tipo === 'checkbox')
+                                <span class="mt-2 flex items-center gap-2 text-sm">
+                                    <input type="checkbox" wire:model="valoresDoItem.{{ $campo->id }}" class="rounded border-gray-300"> Sim
+                                </span>
+                            @else
+                                <input type="{{ in_array($campo->tipo, ['numero', 'dinheiro']) ? 'number' : ($campo->tipo === 'data' ? 'date' : 'text') }}"
+                                       @if ($campo->tipo === 'dinheiro') step="0.01" @endif
+                                       wire:model="valoresDoItem.{{ $campo->id }}"
+                                       class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
+                            @endif
+                            @error('valoresDoItem.'.$campo->id) <span class="mt-1 block text-xs text-red-600">Campo obrigatório.</span> @enderror
+                        </label>
+                    @endforeach
+
+                    <label class="md:col-span-2">
+                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Descrição</span>
+                        <textarea wire:model="descricaoDoItem" rows="3" placeholder="Contexto, próximos passos ou detalhes"
+                                  class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800"></textarea>
+                    </label>
+                </div>
+
+                <div class="flex flex-wrap justify-between gap-2">
+                    <div>
+                        @if ($itemId)
+                            <x-filament::button type="button" size="sm" color="danger" wire:click="arquivarItem({{ $itemId }})" wire:confirm="Arquivar este item?">
+                                Arquivar
+                            </x-filament::button>
+                        @endif
+                    </div>
+                    <div class="flex gap-2">
+                        <x-filament::button type="button" color="gray" wire:click="cancelarItem">Cancelar</x-filament::button>
+                        <x-filament::button type="submit">Salvar item</x-filament::button>
+                    </div>
+                </div>
+            </form>
+        </x-filament::section>
+    @endif
+
     {{-- ------------------------------------------------------------- o quadro --}}
     @if ($etapas->isNotEmpty() && ! $editandoColunas)
-        <div class="flex justify-end">
+        <div class="flex flex-wrap justify-end gap-2">
+            <x-filament::button size="sm" color="gray" wire:click="editarCampos">Campos dos cartões</x-filament::button>
             <x-filament::button size="sm" color="gray" wire:click="editarColunas">Editar colunas</x-filament::button>
         </div>
 
@@ -178,19 +336,56 @@
         <div class="flex gap-3 overflow-x-auto pb-4">
             @foreach ($etapas as $indice => $etapa)
                 @php $cartoes = $conversas[$etapa->id] ?? collect(); @endphp
+                @php $itensDaEtapa = $itens[$etapa->id] ?? collect(); @endphp
 
                 <div wire:key="etapa-{{ $etapa->id }}"
                      x-on:dragover.prevent
-                     x-on:drop.prevent="$wire.mover(parseInt($event.dataTransfer.getData('cartao')), {{ $etapa->id }})"
+                     x-on:drop.prevent="
+                        const item = $event.dataTransfer.getData('item');
+                        const conversa = $event.dataTransfer.getData('cartao');
+                        if (item) $wire.moverItem(parseInt(item), {{ $etapa->id }});
+                        else if (conversa) $wire.mover(parseInt(conversa), {{ $etapa->id }});
+                     "
                      class="flex w-64 shrink-0 flex-col rounded-xl border border-gray-200 bg-gray-50 p-2 dark:border-white/10 dark:bg-white/5">
 
                     <div class="mb-2 flex items-center gap-2 px-1">
                         <span class="h-2.5 w-2.5 rounded-full {{ $etapa->pontinho() }}"></span>
                         <span class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ $etapa->nome }}</span>
-                        <span class="ml-auto text-xs text-gray-500">{{ $cartoes->count() }}</span>
+                        <span class="ml-auto text-xs text-gray-500">{{ $cartoes->count() + $itensDaEtapa->count() }}</span>
                     </div>
 
                     <div class="space-y-2">
+                        @foreach ($itensDaEtapa as $item)
+                            <button type="button" wire:key="item-{{ $item->id }}" draggable="true"
+                                    x-on:dragstart="$event.dataTransfer.setData('item', '{{ $item->id }}')"
+                                    wire:click="editarItem({{ $item->id }})"
+                                    class="block w-full cursor-grab rounded-lg border border-gray-200 bg-white p-2 text-left shadow-sm transition hover:border-emerald-300 hover:shadow active:cursor-grabbing dark:border-white/10 dark:bg-gray-900">
+                                <div class="flex items-start gap-2">
+                                    <span @class([
+                                        'mt-1 h-2 w-2 shrink-0 rounded-full',
+                                        'bg-gray-300' => $item->prioridade === 'baixa',
+                                        'bg-blue-400' => $item->prioridade === 'normal',
+                                        'bg-amber-500' => $item->prioridade === 'alta',
+                                        'bg-red-500' => $item->prioridade === 'urgente',
+                                    ])></span>
+                                    <span class="line-clamp-2 text-sm font-medium text-gray-800 dark:text-gray-100">{{ $item->titulo }}</span>
+                                </div>
+
+                                @if ($item->contact)
+                                    <div class="mt-1 truncate text-xs text-emerald-700 dark:text-emerald-400">{{ $item->contact->nomeExibicao() }}</div>
+                                @endif
+
+                                <div class="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-gray-500">
+                                    <span class="truncate">{{ $item->responsavel?->name ?? 'sem responsável' }}</span>
+                                    @if ($item->prazo_em)
+                                        <span @class(['text-red-600' => $item->prazo_em->isPast()]) title="Prazo">
+                                            {{ $item->prazo_em->format('d/m H:i') }}
+                                        </span>
+                                    @endif
+                                </div>
+                            </button>
+                        @endforeach
+
                         @foreach ($cartoes as $c)
                             <div wire:key="cartao-{{ $c->id }}" draggable="true"
                                  x-on:dragstart="$event.dataTransfer.setData('cartao', '{{ $c->id }}')"
@@ -228,9 +423,14 @@
                             </div>
                         @endforeach
 
-                        @if ($cartoes->isEmpty())
+                        @if ($cartoes->isEmpty() && $itensDaEtapa->isEmpty())
                             <p class="px-1 py-3 text-center text-xs text-gray-400">vazia</p>
                         @endif
+
+                        <button type="button" wire:click="abrirNovoItem({{ $etapa->id }})"
+                                class="w-full rounded-lg border border-dashed border-gray-300 px-2 py-2 text-xs font-medium text-gray-500 transition hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 dark:border-white/15 dark:hover:bg-emerald-500/10">
+                            + Adicionar item
+                        </button>
                     </div>
                 </div>
             @endforeach
