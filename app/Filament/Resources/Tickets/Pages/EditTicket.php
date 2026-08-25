@@ -5,6 +5,8 @@ namespace App\Filament\Resources\Tickets\Pages;
 use App\Filament\Resources\Tickets\TicketResource;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 
 class EditTicket extends EditRecord
 {
@@ -22,6 +24,18 @@ class EditTicket extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('send_update')
+                ->label('Enviar atualização')->icon('heroicon-o-paper-airplane')
+                ->schema([Textarea::make('summary')->label('Atualização pública')->required()->rows(5)])
+                ->action(function (array $data): void {
+                    \App\Models\TicketMessage::create([
+                        'tenant_id' => $this->record->tenant_id, 'ticket_id' => $this->record->id,
+                        'author_id' => auth()->id(), 'visibility' => 'public', 'body' => $data['summary'],
+                    ]);
+                    $delivery = app(\App\Services\Demandas\WhatsappTicketNotifier::class)->send($this->record, $data['summary']);
+                    Notification::make()->title($delivery->status === 'failed' ? 'Atualização salva; WhatsApp não enviado' : 'Atualização enviada')
+                        ->body($delivery->error)->color($delivery->status === 'failed' ? 'warning' : 'success')->send();
+                }),
             Action::make('archive')
                 ->label(fn () => $this->record->archived_at ? 'Reabrir arquivo' : 'Arquivar')
                 ->color('gray')->requiresConfirmation()

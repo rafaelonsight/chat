@@ -50,6 +50,12 @@ class Message extends Model
             }
 
             $mensagem->conversation?->aoReceberMensagem($mensagem);
+
+            try {
+                app(\App\Services\Demandas\SupportCommandResponder::class)->handle($mensagem);
+            } catch (\Throwable $e) {
+                report($e);
+            }
         });
     }
 

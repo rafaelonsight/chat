@@ -211,3 +211,13 @@ Route::get('/widget.js', App\Http\Controllers\WidgetDoSiteController::class)->na
  * aleatorio: nao ha nada a adivinhar, e proposta em rascunho devolve 404 antes de renderizar.
  */
 Route::get('/proposta/{token}', App\Livewire\Publico\Proposta::class)->name('proposta');
+
+Route::prefix('portal/{token}')->middleware('throttle:60,1')->name('portal.')->group(function () {
+    Route::get('/', [App\Http\Controllers\ClientPortalController::class, 'show'])->name('show');
+    Route::post('/demandas', [App\Http\Controllers\ClientPortalController::class, 'storeTicket'])->middleware('throttle:10,1')->name('tickets.store');
+    Route::get('/demandas/{protocol}', [App\Http\Controllers\ClientPortalController::class, 'ticket'])->name('ticket');
+    Route::post('/demandas/{protocol}/mensagens', [App\Http\Controllers\ClientPortalController::class, 'message'])->middleware('throttle:20,1')->name('messages.store');
+    Route::post('/demandas/{protocol}/reunioes', [App\Http\Controllers\ClientPortalController::class, 'meeting'])->middleware('throttle:5,1')->name('meetings.store');
+    Route::post('/otp/solicitar', [App\Http\Controllers\ClientPortalController::class, 'requestOtp'])->middleware('throttle:3,10')->name('otp.request');
+    Route::post('/otp/verificar', [App\Http\Controllers\ClientPortalController::class, 'verifyOtp'])->middleware('throttle:5,10')->name('otp.verify');
+});

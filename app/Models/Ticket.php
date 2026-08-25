@@ -124,7 +124,10 @@ class Ticket extends Model
             $ticket->created_by ??= auth()->id();
         });
 
-        static::created(fn (self $ticket) => $ticket->recordEvent('created', null, $ticket->getAttributes()));
+        static::created(function (self $ticket): void {
+            $ticket->recordEvent('created', null, $ticket->getAttributes());
+            \App\Support\AvisoDeDemanda::nova($ticket);
+        });
 
         static::updating(function (self $ticket): void {
             if ($ticket->isDirty('status')) {
@@ -144,6 +147,21 @@ class Ticket extends Model
             if ($changes !== []) {
                 $old = array_intersect_key($ticket->getOriginal(), $changes);
                 $ticket->recordEvent('updated', $old, $changes);
+            }
+
+            if (array_key_exists('status', $changes) && in_array($ticket->status, [
+                self::RECEIVED, self::ANALYSING, self::PENDING_APPROVAL, self::ACCEPTED,
+                self::PENDING_VALIDATION, self::COMPLETED, self::CANCELLED,
+            ], true)) {
+                try {
+                    app(\App\Services\Demandas\WhatsappTicketNotifier::class)->send(
+                        $ticket,
+                        'O status da demanda foi atualizado para '.(self::STATUSES[$ticket->status] ?? $ticket->status).'.',
+                        'status',
+                    );
+                } catch (\Throwable $e) {
+                    report($e);
+                }
             }
         });
 
@@ -229,5 +247,10 @@ class Ticket extends Model
     {
         return $this->belongsToMany(Tag::class, 'ticket_tag')
             ->withPivot(['applied_by', 'created_at']);
+    }
+
+    public function meetings(): HasMany
+    {
+        return $this->hasMany(TicketMeeting::class)->latest('starts_at');
     }
 }

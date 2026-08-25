@@ -29,6 +29,8 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\Filter;
+use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Table;
 use UnitEnum;
 
@@ -114,7 +116,9 @@ class TicketResource extends Resource
                                 ->default('internal')->required(),
                             Textarea::make('body')->label('Atualização')->required()->rows(4)->columnSpanFull(),
                             FileUpload::make('attachments')->label('Anexos')->multiple()->disk('local')
-                                ->directory('tickets')->visibility('private')->columnSpanFull(),
+                                ->directory('tickets')->visibility('private')->maxSize(10240)
+                                ->acceptedFileTypes(['image/jpeg', 'image/png', 'application/pdf', 'text/plain', 'application/zip'])
+                                ->columnSpanFull(),
                         ])
                         ->columns(2)
                         ->collapsed()
@@ -186,6 +190,14 @@ class TicketResource extends Resource
                 SelectFilter::make('priority')->label('Prioridade')->options(Ticket::PRIORITIES),
                 SelectFilter::make('client_account_id')->label('Cliente')->relationship('client', 'name')->searchable()->preload(),
                 SelectFilter::make('responsible_id')->label('Responsável')->relationship('responsible', 'name')->searchable()->preload(),
+                SelectFilter::make('requester_id')->label('Solicitante')->relationship('requester', 'name')->searchable()->preload(),
+                SelectFilter::make('client_project_id')->label('Projeto')->relationship('project', 'name')->searchable()->preload(),
+                SelectFilter::make('tags')->label('Etiqueta')->relationship('tags', 'nome')->searchable()->preload(),
+                Filter::make('resolution_due_at')->label('Prazo de conclusão')->schema([
+                    DatePicker::make('from')->label('De'), DatePicker::make('until')->label('Até'),
+                ])->query(fn ($query, array $data) => $query
+                    ->when($data['from'] ?? null, fn ($q, $date) => $q->whereDate('resolution_due_at', '>=', $date))
+                    ->when($data['until'] ?? null, fn ($q, $date) => $q->whereDate('resolution_due_at', '<=', $date))),
             ])
             ->defaultSort('created_at', 'desc')
             ->recordActions([EditAction::make()->label('Abrir')])

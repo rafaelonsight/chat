@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class ClientAccount extends Model
 {
@@ -47,6 +48,8 @@ class ClientAccount extends Model
                 }
             }
         });
+
+        static::created(fn (self $client) => ClientPortal::ensureFor($client));
     }
 
     public function scopeActive(Builder $query): Builder
@@ -82,5 +85,15 @@ class ClientAccount extends Model
     public function tickets(): HasMany
     {
         return $this->hasMany(Ticket::class);
+    }
+
+    public function portal(): HasOne
+    {
+        return $this->hasOne(ClientPortal::class);
+    }
+
+    public function admins(): HasMany
+    {
+        return $this->hasMany(ClientAdmin::class)->orderByDesc('is_primary')->orderBy('name');
     }
 }

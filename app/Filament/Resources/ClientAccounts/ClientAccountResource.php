@@ -65,14 +65,28 @@ class ClientAccountResource extends Resource
                     ->required(fn (Get $get): bool => $get('type') === ClientAccount::END_CLIENT),
                 Select::make('contact_id')
                     ->label('Contato do CRM')
-                    ->options(fn () => Contact::query()->where('tipo', Contact::PESSOA)->ativos()
+                    ->options(fn () => Contact::query()->ativos()
                         ->orderBy('nome')->limit(300)->get()
                         ->mapWithKeys(fn (Contact $contact) => [$contact->id => $contact->nomeExibicao()])->all())
-                    ->searchable(),
+                    ->searchable()
+                    ->helperText('Aceita contato individual ou grupo do WhatsApp.'),
                 TextInput::make('email')->label('E-mail principal')->email()->maxLength(160),
                 TextInput::make('phone')->label('Telefone')->tel()->maxLength(30),
                 Textarea::make('notes')->label('Observações internas')->rows(3)->columnSpanFull(),
             ])->columns(2),
+
+            Section::make('Portal e administradores')
+                ->description('O link é gerado automaticamente. Parceiros permitem até 3 administradores; demais clientes, 1.')
+                ->schema([
+                    TextInput::make('portal_url')->label('Link privado do portal')->disabled()->dehydrated(false)
+                        ->formatStateUsing(fn (?ClientAccount $record) => $record?->portal?->url()),
+                    Repeater::make('admins')->relationship()->defaultItems(0)->schema([
+                        TextInput::make('name')->label('Nome')->required()->maxLength(160),
+                        TextInput::make('email')->label('E-mail')->email()->required()->maxLength(160),
+                        Toggle::make('is_primary')->label('Administrador principal'),
+                        Toggle::make('active')->label('Ativo')->default(true),
+                    ])->columns(2)->addActionLabel('Adicionar administrador'),
+                ]),
 
             Section::make('Solicitantes')
                 ->description('Pessoas que podem ser identificadas ao abrir ou responder uma demanda.')
