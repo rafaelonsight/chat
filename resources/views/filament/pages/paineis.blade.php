@@ -14,15 +14,16 @@
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex min-w-0 flex-wrap items-center gap-2" role="tablist" aria-label="Painéis do CRM">
                     @foreach ($funis as $f)
-                        <button type="button" role="tab" aria-selected="{{ $f->id === $funilId ? 'true' : 'false' }}"
-                                wire:key="fn-{{ $f->id }}" wire:click="abrirFunil({{ $f->id }})"
+                        <a role="tab" aria-selected="{{ $f->id === $funilId ? 'true' : 'false' }}"
+                                wire:key="fn-{{ $f->id }}" wire:navigate
+                                href="{{ route('filament.admin.pages.paineis', ['painel' => $f->id]) }}"
                                 @class([
                                     'rounded-lg px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900',
                                     'bg-emerald-600 text-white shadow-sm' => $f->id === $funilId,
                                     'border border-gray-200 text-gray-700 hover:border-emerald-300 hover:bg-emerald-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-emerald-500/10' => $f->id !== $funilId,
                                 ])>
                             {{ $f->nome }}
-                        </button>
+                        </a>
                     @endforeach
                 </div>
 

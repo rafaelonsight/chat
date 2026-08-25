@@ -164,6 +164,19 @@ it('trocar de aba troca as etapas mostradas', function () {
     expect($tela->viewData('etapas')->pluck('funnel_id')->unique()->all())->toBe([$vendas->id]);
 });
 
+it('abre diretamente o painel informado na url', function () {
+    $vendas = Funnel::criarCom('Vendas');
+    $suporte = Funnel::criarCom('Suporte');
+
+    $tela = Livewire::withQueryParams(['painel' => $suporte->id])
+        ->actingAs($this->admin)
+        ->test(Paineis::class);
+
+    expect($tela->get('funilId'))->toBe($suporte->id)
+        ->and($tela->viewData('etapas')->pluck('funnel_id')->unique()->all())->toBe([$suporte->id])
+        ->and($tela->get('funilId'))->not->toBe($vendas->id);
+});
+
 // ========================================================== apagar
 
 it('excluir o funil NAO apaga as conversas', function () {

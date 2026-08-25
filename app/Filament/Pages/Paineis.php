@@ -51,7 +51,13 @@ class Paineis extends Page
 
     public function mount(): void
     {
-        $this->funilId = Funnel::orderBy('ordem')->value('id');
+        // A aba e um link real (?painel=ID): recarregar, compartilhar ou voltar no navegador
+        // abre o mesmo painel. Sem isso a selecao existia apenas na memoria do Livewire.
+        $solicitado = (int) request()->query('painel', 0);
+
+        $this->funilId = $solicitado && Funnel::whereKey($solicitado)->exists()
+            ? $solicitado
+            : Funnel::orderBy('ordem')->value('id');
         $this->carregarColunas();
     }
 
