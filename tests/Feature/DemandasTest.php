@@ -185,3 +185,30 @@ it('a tela interna cria demanda recebida com protocolo', function () {
     expect(Ticket::first()->status)->toBe(Ticket::RECEIVED)
         ->and(Ticket::first()->protocol)->toStartWith('VRT-');
 });
+
+it('permite atribuir mais de uma pessoa à mesma demanda', function () {
+    $celso = User::create([
+        'tenant_id' => $this->tenant->id,
+        'name' => 'Celso',
+        'email' => 'celso@demandas.test',
+        'password' => 'segredo123',
+    ]);
+
+    Livewire::actingAs($this->rafael)
+        ->test(CreateTicket::class)
+        ->fillForm([
+            'client_account_id' => $this->client->id,
+            'title' => 'Implantação conjunta',
+            'description' => 'Rafael e Celso trabalharão juntos.',
+            'category' => 'implementation',
+            'status' => Ticket::RECEIVED,
+            'priority' => 'normal',
+            'assignees' => [$this->rafael->id, $celso->id],
+        ])
+        ->call('create')
+        ->assertHasNoFormErrors();
+
+    $ticket = Ticket::first();
+    expect($ticket->assignees()->pluck('users.id')->all())->toEqualCanonicalizing([$this->rafael->id, $celso->id])
+        ->and($ticket->responsible_id)->toBeIn([$this->rafael->id, $celso->id]);
+});

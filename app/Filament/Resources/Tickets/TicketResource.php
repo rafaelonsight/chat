@@ -77,8 +77,10 @@ class TicketResource extends Resource
                 Select::make('category')->label('Categoria')->options(Ticket::CATEGORIES)->required(),
                 Select::make('status')->label('Status')->options(Ticket::STATUSES)->required(),
                 Select::make('priority')->label('Prioridade')->options(Ticket::PRIORITIES)->required(),
-                Select::make('responsible_id')->label('Responsável')
-                    ->options(fn () => User::query()->orderBy('name')->pluck('name', 'id')->all())->searchable(),
+                Select::make('assignees')->label('Responsáveis')
+                    ->relationship('assignees', 'name')
+                    ->multiple()->preload()->searchable()
+                    ->helperText('Selecione uma ou mais pessoas para trabalhar nesta demanda.'),
                 Select::make('supervisor_id')->label('Supervisor')
                     ->options(fn () => User::query()->orderBy('name')->pluck('name', 'id')->all())->searchable(),
                 Textarea::make('description')->label('Descrição')->required()->rows(5)->columnSpanFull(),
@@ -163,7 +165,7 @@ class TicketResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->visible()->with(['client', 'responsible']))
+            ->modifyQueryUsing(fn ($query) => $query->visible()->with(['client', 'assignees']))
             ->columns([
                 TextColumn::make('protocol')->label('Ticket')->searchable()->sortable(),
                 TextColumn::make('title')->label('Demanda')->searchable()->wrap()->limit(70),
@@ -180,7 +182,7 @@ class TicketResource extends Resource
                     ->color(fn ($state) => match ($state) {
                         'critical' => 'danger', 'high' => 'warning', 'low' => 'gray', default => 'info',
                     }),
-                TextColumn::make('responsible.name')->label('Responsável')->placeholder('Não atribuído'),
+                TextColumn::make('assignees.name')->label('Responsáveis')->badge()->separator(',')->placeholder('Não atribuído'),
                 TextColumn::make('resolution_due_at')->label('Prazo')->dateTime('d/m/Y H:i')->sortable()->placeholder('—'),
                 TextColumn::make('created_at')->label('Recebida em')->dateTime('d/m/Y H:i')->sortable(),
             ])
@@ -189,7 +191,7 @@ class TicketResource extends Resource
                 SelectFilter::make('category')->label('Categoria')->options(Ticket::CATEGORIES),
                 SelectFilter::make('priority')->label('Prioridade')->options(Ticket::PRIORITIES),
                 SelectFilter::make('client_account_id')->label('Cliente')->relationship('client', 'name')->searchable()->preload(),
-                SelectFilter::make('responsible_id')->label('Responsável')->relationship('responsible', 'name')->searchable()->preload(),
+                SelectFilter::make('assignees')->label('Responsável')->relationship('assignees', 'name')->searchable()->preload(),
                 SelectFilter::make('requester_id')->label('Solicitante')->relationship('requester', 'name')->searchable()->preload(),
                 SelectFilter::make('client_project_id')->label('Projeto')->relationship('project', 'name')->searchable()->preload(),
                 SelectFilter::make('tags')->label('Etiqueta')->relationship('tags', 'nome')->searchable()->preload(),

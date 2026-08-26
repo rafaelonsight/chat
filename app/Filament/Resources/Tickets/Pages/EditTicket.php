@@ -21,6 +21,11 @@ class EditTicket extends EditRecord
         return $data;
     }
 
+    protected function afterSave(): void
+    {
+        $this->record->updateQuietly(['responsible_id' => $this->record->assignees()->value('users.id')]);
+    }
+
     protected function getHeaderActions(): array
     {
         return [

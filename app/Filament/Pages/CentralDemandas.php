@@ -21,7 +21,7 @@ class CentralDemandas extends Page
 
     protected function getViewData(): array
     {
-        $tickets = Ticket::visible()->with(['client', 'responsible', 'tags'])->orderBy('resolution_due_at')->latest()->get()->groupBy('status');
+        $tickets = Ticket::visible()->with(['client', 'assignees', 'tags'])->orderBy('resolution_due_at')->latest()->get()->groupBy('status');
         return ['columns' => collect(Ticket::STATUSES)->map(fn ($label, $status) => ['status' => $status, 'label' => $label, 'tickets' => $tickets->get($status, collect())])];
     }
 }

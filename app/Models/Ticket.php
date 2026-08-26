@@ -223,6 +223,14 @@ class Ticket extends Model
         return $this->belongsTo(User::class, 'responsible_id');
     }
 
+    public function assignees(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'ticket_assignee')
+            ->withPivot('assigned_by')
+            ->withTimestamps()
+            ->orderBy('name');
+    }
+
     public function supervisor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'supervisor_id');

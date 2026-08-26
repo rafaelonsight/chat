@@ -18,4 +18,9 @@ class CreateTicket extends CreateRecord
 
         return $data;
     }
+
+    protected function afterCreate(): void
+    {
+        $this->record->updateQuietly(['responsible_id' => $this->record->assignees()->value('users.id')]);
+    }
 }

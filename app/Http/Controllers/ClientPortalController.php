@@ -20,7 +20,7 @@ class ClientPortalController extends Controller
     {
         [$portal, $client] = $this->context($token);
         $clientIds = $this->clientIds($client);
-        $tickets = Ticket::whereIn('client_account_id', $clientIds)->visible()->with(['client', 'requester', 'responsible', 'tags'])->latest()->paginate(20);
+        $tickets = Ticket::whereIn('client_account_id', $clientIds)->visible()->with(['client', 'requester', 'assignees', 'tags'])->latest()->paginate(20);
         $portal->update(['last_accessed_at' => now()]);
 
         return view('portal.dashboard', compact('portal', 'client', 'tickets', 'token'));
