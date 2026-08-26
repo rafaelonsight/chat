@@ -82,6 +82,9 @@ class ProcessEvolutionWebhook implements ShouldQueue
             throw new \RuntimeException('remetente ou id ausente no payload');
         }
 
+
+        $this->sincronizarPerfil($canal, $origem['contato'], Arr::get($data, 'pushName'));
+
         // Reacao NAO e mensagem: nao pode virar balao na conversa.
         if ($reacao = Arr::get($data, 'message.reactionMessage')) {
             $this->registrarReacao($canal, $reacao);
@@ -701,6 +704,22 @@ class ProcessEvolutionWebhook implements ShouldQueue
         );
 
         return ['contato' => $contato, 'remetente_nome' => null, 'remetente_jid' => null];
+    }
+
+    /**
+     * Nome chega no próprio evento; foto exige uma consulta separada e fica na fila.
+     * O campo `nome` nunca é reescrito aqui: ele pertence ao cadastro feito pelo atendente.
+     */
+    private function sincronizarPerfil(Channel $canal, Contact $contato, ?string $pushName): void
+    {
+        if (! $contato->eGrupo() && filled($pushName) && $contato->whatsapp_nome !== trim($pushName)) {
+            $contato->update(['whatsapp_nome' => trim($pushName)]);
+        }
+
+        if (! $contato->foto_whatsapp_consultada_em
+            || $contato->foto_whatsapp_consultada_em->lt(now()->subDay())) {
+            AtualizarPerfilWhatsapp::dispatch($canal->id, $contato->id)->afterResponse();
+        }
     }
 
     private function nomeDoGrupo(Channel $canal, string $jid): ?string

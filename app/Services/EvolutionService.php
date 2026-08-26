@@ -220,6 +220,15 @@ class EvolutionService
             ->throw()->json();
     }
 
+    /** Consulta a foto pública que o próprio WhatsApp permite enxergar. */
+    public function profilePicture(string $instance, string $number): array
+    {
+        return $this->client()->timeout(10)
+            ->post("/chat/fetchProfilePictureUrl/{$instance}", ['number' => $number])
+            ->throw()
+            ->json() ?? [];
+    }
+
     // Baixa o binario de uma mensagem de midia recebida. O webhook nao traz o
     // arquivo, so o aviso de que existe.
     public function getMediaBase64(string $instance, string $messageId): array

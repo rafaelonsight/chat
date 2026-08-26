@@ -2,6 +2,7 @@
 
 use App\Models\{Channel, Contact, Conversation, Message, Tenant, WebhookEvent};
 use App\Support\TenantContext;
+use Illuminate\Support\Facades\{Http, Queue};
 
 function payloadRecebida(string $de, string $texto, string $id): array
 {
@@ -17,10 +18,28 @@ function payloadRecebida(string $de, string $texto, string $id): array
 }
 
 beforeEach(function () {
+    Queue::fake([\App\Jobs\AtualizarPerfilWhatsapp::class]);
     $this->tenant = Tenant::create(['nome' => 'T', 'slug' => 't']);
     TenantContext::set($this->tenant->id);
     $this->channel = Channel::create(['nome' => 'Principal'])->refresh();
     $this->url = "/webhooks/evolution/{$this->channel->id}/{$this->channel->webhook_secret}";
+});
+
+it('guarda o nome publico sem sobrescrever o nome cadastrado', function () {
+    $contato = Contact::acharOuCriarPorTelefone('+5511999998888', [
+        'tenant_id' => $this->tenant->id, 'nome' => 'João da Empresa',
+    ]);
+
+    $this->postJson($this->url, payloadRecebida('5511999998888', 'oi', 'NOME1'))->assertOk();
+
+    expect($contato->refresh()->nome)->toBe('João da Empresa')
+        ->and($contato->whatsapp_nome)->toBe('Cliente Teste');
+});
+
+it('enfileira a atualização da foto do whatsapp', function () {
+    $this->postJson($this->url, payloadRecebida('5511999998888', 'oi', 'FOTO1'))->assertOk();
+
+    Queue::assertPushed(\App\Jobs\AtualizarPerfilWhatsapp::class);
 });
 
 afterEach(fn () => TenantContext::forget());

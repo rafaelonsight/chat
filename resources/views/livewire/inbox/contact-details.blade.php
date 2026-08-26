@@ -19,13 +19,20 @@
              trocar de aba parece trocar de tela. --}}
         <div class="flex items-start justify-between gap-2 border-b border-gray-200 px-4 py-3 dark:border-white/10">
             <div class="flex min-w-0 items-center gap-3">
-                <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-semibold {{ $contato->corAvatar() }}">
-                    {{ $contato->iniciais() }}
-                </span>
+                @if ($contato->fotoWhatsappUrl())
+                    <img src="{{ $contato->fotoWhatsappUrl() }}" alt="" class="h-10 w-10 shrink-0 rounded-full object-cover">
+                @else
+                    <span class="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-semibold {{ $contato->corAvatar() }}">
+                        {{ $contato->iniciais() }}
+                    </span>
+                @endif
                 <div class="min-w-0">
                     <p class="truncate font-semibold text-gray-800 dark:text-gray-100">
                         {{ $contato->nomeExibicao() }}
                     </p>
+                    @if ($contato->whatsapp_nome && $contato->whatsapp_nome !== $contato->nomeExibicao())
+                        <p class="truncate text-xs text-emerald-700 dark:text-emerald-400">WhatsApp: {{ $contato->whatsapp_nome }}</p>
+                    @endif
                     <p class="text-xs text-gray-500 dark:text-gray-400">
                         Contato desde {{ $contato->created_at?->format('d/m/Y') }}
                     </p>

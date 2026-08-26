@@ -14,15 +14,15 @@
                     </svg>
                 </button>
 
-                {{-- detalhes do contato: fica antes do nome, como identidade de quem se fala --}}
+                {{-- Foto abre os detalhes; quando privada, mantém o avatar por iniciais. --}}
                 <button type="button" wire:click="verDetalhes"
-                        class="shrink-0 rounded-full border border-gray-300 p-1.5 text-gray-500 transition hover:bg-gray-50 hover:text-gray-800 dark:border-white/20 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-gray-100"
+                        class="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full text-xs font-semibold {{ $conversa->contact->fotoWhatsappUrl() ? '' : $conversa->contact->corAvatar() }}"
                         title="Detalhes do contato">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                         stroke-width="1.8" stroke="currentColor" class="h-4 w-4">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-                    </svg>
+                    @if ($conversa->contact->fotoWhatsappUrl())
+                        <img src="{{ $conversa->contact->fotoWhatsappUrl() }}" alt="" class="h-full w-full object-cover">
+                    @else
+                        {{ $conversa->contact->iniciais() }}
+                    @endif
                 </button>
 
                 <div class="min-w-0">
@@ -53,6 +53,10 @@
                     @endif
                 </div>
                 <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                    @if ($conversa->contact->whatsapp_nome && $conversa->contact->whatsapp_nome !== $conversa->contact->nomeExibicao())
+                        <span class="truncate text-emerald-700 dark:text-emerald-400">WhatsApp: {{ $conversa->contact->whatsapp_nome }}</span>
+                        <span>&middot;</span>
+                    @endif
                     <span>{{ $conversa->contact->telefone_e164 }}</span>
                     <span class="rounded-full bg-gray-100 px-2 py-0.5 dark:bg-white/10">
                         {{ $conversa->rotuloStatus() }}

@@ -269,6 +269,11 @@
                     class="block w-full border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50 dark:border-white/5 dark:hover:bg-white/5
                            {{ $selecionada === $conversa->id ? 'bg-emerald-50 dark:bg-emerald-500/10' : '' }}">
                 <div class="flex items-center justify-between gap-2">
+                    @if ($conversa->contact->fotoWhatsappUrl())
+                        <img src="{{ $conversa->contact->fotoWhatsappUrl() }}" alt="" class="h-8 w-8 shrink-0 rounded-full object-cover">
+                    @else
+                        <span class="grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-semibold {{ $conversa->contact->corAvatar() }}">{{ $conversa->contact->iniciais() }}</span>
+                    @endif
                     <span class="flex min-w-0 items-center gap-1.5">
                         @if ($conversa->contact->eGrupo())
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8"

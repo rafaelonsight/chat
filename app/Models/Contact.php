@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
 
 class Contact extends Model
 {
@@ -38,7 +39,8 @@ class Contact extends Model
     public const GRUPO = 'grupo';
 
     protected $fillable = [
-        'tenant_id', 'jid', 'tipo', 'telefone_e164', 'nome', 'email', 'instagram',
+        'tenant_id', 'jid', 'tipo', 'telefone_e164', 'nome', 'whatsapp_nome',
+        'foto_whatsapp', 'foto_whatsapp_consultada_em', 'email', 'instagram',
         'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
         'arquivado_em', 'bloqueado_em', 'bloqueio_motivo',
         // O opt-out entra aqui e nao so no forceFill: a importacao de contatos vai
@@ -58,6 +60,7 @@ class Contact extends Model
         'arquivado_em' => 'datetime',
         'bloqueado_em' => 'datetime',
         'nascimento' => 'date',
+        'foto_whatsapp_consultada_em' => 'datetime',
         // Lista e nao texto: a pessoa pode ser cliente E fornecedora.
         'papeis' => 'array',
     ];
@@ -229,6 +232,14 @@ class Contact extends Model
         return mb_strtoupper(
             mb_substr($partes[0], 0, 1).mb_substr($partes[count($partes) - 1], 0, 1)
         );
+    }
+
+    /** Foto cacheada localmente; URLs temporárias do WhatsApp não chegam à tela. */
+    public function fotoWhatsappUrl(): ?string
+    {
+        return $this->foto_whatsapp
+            ? Storage::disk('public')->url($this->foto_whatsapp)
+            : null;
     }
 
     /**
