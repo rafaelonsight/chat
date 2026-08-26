@@ -27,6 +27,12 @@ use UnitEnum;
 
 class ClientAccountResource extends Resource
 {
+    protected static bool $shouldRegisterNavigation = false;
+
+    public static function canViewAny(): bool
+    {
+        return false;
+    }
     protected static ?string $model = ClientAccount::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingOffice2;

@@ -19,6 +19,12 @@ use UnitEnum;
  */
 class CadastroErp extends Page
 {
+    protected static bool $shouldRegisterNavigation = false;
+
+    public static function canAccess(): bool
+    {
+        return false;
+    }
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
     protected static string|UnitEnum|null $navigationGroup = 'ERP';

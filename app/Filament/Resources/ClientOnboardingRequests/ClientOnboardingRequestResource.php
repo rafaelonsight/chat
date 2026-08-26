@@ -22,6 +22,7 @@ use UnitEnum;
 
 class ClientOnboardingRequestResource extends Resource
 {
+    protected static bool $shouldRegisterNavigation = false;
     protected static ?string $model = ClientOnboardingRequest::class;
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserPlus;
     protected static string|UnitEnum|null $navigationGroup = 'CRM';
@@ -77,7 +78,7 @@ class ClientOnboardingRequestResource extends Resource
     }
 
     public static function canCreate(): bool { return false; }
-    public static function canViewAny(): bool { return (bool) (auth()->user()?->admin || auth()->user()?->operador); }
+    public static function canViewAny(): bool { return false; }
     public static function canView($record): bool { return static::canViewAny() && auth()->user()->tenant_id === $record->tenant_id; }
     public static function canEdit($record): bool { return static::canView($record); }
     public static function canDelete($record): bool { return false; }

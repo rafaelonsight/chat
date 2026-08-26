@@ -36,6 +36,12 @@ use UnitEnum;
 
 class TicketResource extends Resource
 {
+    protected static bool $shouldRegisterNavigation = false;
+
+    public static function canViewAny(): bool
+    {
+        return false;
+    }
     protected static ?string $model = Ticket::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTicket;

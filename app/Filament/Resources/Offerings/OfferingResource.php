@@ -23,6 +23,12 @@ use UnitEnum;
 
 class OfferingResource extends Resource
 {
+    protected static bool $shouldRegisterNavigation = false;
+
+    public static function canViewAny(): bool
+    {
+        return false;
+    }
     protected static ?string $model = Offering::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCube;

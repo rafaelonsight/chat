@@ -11,6 +11,12 @@ use UnitEnum;
 
 class CentralDemandas extends Page
 {
+    protected static bool $shouldRegisterNavigation = false;
+
+    public static function canAccess(): bool
+    {
+        return false;
+    }
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedViewColumns;
     protected static string|UnitEnum|null $navigationGroup = 'CRM';
     protected static ?string $navigationLabel = 'Central de demandas';

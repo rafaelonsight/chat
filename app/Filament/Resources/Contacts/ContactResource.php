@@ -28,15 +28,13 @@ class ContactResource extends Resource
      * mesma ficha que aparece no atendimento — o que mudou e onde ela mora no menu e como ela se
      * chama para quem esta cadastrando, nao consultando.
      */
-    protected static string|UnitEnum|null $navigationGroup = 'ERP';
+    protected static string|UnitEnum|null $navigationGroup = 'CRM';
 
-    protected static ?string $navigationParentItem = 'Cadastro';
+    protected static ?string $navigationLabel = 'Contatos';
 
-    protected static ?string $navigationLabel = 'Pessoas';
+    protected static ?string $modelLabel = 'contato';
 
-    protected static ?string $modelLabel = 'pessoa';
-
-    protected static ?string $pluralModelLabel = 'pessoas';
+    protected static ?string $pluralModelLabel = 'contatos';
 
     protected static ?int $navigationSort = 2;
 

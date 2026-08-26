@@ -17,6 +17,12 @@ use UnitEnum;
 
 class ProposalResource extends Resource
 {
+    protected static bool $shouldRegisterNavigation = false;
+
+    public static function canViewAny(): bool
+    {
+        return false;
+    }
     protected static ?string $model = Proposal::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentCurrencyDollar;
