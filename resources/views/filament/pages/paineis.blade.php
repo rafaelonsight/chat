@@ -341,6 +341,9 @@
                     </div>
                 </div>
             </form>
+            @if ($itemId)
+                <livewire:board-item-discussion :item-id="$itemId" :key="'discussion-'.$itemId" />
+            @endif
         </x-filament::section>
     @endif
 

@@ -94,6 +94,9 @@ class Paineis extends Page
             : Funnel::orderBy('ordem')->value('id');
         $this->carregarColunas();
         $this->carregarCampos();
+        if ($item = (int) request()->query('item', 0)) {
+            $this->editarItem($item);
+        }
     }
 
     /** Troca de quadro. Cada um tem as proprias etapas e os proprios cartoes. */
@@ -364,7 +367,7 @@ class Paineis extends Page
         }
 
         $contato = $this->contatoDoItem ? Contact::find($this->contatoDoItem) : null;
-        $responsavel = $this->responsavelDoItem ? User::find($this->responsavelDoItem) : null;
+        $responsavel = $this->responsavelDoItem ? User::where('tenant_id', auth()->user()->tenant_id)->findOrFail($this->responsavelDoItem) : null;
 
         $atributos = [
             'tenant_id' => auth()->user()->tenant_id,
@@ -379,6 +382,7 @@ class Paineis extends Page
             'dados' => $this->valoresDoItem,
         ];
 
+        \Illuminate\Support\Facades\DB::transaction(function () use ($atributos, &$mensagem) {
         if ($this->itemId) {
             $item = BoardItem::where('funnel_id', $this->funilId)->findOrFail($this->itemId);
             $item->update($atributos);
@@ -392,6 +396,7 @@ class Paineis extends Page
         $item->tags()->sync($etiquetasValidas->mapWithKeys(fn ($id) => [$id => [
             'origem' => 'manual', 'aplicado_por' => auth()->id(), 'created_at' => now(),
         ]])->all());
+        });
 
         $this->editandoItem = false;
         Notification::make()->title($mensagem)->success()->send();
@@ -403,7 +408,15 @@ class Paineis extends Page
         $etapa = FunnelStage::where('funnel_id', $this->funilId)->find($etapaId);
 
         if ($item && $etapa) {
-            $item->update(['funnel_stage_id' => $etapa->id, 'etapa_em' => now()]);
+            \Illuminate\Support\Facades\DB::transaction(fn () => $item->update(['funnel_stage_id' => $etapa->id, 'etapa_em' => now()]));
+        }
+    }
+
+    #[\Livewire\Attributes\On('status-item-alterado')]
+    public function atualizarStatusDoItem(): void
+    {
+        if ($this->itemId) {
+            $this->itemEtapaId = BoardItem::where('funnel_id', $this->funilId)->find($this->itemId)?->funnel_stage_id;
         }
     }
 

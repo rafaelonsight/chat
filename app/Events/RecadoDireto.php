@@ -35,6 +35,6 @@ class RecadoDireto implements ShouldBroadcast
      */
     public function broadcastWith(): array
     {
-        return ['de' => $this->recado->de_user_id];
+        return ['de' => $this->recado->de_user_id, 'id' => $this->recado->id];
     }
 }

@@ -85,12 +85,20 @@ class ChatInterno extends Component
      * Se a conversa com essa pessoa estiver aberta na minha frente, ja marca como lido: exigir
      * um clique para "ler" o que esta na tela seria pedir cerimonia para o obvio.
      */
-    #[On('echo-private:recados.{idDoUsuario},RecadoDireto')]
+    #[On('recado-recebido')]
     public function chegouRecado(array $carga = []): void
     {
         if ($this->aberto && $this->comQuem !== null && ($carga['de'] ?? null) === $this->comQuem) {
             $this->marcarLidas();
         }
+    }
+
+    #[On('abrir-chat-interno')]
+    public function abrirAviso(int $usuarioId): void
+    {
+        if (! User::where('tenant_id', auth()->user()->tenant_id)->whereKey($usuarioId)->exists()) return;
+        $this->aberto = true;
+        $this->abrir($usuarioId);
     }
 
     public function marcarLidas(): void
@@ -145,9 +153,10 @@ class ChatInterno extends Component
             'total'     => (int) $naoLidas->sum(),
             'conversa'  => $this->comQuem
                 ? DirectMessage::entre((int) auth()->id(), $this->comQuem)
-                    ->orderBy('id')
+                    ->orderByDesc('id')
                     ->limit(100)
                     ->get()
+                    ->reverse()
                 : collect(),
             'falandoCom' => $this->comQuem
                 ? User::where('tenant_id', $eu->tenant_id)->find($this->comQuem)

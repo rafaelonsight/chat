@@ -135,6 +135,10 @@ async function pedirPermissao() {
 document.addEventListener('click', function primeiro() {
     document.removeEventListener('click', primeiro);
     if (avisoLigado()) pedirPermissao();
+    try {
+        audio = audio ?? new (window.AudioContext ?? window.webkitAudioContext)();
+        if (audio.state === 'suspended') audio.resume();
+    } catch (_) {}
 }, { once: false });
 
 let avisoAberto = null;
@@ -204,7 +208,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('focus', pararDePiscar);
 
 /** Aviso curto no canto, para quem esta com a tela na frente. */
-function torrada(texto) {
+function torrada(texto, abrir = null) {
     let caixa = document.getElementById('onchat-avisos');
 
     if (! caixa) {
@@ -218,6 +222,14 @@ function torrada(texto) {
     aviso.textContent = texto;
     aviso.style.cssText = 'background:#065f46;color:#fff;padding:.6rem .9rem;border-radius:.6rem;font:500 13px/1.3 system-ui,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;transition:opacity .2s,transform .2s;transform:translateY(6px)';
     caixa.appendChild(aviso);
+    if (abrir) {
+        aviso.style.pointerEvents = 'auto';
+        aviso.style.cursor = 'pointer';
+        aviso.setAttribute('role', 'button');
+        aviso.tabIndex = 0;
+        aviso.onclick = abrir;
+        aviso.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') abrir(); };
+    }
 
     requestAnimationFrame(() => { aviso.style.opacity = '1'; aviso.style.transform = 'none'; });
 
@@ -230,6 +242,49 @@ function torrada(texto) {
 // ================================================= a ponte: canal -> telas ======
 
 const tenant = meta('onchat-tenant');
+
+// Uma ponte explícita também para a equipe: o Livewire atualiza os dados, o JS alerta.
+let usuarioDeAvisos = null;
+function conectarAvisosDaEquipe() {
+    const usuario = meta('onchat-usuario');
+    if (!usuario || usuarioDeAvisos === usuario) return;
+    if (usuarioDeAvisos) window.Echo.leave(`recados.${usuarioDeAvisos}`);
+    usuarioDeAvisos = usuario;
+    const canal = window.Echo.private(`recados.${usuario}`);
+    const alertar = (id, titulo, abrir) => {
+        const tocar = () => {
+            // O mesmo evento pode chegar por reconexão ou por múltiplas abas.
+            const chave = `virtus.alerta.${usuario}.${id}`;
+            try {
+                if (localStorage.getItem(chave)) return;
+                localStorage.setItem(chave, Date.now().toString());
+                for (const k of Object.keys(localStorage)) {
+                    if (k.startsWith(`virtus.alerta.${usuario}.`) && Number(localStorage.getItem(k)) < Date.now() - 86400000) localStorage.removeItem(k);
+                }
+            } catch (_) {}
+            bipe();
+            torrada(titulo, abrir);
+            if (!document.hasFocus()) { piscarTitulo(); avisoDoSistema(titulo); }
+        };
+        if (navigator.locks) navigator.locks.request(`virtus-aviso-${usuario}`, tocar);
+        else tocar();
+    };
+    canal.listen('RecadoDireto', (e) => {
+        window.Livewire?.dispatch('recado-recebido', { carga: e });
+        alertar(`chat-${e.id}`, 'Nova mensagem no chat da equipe', () => {
+            window.Livewire?.dispatch('abrir-chat-interno', { usuarioId: e.de });
+        });
+    });
+    canal.listen('AvisoColaboracao', (e) => {
+        window.Livewire?.dispatch('databaseNotificationsSent');
+        alertar(`item-${e.id}`, e.titulo, () => {
+            const destino = new URL(e.url, window.location.origin);
+            if (destino.origin === window.location.origin) window.location.assign(destino.href);
+        });
+    });
+}
+conectarAvisosDaEquipe();
+document.addEventListener('livewire:navigated', conectarAvisosDaEquipe);
 
 if (tenant) {
     const canal = window.Echo.private(`tenant.${tenant}.conversations`);

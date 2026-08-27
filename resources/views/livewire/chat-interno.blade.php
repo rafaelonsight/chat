@@ -70,7 +70,7 @@
                                     {{ $meu
                                         ? 'bg-emerald-600 text-white'
                                         : 'bg-white text-gray-800 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:ring-white/10' }}">
-                            <p class="whitespace-pre-wrap break-words">{{ $recado->corpo }}</p>
+                            <p class="whitespace-pre-wrap break-words">{{ \App\Support\TextoComLinks::render($recado->corpo) }}</p>
                             <p class="mt-0.5 text-[10px] {{ $meu ? 'text-emerald-100/80' : 'text-gray-400' }}">
                                 {{ $recado->created_at?->format('d/m H:i') }}
                             </p>
