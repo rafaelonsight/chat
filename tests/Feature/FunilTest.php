@@ -1,7 +1,7 @@
 <?php
 
 use App\Filament\Pages\Paineis;
-use App\Models\{Channel, Contact, Conversation, FunnelStage, Tenant, User};
+use App\Models\{BoardItem, Channel, Contact, Conversation, FunnelStage, Tenant, User};
 use App\Support\TenantContext;
 use Livewire\Livewire;
 
@@ -18,6 +18,7 @@ use Livewire\Livewire;
  */
 
 beforeEach(function () {
+    config(['boards.foundation_enabled' => true]);
     $this->conta = Tenant::create(['nome' => 'Conta', 'slug' => 'funil']);
     TenantContext::set($this->conta->id);
 
@@ -33,6 +34,8 @@ beforeEach(function () {
 
     $this->actingAs($this->admin);
 });
+
+afterEach(fn () => TenantContext::forget());
 
 function conversaFunil($ctx, string $nome): Conversation
 {
@@ -53,81 +56,90 @@ function conversaFunil($ctx, string $nome): Conversation
 
 // ============================================================== as colunas
 
-it('cria as cinco colunas de exemplo', function () {
+it('cria as tres colunas de exemplo', function () {
     // Funil vazio nao ensina nada: a pessoa abre, ve um quadro em branco e fecha.
-    Livewire::actingAs($this->admin)->test(Paineis::class)->call('criarPadrao');
+    Livewire::actingAs($this->admin)->test(Paineis::class)->set('novoPainel', 'Funil')->call('criarFunil')->assertHasNoErrors();
 
-    expect(FunnelStage::count())->toBe(5)
-        ->and(FunnelStage::orderBy('ordem')->first()->nome)->toBe('Novo')
-        ->and(FunnelStage::where('nome', 'Fechado')->first()->encerra)->toBeTrue();
+    expect(FunnelStage::count())->toBe(3)
+        ->and(FunnelStage::orderBy('ordem')->first()->nome)->toBe('A fazer')
+        ->and(FunnelStage::where('nome', 'Concluído')->first()->encerra)->toBeTrue();
 });
 
-it('nao cria de novo se ja houver coluna', function () {
-    // Etapa agora pertence a um FUNIL — a coluna virou obrigatoria quando o produto
-    // passou a ter mais de um quadro.
-    // Funil cru, sem as cinco etapas padrao: o que este teste afirma e que o criarPadrao
-    // nao passa por cima do que ja existe.
+it('abrir um painel existente nao recria nem substitui suas colunas', function () {
     $funil = App\Models\Funnel::create(['tenant_id' => $this->conta->id, 'nome' => 'Meu']);
-
-    FunnelStage::create([
+    $etapa = FunnelStage::create([
         'tenant_id' => $this->conta->id, 'funnel_id' => $funil->id,
         'nome' => 'Minha', 'ordem' => 0,
     ]);
 
-    Livewire::actingAs($this->admin)->test(Paineis::class)->call('criarPadrao');
+    Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('abrirFunil', $funil->id)->call('configurar')
+        ->assertSet('colunas.0.id', $etapa->id);
 
-    expect(FunnelStage::count())->toBe(1);
+    expect(FunnelStage::count())->toBe(1)
+        ->and($etapa->fresh()->nome)->toBe('Minha');
 });
 
 it('salva a ordem das colunas como esta na tela', function () {
-    // Coluna agora pertence a um quadro: sem um funil aberto nao ha onde salvar.
-    Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->call('criarPadrao')
-        ->call('editarColunas')
-        ->set('colunas', [
-            ['id' => null, 'nome' => 'Entrou',  'cor' => 'cinza', 'encerra' => false],
-            ['id' => null, 'nome' => 'Fechou',  'cor' => 'verde', 'encerra' => true],
-        ])
-        ->call('salvarColunas')
-        ->assertHasNoErrors();
+    $tela = Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->set('novoPainel', 'Funil')->call('criarFunil')->assertHasNoErrors()
+        ->call('configurar');
+    $colunas = $tela->get('colunas');
+    $colunas = [$colunas[1], $colunas[0], $colunas[2]];
+    $colunas[0]['nome'] = 'Entrou';
+    $colunas[2]['nome'] = 'Fechou';
 
+    $tela->set('colunas', $colunas)->call('salvarConfiguracao')->assertHasNoErrors();
     $etapas = FunnelStage::orderBy('ordem')->get();
 
-    expect($etapas)->toHaveCount(2)
+    expect($etapas)->toHaveCount(3)
+        ->and($etapas->pluck('id')->all())->toBe(array_column($colunas, 'id'))
         ->and($etapas[0]->nome)->toBe('Entrou')
-        ->and($etapas[1]->encerra)->toBeTrue();
+        ->and($etapas[2]->nome)->toBe('Fechou')
+        ->and($etapas[2]->encerra)->toBeTrue();
 });
 
-it('apagar uma coluna NAO apaga as conversas dela', function () {
-    // Sumir com o atendimento porque alguem reorganizou o quadro seria perder dado por causa
-    // de arrumacao.
-    Livewire::actingAs($this->admin)->test(Paineis::class)->call('criarPadrao');
-
-    $etapa = FunnelStage::orderBy('ordem')->first();
+it('remover uma coluna transfere e preserva suas conversas e tarefas', function () {
+    $tela = Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->set('novoPainel', 'Funil')->call('criarFunil')->assertHasNoErrors();
+    $etapas = FunnelStage::orderBy('ordem')->get();
+    $origem = $etapas[0];
+    $destino = $etapas[1];
     $conversa = conversaFunil($this, 'Maria');
-    $conversa->moverPara($etapa);
+    $conversa->moverPara($origem);
+    $item = BoardItem::create([
+        'tenant_id' => $this->conta->id, 'funnel_id' => $origem->funnel_id,
+        'funnel_stage_id' => $origem->id, 'titulo' => 'Preservar tarefa',
+        'dados' => ['observacao' => 'Preservar conteúdo'],
+    ]);
 
-    Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->call('editarColunas')
-        ->set('colunas', [['id' => null, 'nome' => 'Unica', 'cor' => 'cinza', 'encerra' => false]])
-        ->call('salvarColunas');
+    $tela->call('configurar')
+        ->set('etapaRemover', $origem->id)->set('destinoEtapa', $destino->id)
+        ->call('removerColuna')->assertHasNoErrors();
 
-    expect(Conversation::find($conversa->id))->not->toBeNull()
-        ->and(Conversation::find($conversa->id)->funnel_stage_id)->toBeNull();
+    expect(FunnelStage::find($origem->id))->toBeNull()
+        ->and(FunnelStage::count())->toBe(2)
+        ->and(Conversation::find($conversa->id))->not->toBeNull()
+        ->and($conversa->fresh()->funnel_stage_id)->toBe($destino->id)
+        ->and(BoardItem::find($item->id))->not->toBeNull()
+        ->and($item->fresh()->funnel_stage_id)->toBe($destino->id)
+        ->and($item->fresh()->titulo)->toBe('Preservar tarefa')
+        ->and($item->fresh()->dados)->toBe(['observacao' => 'Preservar conteúdo']);
 });
 
 it('nao salva coluna sem nome', function () {
+    App\Models\Funnel::criarCom('Funil');
     Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->call('editarColunas')
+        ->call('configurar')
         ->set('colunas', [['id' => null, 'nome' => '', 'cor' => 'cinza', 'encerra' => false]])
-        ->call('salvarColunas')
+        ->call('salvarConfiguracao')
         ->assertHasErrors('colunas.0.nome');
 });
 
 // ============================================================== os cartoes
 
 it('move o cartao e guarda QUANDO ele entrou na etapa', function () {
-    Livewire::actingAs($this->admin)->test(Paineis::class)->call('criarPadrao');
+    Livewire::actingAs($this->admin)->test(Paineis::class)->set('novoPainel', 'Funil')->call('criarFunil')->assertHasNoErrors();
 
     $primeira = FunnelStage::orderBy('ordem')->first();
     $conversa = conversaFunil($this, 'Maria');
@@ -144,7 +156,7 @@ it('move o cartao e guarda QUANDO ele entrou na etapa', function () {
 it('mover de novo atualiza a data da etapa', function () {
     // Se a data ficasse na primeira entrada, "parado ha 12 dias" continuaria dizendo 12 dias
     // depois de o cartao andar — e o numero que justifica o funil viraria mentira.
-    Livewire::actingAs($this->admin)->test(Paineis::class)->call('criarPadrao');
+    Livewire::actingAs($this->admin)->test(Paineis::class)->set('novoPainel', 'Funil')->call('criarFunil')->assertHasNoErrors();
 
     $etapas = FunnelStage::orderBy('ordem')->get();
     $conversa = conversaFunil($this, 'Maria');
@@ -159,7 +171,7 @@ it('mover de novo atualiza a data da etapa', function () {
 });
 
 it('tirar do funil limpa a etapa e a data', function () {
-    Livewire::actingAs($this->admin)->test(Paineis::class)->call('criarPadrao');
+    Livewire::actingAs($this->admin)->test(Paineis::class)->set('novoPainel', 'Funil')->call('criarFunil')->assertHasNoErrors();
 
     $conversa = conversaFunil($this, 'Maria');
     $conversa->moverPara(FunnelStage::orderBy('ordem')->first());
@@ -171,6 +183,7 @@ it('tirar do funil limpa a etapa e a data', function () {
 });
 
 it('nao move para etapa de OUTRA conta', function () {
+    App\Models\Funnel::criarCom('Meu');
     $outra = Tenant::create(['nome' => 'Outra', 'slug' => 'outra-funil']);
     $funilAlheio = App\Models\Funnel::withoutGlobalScope('tenant')->create([
         'tenant_id' => $outra->id, 'nome' => 'Alheio',
@@ -183,8 +196,9 @@ it('nao move para etapa de OUTRA conta', function () {
 
     $conversa = conversaFunil($this, 'Maria');
 
-    Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->call('mover', $conversa->id, $alheia->id);
+    expect(fn () => Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('mover', $conversa->id, $alheia->id))
+        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 
     expect($conversa->fresh()->funnel_stage_id)->toBeNull();
 });
@@ -192,7 +206,7 @@ it('nao move para etapa de OUTRA conta', function () {
 it('duas conversas do MESMO contato ficam em colunas diferentes', function () {
     // O motivo de o cartao ser a conversa e nao o contato: um assunto fechado e outro em
     // negociacao, ao mesmo tempo, da mesma pessoa.
-    Livewire::actingAs($this->admin)->test(Paineis::class)->call('criarPadrao');
+    Livewire::actingAs($this->admin)->test(Paineis::class)->set('novoPainel', 'Funil')->call('criarFunil')->assertHasNoErrors();
     $etapas = FunnelStage::orderBy('ordem')->get();
 
     $primeira = conversaFunil($this, 'Maria');
@@ -204,22 +218,22 @@ it('duas conversas do MESMO contato ficam em colunas diferentes', function () {
         'ultima_msg_em' => now(),
     ]);
 
-    $primeira->moverPara($etapas->firstWhere('nome', 'Fechado'));
-    $segunda->moverPara($etapas->firstWhere('nome', 'Negociação'));
+    $primeira->moverPara($etapas->firstWhere('nome', 'Concluído'));
+    $segunda->moverPara($etapas->firstWhere('nome', 'Em andamento'));
 
     expect($primeira->fresh()->funnel_stage_id)->not->toBe($segunda->fresh()->funnel_stage_id);
 });
 
 // ================================================================== a tela
 
-it('o quadro agrupa os cartoes por coluna', function () {
-    Livewire::actingAs($this->admin)->test(Paineis::class)->call('criarPadrao');
+it('a lista de atendimentos preserva a coluna de cada cartao', function () {
+    Livewire::actingAs($this->admin)->test(Paineis::class)->set('novoPainel', 'Funil')->call('criarFunil')->assertHasNoErrors();
     $primeira = FunnelStage::orderBy('ordem')->first();
 
     conversaFunil($this, 'Maria')->moverPara($primeira);
     conversaFunil($this, 'Joao')->moverPara($primeira);
 
-    $dados = Livewire::actingAs($this->admin)->test(Paineis::class)->viewData('conversas');
+    $dados = Livewire::actingAs($this->admin)->test(Paineis::class)->viewData('atendimentos')->groupBy('funnel_stage_id');
 
     expect($dados[$primeira->id])->toHaveCount(2);
 });
@@ -227,7 +241,7 @@ it('o quadro agrupa os cartoes por coluna', function () {
 it('mostra as conversas que ainda nao entraram no funil', function () {
     // Sem esta coluna, por o primeiro cartao no quadro exigiria abrir a conversa e voltar — e
     // ninguem descobre sozinho que da para fazer isso.
-    Livewire::actingAs($this->admin)->test(Paineis::class)->call('criarPadrao');
+    Livewire::actingAs($this->admin)->test(Paineis::class)->set('novoPainel', 'Funil')->call('criarFunil')->assertHasNoErrors();
     conversaFunil($this, 'Ainda fora');
 
     $fora = Livewire::actingAs($this->admin)->test(Paineis::class)->viewData('foraDoFunil');
@@ -236,7 +250,7 @@ it('mostra as conversas que ainda nao entraram no funil', function () {
 });
 
 it('conversa arquivada nao aparece em "fora do funil"', function () {
-    Livewire::actingAs($this->admin)->test(Paineis::class)->call('criarPadrao');
+    Livewire::actingAs($this->admin)->test(Paineis::class)->set('novoPainel', 'Funil')->call('criarFunil')->assertHasNoErrors();
     conversaFunil($this, 'Encerrada')->update(['status' => Conversation::ARQUIVADA]);
 
     expect(Livewire::actingAs($this->admin)->test(Paineis::class)->viewData('foraDoFunil'))
@@ -245,6 +259,8 @@ it('conversa arquivada nao aparece em "fora do funil"', function () {
 
 it('o quadro vazio convida a criar as colunas', function () {
     Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->assertSee('Você ainda não tem nenhum funil')
-        ->assertSee('Criar meu primeiro funil');
+        ->assertSee('Nenhum painel disponível')
+        ->assertSee('Criar painel')
+        ->set('novoPainel', 'Meu primeiro painel')->call('criarFunil')->assertHasNoErrors()
+        ->assertSee('Meu primeiro painel');
 });

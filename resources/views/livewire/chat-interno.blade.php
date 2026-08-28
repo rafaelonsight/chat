@@ -71,6 +71,12 @@
                                         ? 'bg-emerald-600 text-white'
                                         : 'bg-white text-gray-800 ring-1 ring-gray-200 dark:bg-gray-800 dark:text-gray-100 dark:ring-white/10' }}">
                             <p class="whitespace-pre-wrap break-words">{{ \App\Support\TextoComLinks::render($recado->corpo) }}</p>
+                            @if($recado->file_path)
+                                @if(str_starts_with($recado->file_mime??'','audio/') || in_array($recado->file_mime,['video/webm','video/mp4']))
+                                    <div x-data><audio x-ref="player" @play="document.querySelectorAll('audio').forEach(a=>{if(a!==$el)a.pause()})" controls preload="none" style="max-width:230px" src="{{ route('internal-media',$recado->id) }}"></audio><select aria-label="Velocidade do áudio {{ $recado->id }}" @change="$refs.player.playbackRate=Number($event.target.value)"><option value="1">1×</option><option value="1.5">1,5×</option><option value="2">2×</option></select></div>
+                                @endif
+                                <a class="underline" href="{{ route('internal-media',$recado->id) }}" target="_blank" rel="noopener">{{ $recado->file_name }}</a>
+                            @endif
                             <p class="mt-0.5 text-[10px] {{ $meu ? 'text-emerald-100/80' : 'text-gray-400' }}">
                                 {{ $recado->created_at?->format('d/m H:i') }}
                             </p>
@@ -83,11 +89,19 @@
                 @endforelse
             </div>
 
+            <div class="p-2 border-t" x-data="{rec:null,stream:null,chunks:[],url:null,blob:null,recording:false,error:'',timer:null,ticker:null,seconds:0,cancelled:false,async start(){if(this.recording)return;this.discard();this.cancelled=false;try{this.stream=await navigator.mediaDevices.getUserMedia({audio:true});this.chunks=[];this.rec=new MediaRecorder(this.stream);this.rec.ondataavailable=e=>{if(e.data.size)this.chunks.push(e.data)};this.rec.onstop=()=>{this.recording=false;this.stream.getTracks().forEach(t=>t.stop());if(this.cancelled)return;this.blob=new Blob(this.chunks,{type:this.rec.mimeType});this.url=URL.createObjectURL(this.blob);this.stream.getTracks().forEach(t=>t.stop());this.recording=false};this.rec.start();this.recording=true;this.seconds=0;this.ticker=setInterval(()=>this.seconds++,1000);this.timer=setTimeout(()=>this.stop(),300000)}catch(e){this.error='Não foi possível acessar o microfone. Verifique a permissão ou anexe um áudio.'}},stop(){clearTimeout(this.timer);clearInterval(this.ticker);if(this.rec?.state==='recording')this.rec.stop()},discard(){this.cancelled=true;this.stop();$wire.arquivo=null;if(this.url)URL.revokeObjectURL(this.url);this.url=null;this.blob=null},send(){if(!this.blob)return;let ext=this.blob.type.includes('mp4')?'m4a':(this.blob.type.includes('ogg')?'ogg':'webm');$wire.upload('arquivo',new File([this.blob],'audio.'+ext,{type:this.blob.type}),()=>{this.error='Áudio anexado. Clique em Enviar.'},()=>{this.error='Falha no upload. Tente novamente.'})},destroy(){clearTimeout(this.timer);clearInterval(this.ticker);if(this.stream)this.stream.getTracks().forEach(t=>t.stop());if(this.url)URL.revokeObjectURL(this.url)}}" @internal-media-sent.window="discard()">
+                <p x-show="recording" x-text="'Gravando: '+seconds+'s / 300s'" role="status"></p>
+                <input type="file" wire:model="arquivo" aria-label="Anexar arquivo ao chat" style="max-width:100%;font-size:11px">
+                <div style="display:flex;gap:10px;margin:6px 0"><button type="button" x-show="!recording" @click="start()">Gravar áudio</button><button type="button" x-show="recording" x-cloak @click="stop()">Parar gravação</button><button type="button" x-show="url" x-cloak @click="send()">Usar áudio</button><button type="button" x-show="url" x-cloak @click="discard()">Descartar</button></div>
+                <audio x-show="url" x-cloak :src="url" controls style="max-width:100%"></audio><p x-text="error" style="font-size:11px" role="status"></p>
+                @if($arquivo)<p class="text-xs">Anexo pronto: {{ $arquivo->getClientOriginalName() }}</p>@endif
+                @error('arquivo')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
+            </div>
             <form wire:submit="enviar" class="flex items-center gap-2 border-t border-gray-200 p-2 dark:border-white/10">
                 <input type="text" wire:model="texto" autocomplete="off"
                        placeholder="Escreva um recado"
                        class="min-w-0 flex-1 rounded border border-slate-300 px-2.5 py-1.5 text-sm dark:border-white/10 dark:bg-gray-800 dark:text-gray-100">
-                <button type="submit"
+                <button type="submit" wire:loading.attr="disabled"
                         class="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
                     Enviar
                 </button>

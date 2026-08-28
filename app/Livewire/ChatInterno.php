@@ -26,6 +26,8 @@ use Livewire\Component;
  */
 class ChatInterno extends Component
 {
+    use \Livewire\WithFileUploads;
+    public $arquivo;
     public bool $aberto = false;
 
     /** Com quem estou falando agora. */
@@ -38,8 +40,10 @@ class ChatInterno extends Component
 
     public function abrir(int $usuarioId): void
     {
+        User::where('tenant_id',auth()->user()->tenant_id)->findOrFail($usuarioId);
         $this->comQuem = $usuarioId;
         $this->texto = '';
+        $this->arquivo = null;
         $this->marcarLidas();
     }
 
@@ -50,8 +54,10 @@ class ChatInterno extends Component
 
     public function enviar(): void
     {
+        $this->texto=trim($this->texto);
         $this->validate([
-            'texto'   => 'required|string|max:2000',
+            'texto'   => 'required_without:arquivo|nullable|string|max:2000',
+            'arquivo' => 'nullable|file|max:25600|mimes:pdf,txt,csv,png,jpg,jpeg,webp,doc,docx,xls,xlsx,zip,mp3,wav,ogg,webm,m4a,mp4',
             'comQuem' => 'required|integer',
         ]);
 
@@ -67,16 +73,22 @@ class ChatInterno extends Component
             return;
         }
 
-        $recado = DirectMessage::create([
-            'tenant_id'    => auth()->user()->tenant_id,
-            'de_user_id'   => auth()->id(),
-            'para_user_id' => $destino->id,
-            'corpo'        => trim($this->texto),
-        ]);
+        $persist=function(array $media=[])use($destino){return DirectMessage::create([
+            'tenant_id'=>auth()->user()->tenant_id,'de_user_id'=>auth()->id(),
+            'para_user_id'=>$destino->id,'corpo'=>trim($this->texto),
+        ]+$media);};
+        if($this->arquivo){
+            \App\Support\InternalMediaValidation::check($this->arquivo);
+            $recado=app(\App\Support\StoreTaskMedia::class)->store(auth()->user()->tenant_id,$this->arquivo,'internal-media',fn($path)=>$persist(['file_path'=>$path,
+                'file_name'=>mb_substr(basename($this->arquivo->getClientOriginalName()),0,200),'file_mime'=>$this->arquivo->getMimeType(),'file_size'=>$this->arquivo->getSize()]));
+        }else{$recado=$persist();}
 
-        broadcast(new RecadoDireto($recado))->toOthers();
+        try{broadcast(new RecadoDireto($recado))->toOthers();}
+        catch(\Throwable $e){\Illuminate\Support\Facades\Log::warning('Internal message stored; broadcast failed',['message_id'=>$recado->id,'exception'=>$e::class]);}
 
         $this->texto = '';
+        $this->arquivo = null;
+        $this->dispatch('internal-media-sent');
     }
 
     /**

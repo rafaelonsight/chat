@@ -26,6 +26,8 @@ it('notifica o responsável e não repete em salvamento sem reatribuição', fun
     expect($this->autor->notifications()->count())->toBe(0);
     $item->update(['titulo' => 'Novo título']);
     expect($this->colega->notifications()->count())->toBe(1);
+    Event::assertNotDispatched(AvisoColaboracao::class);
+    \Illuminate\Support\Facades\Artisan::call('virtus:task-notices');
     Event::assertDispatched(AvisoColaboracao::class, fn ($e) => $e->userId === $this->colega->id && str_contains($e->url, '&item='.$item->id));
 });
 

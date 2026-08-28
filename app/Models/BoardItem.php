@@ -26,6 +26,10 @@ class BoardItem extends Model
             \App\Support\AvisoDeItem::enviar($item, [$item->responsavel_id], 'Nova tarefa atribuída a você');
         });
         static::updated(function (self $item) {
+            $changed=array_intersect(array_keys($item->getChanges()),['titulo','descricao','prioridade','prazo_em','inicio_em','contact_id','dados','arquivado_em','recorrencia']);
+            if($changed){
+                $item->updates()->create(['tenant_id'=>$item->tenant_id,'user_id'=>auth()->id(),'tipo'=>'edicao','corpo'=>'Propriedades atualizadas: '.implode(', ',$changed).'.']);
+            }
             if ($item->wasChanged('responsavel_id')) {
                 \App\Support\AvisoDeItem::enviar($item, [$item->responsavel_id], 'Nova tarefa atribuída a você');
             }
@@ -35,7 +39,9 @@ class BoardItem extends Model
                     'tenant_id' => $item->tenant_id, 'user_id' => auth()->id(),
                     'tipo' => 'status', 'corpo' => 'Status alterado para '.($etapa?->nome ?? 'outra coluna'),
                 ]);
-                $ids = $item->updates()->pluck('user_id')->push($item->responsavel_id)->all();
+                $ids = $item->updates()->pluck('user_id')->push($item->responsavel_id)
+                    ->merge($item->responsaveis()->pluck('users.id'))
+                    ->merge(\Illuminate\Support\Facades\DB::table('board_watchers')->where('board_item_id',$item->id)->pluck('user_id'))->all();
                 \App\Support\AvisoDeItem::enviar($item, $ids, 'Status de tarefa atualizado');
             }
         });
@@ -44,6 +50,8 @@ class BoardItem extends Model
     protected $fillable = [
         'tenant_id', 'funnel_id', 'funnel_stage_id', 'contact_id', 'responsavel_id',
         'titulo', 'descricao', 'prioridade', 'prazo_em', 'etapa_em', 'dados', 'arquivado_em',
+        'parent_id', 'created_by', 'version', 'checklist',
+        'inicio_em','modelo','recorrencia','occurrence_of',
     ];
 
     protected $casts = [
@@ -51,6 +59,10 @@ class BoardItem extends Model
         'etapa_em' => 'datetime',
         'arquivado_em' => 'datetime',
         'dados' => 'array',
+        'checklist' => 'array',
+        'version' => 'integer',
+        'inicio_em' => 'datetime',
+        'modelo' => 'boolean',
     ];
 
     protected $attributes = ['prioridade' => 'normal', 'dados' => '{}'];
@@ -79,5 +91,10 @@ class BoardItem extends Model
     {
         return $this->belongsToMany(Tag::class)
             ->withPivot(['origem', 'aplicado_por', 'created_at']);
+    }
+
+    public function responsaveis(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'board_item_assignees')->withPivot('tenant_id');
     }
 }

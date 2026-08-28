@@ -1,498 +1,80 @@
 <x-filament-panels::page>
-    {{--
-        AS ABAS DOS QUADROS.
-
-        Uma empresa que vende e tambem faz suporte precisa de dois processos: "Orçamento,
-        Negociação, Fechado" não descreve um chamado técnico, e forçar os dois no mesmo quadro
-        faz a pessoa inventar etapas que não servem para nenhum dos dois.
-
-        Abas e não menu suspenso: com dois ou três quadros, ver todos de uma vez é o que faz
-        alguém lembrar que o outro existe.
-    --}}
-    @if ($funis->isNotEmpty())
-        <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-gray-900">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div class="flex min-w-0 flex-wrap items-center gap-2" role="tablist" aria-label="Painéis do CRM">
-                    @foreach ($funis as $f)
-                        <a role="tab" aria-selected="{{ $f->id === $funilId ? 'true' : 'false' }}"
-                                wire:key="fn-{{ $f->id }}" wire:navigate
-                                href="{{ route('filament.admin.pages.paineis', ['painel' => $f->id]) }}"
-                                @class([
-                                    'rounded-lg px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900',
-                                    'bg-emerald-600 text-white shadow-sm' => $f->id === $funilId,
-                                    'border border-gray-200 text-gray-700 hover:border-emerald-300 hover:bg-emerald-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-emerald-500/10' => $f->id !== $funilId,
-                                ])>
-                            {{ $f->nome }}
-                        </a>
-                    @endforeach
-                </div>
-
-                <div class="flex shrink-0 items-center gap-2">
-                    <x-filament::button size="sm" color="gray" wire:click="$toggle('editandoFunis')">
-                        Gerenciar
-                    </x-filament::button>
-                    <x-filament::button size="sm" icon="heroicon-o-plus" wire:click="abrirCriacao">
-                        Novo painel
-                    </x-filament::button>
-                </div>
-            </div>
-
-            <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                Cada painel tem colunas e cartões próprios. Trocar de aba não altera os outros painéis.
-            </p>
-        </div>
-    @endif
-
-    @if ($criandoFunil)
-        <x-filament::section>
-            <x-slot name="heading">Criar novo painel</x-slot>
-            <x-slot name="description">O painel atual será mantido. O novo começa com cinco colunas que você poderá editar.</x-slot>
-
-            <form wire:submit="criarFunil" class="flex flex-col gap-3 sm:flex-row sm:items-end">
-                <label class="min-w-0 flex-1">
-                    <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Nome do novo painel</span>
-                    <input type="text" wire:model="nomeDoNovoFunil" maxlength="60" autofocus
-                           placeholder="Ex.: Comercial, Suporte ou Cobrança"
-                           class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                    @error('nomeDoNovoFunil') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
-                </label>
-
-                <div class="flex gap-2">
-                    <x-filament::button type="submit">Criar painel</x-filament::button>
-                    <x-filament::button type="button" color="gray" wire:click="cancelarCriacao">Cancelar</x-filament::button>
-                </div>
-            </form>
-        </x-filament::section>
-    @endif
-
-    {{-- ----------------------------------------------------- gerenciar os funis --}}
-    @if ($editandoFunis)
-        <x-filament::section>
-            <x-slot name="heading">Gerenciar painéis</x-slot>
-            <x-slot name="description">
-                Cada painel tem as próprias etapas e os próprios cartões. Uma conversa fica em
-                <strong>um painel de cada vez</strong> — o cartão é a conversa, e ela está num
-                ponto de um processo.
-            </x-slot>
-
-            <div class="space-y-2">
-                @foreach ($funis as $f)
-                    <div wire:key="gf-{{ $f->id }}" class="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 p-2 dark:border-white/10">
-                        <input type="text" value="{{ $f->nome }}" maxlength="60"
-                               wire:change="renomearFunil({{ $f->id }}, $event.target.value)"
-                               class="min-w-44 flex-1 rounded border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-
-                        <span class="text-xs text-gray-500">{{ $f->stages()->count() }} etapa(s)</span>
-
-                        <x-filament::button size="xs" color="danger" wire:click="excluirFunil({{ $f->id }})"
-                            wire:confirm="Excluir este funil? As etapas vão junto e os cartões voltam para fora do funil. As conversas não são apagadas.">
-                            Excluir
-                        </x-filament::button>
-                    </div>
-                @endforeach
-            </div>
-
-            <div class="mt-4 flex justify-end">
-                <x-filament::button color="gray" wire:click="$set('editandoFunis', false)">Fechar</x-filament::button>
-            </div>
-        </x-filament::section>
-    @endif
-
-    @if ($etapas->isEmpty() && ! $editandoColunas && ! $editandoFunis)
-        {{-- Funil vazio nao ensina nada: a pessoa abre, ve um quadro em branco e fecha. --}}
-        <div class="rounded-xl border border-dashed border-gray-300 p-10 text-center dark:border-white/20">
-            <p class="text-base font-medium text-gray-700 dark:text-gray-200">Você ainda não tem nenhum funil</p>
-            <p class="mx-auto mt-2 max-w-lg text-sm text-gray-500 dark:text-gray-400">
-                Comece com as cinco mais comuns — Novo, Orçamento, Negociação, Fechado e
-                Perdido — e renomeie o que não servir. Leva trinta segundos.
-            </p>
-            <div class="mt-4 flex justify-center gap-2">
-                <x-filament::button wire:click="criarPadrao">Criar meu primeiro funil</x-filament::button>
-                <x-filament::button color="gray" wire:click="editarColunas">Montar do zero</x-filament::button>
-            </div>
-        </div>
-    @endif
-
-    {{-- ------------------------------------------------------- editor de colunas --}}
-    @if ($editandoColunas)
-        <x-filament::section>
-            <x-slot name="heading">As colunas do seu funil</x-slot>
-            <x-slot name="description">
-                A ordem aqui é a ordem no quadro. Apagar uma coluna <strong>não apaga as
-                conversas</strong> — elas voltam para fora do funil.
-            </x-slot>
-
-            @error('colunas') <p class="mb-2 text-xs text-red-600">{{ $message }}</p> @enderror
-
-            <div class="space-y-2">
-                @foreach ($colunas as $i => $c)
-                    <div wire:key="col-{{ $i }}" class="flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 p-2 dark:border-white/10">
-                        <span class="text-xs text-gray-400">{{ $i + 1 }}</span>
-
-                        <input type="text" wire:model="colunas.{{ $i }}.nome" placeholder="Nome da coluna"
-                               class="min-w-40 flex-1 rounded border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-
-                        <select wire:model="colunas.{{ $i }}.cor"
-                                class="rounded border-gray-300 text-xs dark:border-white/20 dark:bg-gray-800">
-                            @foreach (['cinza','azul','verde','ambar','vermelho','roxo','turquesa'] as $cor)
-                                <option value="{{ $cor }}">{{ ucfirst($cor) }}</option>
-                            @endforeach
-                        </select>
-
-                        <label class="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
-                            <input type="checkbox" wire:model="colunas.{{ $i }}.encerra" class="rounded border-gray-300">
-                            encerra o negócio
-                        </label>
-
-                        <button type="button" wire:click="removerColuna({{ $i }})"
-                                class="ml-auto rounded px-2 text-sm text-gray-400 hover:text-red-600">&times;</button>
-
-                        @error("colunas.{$i}.nome") <span class="w-full text-xs text-red-600">{{ $message }}</span> @enderror
-                    </div>
-                @endforeach
-            </div>
-
-            <div class="mt-3 flex gap-2">
-                <x-filament::button size="sm" color="gray" wire:click="adicionarColuna">Mais uma coluna</x-filament::button>
-                <x-filament::button size="sm" wire:click="salvarColunas">Salvar</x-filament::button>
-                <x-filament::button size="sm" color="gray" wire:click="$set('editandoColunas', false)">Cancelar</x-filament::button>
-            </div>
-        </x-filament::section>
-    @endif
-
-    {{-- -------------------------------------------- campos personalizados do painel --}}
-    @if ($editandoCampos)
-        <x-filament::section>
-            <x-slot name="heading">Campos dos cartões</x-slot>
-            <x-slot name="description">
-                Estes campos aparecem somente nos cartões deste painel. Contato, responsável,
-                prioridade e prazo já fazem parte de todos os painéis.
-            </x-slot>
-
-            <div class="space-y-2">
-                @foreach ($campos as $i => $campo)
-                    <div wire:key="campo-{{ $i }}" class="grid gap-2 rounded-lg border border-gray-200 p-3 md:grid-cols-[1fr_11rem_1fr_auto_auto] md:items-center dark:border-white/10">
-                        <input type="text" wire:model="campos.{{ $i }}.nome" placeholder="Nome do campo"
-                               class="rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-
-                        <select wire:model.live="campos.{{ $i }}.tipo"
-                                class="rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                            @foreach (\App\Models\BoardField::TIPOS as $valor => $rotulo)
-                                <option value="{{ $valor }}">{{ $rotulo }}</option>
-                            @endforeach
-                        </select>
-
-                        @if (($campo['tipo'] ?? '') === 'lista')
-                            <input type="text" wire:model="campos.{{ $i }}.opcoes" placeholder="Opção A, Opção B, Opção C"
-                                   class="rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                        @else
-                            <span class="hidden text-xs text-gray-400 md:block">—</span>
-                        @endif
-
-                        <label class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
-                            <input type="checkbox" wire:model="campos.{{ $i }}.obrigatorio" class="rounded border-gray-300">
-                            obrigatório
-                        </label>
-
-                        <button type="button" wire:click="removerCampo({{ $i }})"
-                                class="rounded px-2 py-1 text-sm text-gray-400 hover:bg-red-50 hover:text-red-600">Remover</button>
-
-                        @error("campos.{$i}.nome") <span class="text-xs text-red-600 md:col-span-5">{{ $message }}</span> @enderror
-                    </div>
-                @endforeach
-
-                @if (empty($campos))
-                    <p class="rounded-lg bg-gray-50 p-4 text-sm text-gray-500 dark:bg-white/5 dark:text-gray-400">
-                        Este painel ainda usa apenas os campos padrão.
-                    </p>
-                @endif
-            </div>
-
-            <div class="mt-3 flex flex-wrap gap-2">
-                <x-filament::button size="sm" color="gray" wire:click="adicionarCampo">Adicionar campo</x-filament::button>
-                <x-filament::button size="sm" wire:click="salvarCampos">Salvar campos</x-filament::button>
-                <x-filament::button size="sm" color="gray" wire:click="$set('editandoCampos', false)">Cancelar</x-filament::button>
-            </div>
-        </x-filament::section>
-    @endif
-
-    {{-- ------------------------------------------------ criar ou editar cartao generico --}}
-    @if ($editandoItem)
-        <x-filament::section>
-            <x-slot name="heading">{{ $itemId ? 'Editar item' : 'Novo item' }}</x-slot>
-            <x-slot name="description">Pode ser uma oportunidade, chamado, tarefa, cobrança ou qualquer outro trabalho.</x-slot>
-
-            <form wire:submit="salvarItem" class="space-y-4">
-                <div class="grid gap-3 md:grid-cols-2">
-                    <label class="md:col-span-2">
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Título</span>
-                        <input type="text" wire:model="tituloDoItem" maxlength="160" autofocus
-                               placeholder="O que precisa ser acompanhado?"
-                               class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                        @error('tituloDoItem') <span class="mt-1 block text-xs text-red-600">{{ $message }}</span> @enderror
-                    </label>
-
-                    <label>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Contato</span>
-                        <select wire:model="contatoDoItem" class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                            <option value="">Sem contato</option>
-                            @foreach ($contatos as $contato)
-                                <option value="{{ $contato->id }}">{{ $contato->nomeExibicao() }}{{ $contato->telefone_e164 ? ' · '.$contato->telefone_e164 : '' }}</option>
-                            @endforeach
-                        </select>
-                    </label>
-
-                    <label>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Responsável</span>
-                        <select wire:model="responsavelDoItem" class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                            <option value="">Sem responsável</option>
-                            @foreach ($responsaveis as $pessoa)
-                                <option value="{{ $pessoa->id }}">{{ $pessoa->name }}</option>
-                            @endforeach
-                        </select>
-                    </label>
-
-                    <fieldset class="md:col-span-2">
-                        <legend class="text-sm font-medium text-gray-700 dark:text-gray-200">Etiquetas</legend>
-                        @if ($etiquetasDeItem->isNotEmpty())
-                            <div class="mt-2 flex flex-wrap gap-2">
-                                @foreach ($etiquetasDeItem as $etiqueta)
-                                    @php $selecionada = in_array($etiqueta->id, array_map('intval', $etiquetasDoItem), true); @endphp
-                                    <button type="button" wire:key="etiqueta-item-{{ $etiqueta->id }}"
-                                            wire:click="alternarEtiqueta({{ $etiqueta->id }})"
-                                            aria-pressed="{{ $selecionada ? 'true' : 'false' }}"
-                                            @class([
-                                                'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs ring-1 transition focus:outline-none focus:ring-2 focus:ring-emerald-500',
-                                                $etiqueta->classes(),
-                                                'opacity-60 hover:opacity-90' => ! $selecionada,
-                                                'font-semibold opacity-100 ring-2' => $selecionada,
-                                            ])>
-                                        @if ($selecionada)<span aria-hidden="true">✓</span>@endif
-                                        {{ $etiqueta->nome }}
-                                    </button>
-                                @endforeach
-                            </div>
-                        @else
-                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                Nenhuma etiqueta de item cadastrada. Crie em Configurações → Etiquetas.
-                            </p>
-                        @endif
-                    </fieldset>
-
-                    <label>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Prioridade</span>
-                        <select wire:model="prioridadeDoItem" class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                            <option value="baixa">Baixa</option>
-                            <option value="normal">Normal</option>
-                            <option value="alta">Alta</option>
-                            <option value="urgente">Urgente</option>
-                        </select>
-                    </label>
-
-                    <label>
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Prazo</span>
-                        <input type="datetime-local" wire:model="prazoDoItem"
-                               class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                    </label>
-
-                    @foreach ($camposDoPainel as $campo)
-                        <label>
-                            <span class="text-sm font-medium text-gray-700 dark:text-gray-200">
-                                {{ $campo->nome }} @if ($campo->obrigatorio)<span class="text-red-500">*</span>@endif
-                            </span>
-
-                            @if ($campo->tipo === 'lista')
-                                <select wire:model="valoresDoItem.{{ $campo->id }}" class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                                    <option value="">Selecione</option>
-                                    @foreach ($campo->opcoes ?? [] as $opcao)<option value="{{ $opcao }}">{{ $opcao }}</option>@endforeach
-                                </select>
-                            @elseif ($campo->tipo === 'checkbox')
-                                <span class="mt-2 flex items-center gap-2 text-sm">
-                                    <input type="checkbox" wire:model="valoresDoItem.{{ $campo->id }}" class="rounded border-gray-300"> Sim
-                                </span>
-                            @else
-                                <input type="{{ in_array($campo->tipo, ['numero', 'dinheiro']) ? 'number' : ($campo->tipo === 'data' ? 'date' : 'text') }}"
-                                       @if ($campo->tipo === 'dinheiro') step="0.01" @endif
-                                       wire:model="valoresDoItem.{{ $campo->id }}"
-                                       class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                            @endif
-                            @error('valoresDoItem.'.$campo->id) <span class="mt-1 block text-xs text-red-600">Campo obrigatório.</span> @enderror
-                        </label>
-                    @endforeach
-
-                    <label class="md:col-span-2">
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-200">Descrição</span>
-                        <textarea wire:model="descricaoDoItem" rows="3" placeholder="Contexto, próximos passos ou detalhes"
-                                  class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800"></textarea>
-                    </label>
-                </div>
-
-                <div class="flex flex-wrap justify-between gap-2">
-                    <div>
-                        @if ($itemId)
-                            <x-filament::button type="button" size="sm" color="danger" wire:click="arquivarItem({{ $itemId }})" wire:confirm="Arquivar este item?">
-                                Arquivar
-                            </x-filament::button>
-                        @endif
-                    </div>
-                    <div class="flex gap-2">
-                        <x-filament::button type="button" color="gray" wire:click="cancelarItem">Cancelar</x-filament::button>
-                        <x-filament::button type="submit">Salvar item</x-filament::button>
-                    </div>
-                </div>
-            </form>
-            @if ($itemId)
-                <livewire:board-item-discussion :item-id="$itemId" :key="'discussion-'.$itemId" />
-            @endif
-        </x-filament::section>
-    @endif
-
-    {{-- ------------------------------------------------------------- o quadro --}}
-    @if ($etapas->isNotEmpty() && ! $editandoColunas)
-        <div class="flex flex-wrap justify-end gap-2">
-            <x-filament::button size="sm" color="gray" wire:click="editarCampos">Campos dos cartões</x-filament::button>
-            <x-filament::button size="sm" color="gray" wire:click="editarColunas">Editar colunas</x-filament::button>
-        </div>
-
-        {{--
-            Arrastar com HTML puro, sem biblioteca: dragstart guarda o id, dragover libera o
-            alvo, drop chama o servidor. Uma biblioteca de kanban traria trezentos kilobytes
-            para fazer estas tres linhas.
-
-            E OS BOTOES DE SETA EXISTEM PORQUE ARRASTAR NAO FUNCIONA NO CELULAR — o atendente
-            trabalha do telefone o dia todo, e um quadro que so responde a mouse seria um
-            quadro que metade da equipe nao usa.
-        --}}
-        <div class="flex gap-3 overflow-x-auto pb-4">
-            @foreach ($etapas as $indice => $etapa)
-                @php $cartoes = $conversas[$etapa->id] ?? collect(); @endphp
-                @php $itensDaEtapa = $itens[$etapa->id] ?? collect(); @endphp
-
-                <div wire:key="etapa-{{ $etapa->id }}"
-                     x-on:dragover.prevent
-                     x-on:drop.prevent="
-                        const item = $event.dataTransfer.getData('item');
-                        const conversa = $event.dataTransfer.getData('cartao');
-                        if (item) $wire.moverItem(parseInt(item), {{ $etapa->id }});
-                        else if (conversa) $wire.mover(parseInt(conversa), {{ $etapa->id }});
-                     "
-                     class="flex w-64 shrink-0 flex-col rounded-xl border border-gray-200 bg-gray-50 p-2 dark:border-white/10 dark:bg-white/5">
-
-                    <div class="mb-2 flex items-center gap-2 px-1">
-                        <span class="h-2.5 w-2.5 rounded-full {{ $etapa->pontinho() }}"></span>
-                        <span class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ $etapa->nome }}</span>
-                        <span class="ml-auto text-xs text-gray-500">{{ $cartoes->count() + $itensDaEtapa->count() }}</span>
-                    </div>
-
-                    <div class="space-y-2">
-                        @foreach ($itensDaEtapa as $item)
-                            <button type="button" wire:key="item-{{ $item->id }}" draggable="true"
-                                    x-on:dragstart="$event.dataTransfer.setData('item', '{{ $item->id }}')"
-                                    wire:click="editarItem({{ $item->id }})"
-                                    class="block w-full cursor-grab rounded-lg border border-gray-200 bg-white p-2 text-left shadow-sm transition hover:border-emerald-300 hover:shadow active:cursor-grabbing dark:border-white/10 dark:bg-gray-900">
-                                <div class="flex items-start gap-2">
-                                    <span @class([
-                                        'mt-1 h-2 w-2 shrink-0 rounded-full',
-                                        'bg-gray-300' => $item->prioridade === 'baixa',
-                                        'bg-blue-400' => $item->prioridade === 'normal',
-                                        'bg-amber-500' => $item->prioridade === 'alta',
-                                        'bg-red-500' => $item->prioridade === 'urgente',
-                                    ])></span>
-                                    <span class="line-clamp-2 text-sm font-medium text-gray-800 dark:text-gray-100">{{ $item->titulo }}</span>
-                                </div>
-
-                                @if ($item->contact)
-                                    <div class="mt-1 truncate text-xs text-emerald-700 dark:text-emerald-400">{{ $item->contact->nomeExibicao() }}</div>
-                                @endif
-
-                                @if ($item->tags->isNotEmpty())
-                                    <div class="mt-1.5 flex flex-wrap gap-1">
-                                        @foreach ($item->tags as $etiqueta)
-                                            <span class="rounded-full px-1.5 py-0.5 text-[10px] ring-1 {{ $etiqueta->classes() }}">{{ $etiqueta->nome }}</span>
-                                        @endforeach
-                                    </div>
-                                @endif
-
-                                <div class="mt-1.5 flex items-center justify-between gap-2 text-[11px] text-gray-500">
-                                    <span class="truncate">{{ $item->responsavel?->name ?? 'sem responsável' }}</span>
-                                    @if ($item->prazo_em)
-                                        <span @class(['text-red-600' => $item->prazo_em->isPast()]) title="Prazo">
-                                            {{ $item->prazo_em->format('d/m H:i') }}
-                                        </span>
-                                    @endif
-                                </div>
-                            </button>
-                        @endforeach
-
-                        @foreach ($cartoes as $c)
-                            <div wire:key="cartao-{{ $c->id }}" draggable="true"
-                                 x-on:dragstart="$event.dataTransfer.setData('cartao', '{{ $c->id }}')"
-                                 class="cursor-grab rounded-lg border border-gray-200 bg-white p-2 shadow-sm active:cursor-grabbing dark:border-white/10 dark:bg-gray-900">
-
-                                <div class="truncate text-sm font-medium text-gray-800 dark:text-gray-100">
-                                    {{ $c->contact?->nomeExibicao() }}
-                                </div>
-
-                                <div class="mt-0.5 flex items-center justify-between gap-2 text-[11px] text-gray-500">
-                                    <span>{{ $c->atendente?->name ?? 'sem dono' }}</span>
-                                    {{-- Ha quanto tempo parado NESTA etapa. E a unica pergunta
-                                         que faz um funil valer alguma coisa. --}}
-                                    <span title="nesta coluna desde {{ $c->etapa_em?->format('d/m H:i') }}">
-                                        {{ $c->etapa_em?->diffForHumans(short: true) }}
-                                    </span>
-                                </div>
-
-                                <div class="mt-1.5 flex items-center gap-1">
-                                    @if ($indice > 0)
-                                        <button type="button" wire:click="mover({{ $c->id }}, {{ $etapas[$indice - 1]->id }})"
-                                                title="Voltar para {{ $etapas[$indice - 1]->nome }}"
-                                                class="rounded px-1.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-700">&larr;</button>
-                                    @endif
-
-                                    <a href="{{ route('filament.admin.pages.atendimento') }}?conversa={{ $c->id }}"
-                                       class="rounded px-1.5 text-xs text-gray-400 hover:text-emerald-700">abrir</a>
-
-                                    @if ($indice < $etapas->count() - 1)
-                                        <button type="button" wire:click="mover({{ $c->id }}, {{ $etapas[$indice + 1]->id }})"
-                                                title="Avançar para {{ $etapas[$indice + 1]->nome }}"
-                                                class="ml-auto rounded px-1.5 text-xs text-gray-400 hover:bg-gray-100 hover:text-gray-700">&rarr;</button>
-                                    @endif
-                                </div>
-                            </div>
-                        @endforeach
-
-                        @if ($cartoes->isEmpty() && $itensDaEtapa->isEmpty())
-                            <p class="px-1 py-3 text-center text-xs text-gray-400">vazia</p>
-                        @endif
-
-                        <button type="button" wire:click="abrirNovoItem({{ $etapa->id }})"
-                                class="w-full rounded-lg border border-dashed border-gray-300 px-2 py-2 text-xs font-medium text-gray-500 transition hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 dark:border-white/15 dark:hover:bg-emerald-500/10">
-                            + Adicionar item
-                        </button>
-                    </div>
-                </div>
-            @endforeach
-
-            {{-- De onde saem os primeiros cartoes. --}}
-            <div class="flex w-64 shrink-0 flex-col rounded-xl border border-dashed border-gray-300 p-2 dark:border-white/20">
-                <p class="mb-2 px-1 text-sm font-medium text-gray-600 dark:text-gray-300">Fora do funil</p>
-
-                @forelse ($foraDoFunil as $c)
-                    <div wire:key="fora-{{ $c->id }}" draggable="true"
-                         x-on:dragstart="$event.dataTransfer.setData('cartao', '{{ $c->id }}')"
-                         class="mb-2 cursor-grab rounded-lg border border-gray-200 bg-white p-2 dark:border-white/10 dark:bg-gray-900">
-                        <div class="truncate text-sm text-gray-800 dark:text-gray-100">{{ $c->contact?->nomeExibicao() }}</div>
-                        <button type="button" wire:click="mover({{ $c->id }}, {{ $etapas->first()->id }})"
-                                class="mt-1 text-[11px] text-emerald-700 hover:underline">
-                            pôr em {{ $etapas->first()->nome }}
-                        </button>
-                    </div>
-                @empty
-                    <p class="px-1 py-3 text-center text-xs text-gray-400">
-                        Todas as conversas abertas já estão no funil.
-                    </p>
-                @endforelse
-            </div>
-        </div>
-    @endif
+<style>
+.vt{--gold:#E8A924;--line:#e4e6ea;--muted:#69717d;color:#22252a;font-size:14px}.dark .vt{color:#eee;--line:#41444b;--muted:#b0b4bc}.vt button,.vt input,.vt select,.vt textarea{font:inherit}.vt button{cursor:pointer;border:1px solid var(--line);border-radius:7px;padding:8px 12px;background:transparent}.vt button:hover{background:#e8a92420}.vt button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}.vt .primary{background:var(--gold);color:#241b08;border-color:var(--gold);font-weight:600}.vt .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.vt .between{justify-content:space-between}.vt .muted{color:var(--muted);font-size:12px}.vt input:not([type=checkbox]),.vt select,.vt textarea{border:1px solid var(--line);border-radius:6px;padding:9px;width:100%;background:transparent}.vt .toolbar{padding:16px 0}.vt .toolbar input[type=search]{width:260px}.vt .surface{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}.dark .vt .surface{background:#202126}.vt .tabs{border-bottom:1px solid var(--line);padding-bottom:14px;margin:20px 0}.vt .active{border-color:var(--gold);background:#e8a92420}.vt table{width:100%;border-collapse:collapse}.vt th,.vt td{text-align:left;padding:13px 15px;border-bottom:1px solid var(--line)}.vt th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}.vt .table{overflow:auto}.vt .titlebutton{border:0;padding:0;text-align:left;font-weight:600}.vt .badge{font-size:11px;padding:3px 7px;border-radius:4px;background:#e8a92420;white-space:nowrap}.vt .columns{display:flex;gap:16px;overflow:auto;padding-bottom:15px}.vt .column{min-width:270px;flex:1;background:#8888880b;border:1px solid var(--line);border-radius:9px;padding:13px}.vt h3{font-weight:650;margin-bottom:12px}.vt .card{padding:16px;margin:12px 0}.vt .card .row{margin-top:15px}.vt .detail{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);margin:20px 0}.vt .body,.vt .activity{padding:24px;min-width:0}.vt .activity{border-left:1px solid var(--line);background:#88888805}.vt .formgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.vt label{display:block}.vt label>span{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}.vt .section{border-top:1px solid var(--line);padding-top:20px;margin-top:22px}.vt .error{padding:12px;background:#a52b2b15;color:#bb3030;margin:10px 0;border-radius:6px}.vt .comment{padding:14px;border:1px solid var(--line);border-radius:8px;margin:10px 0;overflow-wrap:anywhere}.vt .history{font-size:12px;color:var(--muted);border-left:2px solid var(--line);padding-left:14px;margin:14px 0}.vt .commenttext{white-space:pre-wrap}.vt .suggestions{padding:8px;border:1px solid var(--line);border-radius:6px;max-height:180px;overflow:auto}.vt .suggestions button{display:block;width:100%;text-align:left}.vt .config{padding:22px;margin-bottom:20px}.vt .spaced{margin:14px 0}.vt [disabled]{opacity:.6;cursor:default}.vt .check{display:flex;gap:9px;align-items:center;margin:10px 0}.vt .top{align-items:flex-start}.vt .empty{padding:28px;color:var(--muted)}
+@media(max-width:1000px){.vt .detail{grid-template-columns:1fr}.vt .activity{border-left:0;border-top:1px solid var(--line)}}@media(max-width:600px){.vt .formgrid{grid-template-columns:1fr}.vt .body,.vt .activity{padding:16px}.vt .toolbar input[type=search]{width:100%}}
+</style>
+<div class="vt" wire:loading.class="opacity-75">
+@if($errors->any())<div class="error" role="alert">@foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach</div>@endif
+<div class="row between">
+ <label class="check"><input type="checkbox" wire:model.live="paineisArquivados"> Painéis arquivados</label>
+ <div class="row">@foreach($paineis as $p)<button wire:click="abrirFunil({{ $p->id }})" class="{{ $funilId === $p->id ? 'active' : '' }}">{{ $p->nome }}</button>@endforeach</div>
+ @if(auth()->user()->veTudo())<form wire:submit="criarFunil" class="row"><input style="width:180px" aria-label="Nome do novo painel" placeholder="Novo painel" wire:model="novoPainel"><button type="submit">Criar painel</button></form>@endif
+</div>
+@if($painel)
+<div class="row between toolbar"><div><h2 style="font-size:24px;font-weight:700">{{ $painel->nome }}</h2><span class="muted">Tarefas e colaboração da equipe</span></div><div class="row">@if($podeGerir)<button wire:click="configurar">Configurações e participantes</button>@endif @if($podeEditar)<button class="primary" wire:click="abrirNovoItem">+ Nova tarefa</button>@endif</div></div>
+@if($configurando)
+<section class="surface config"><h3>Configurar painel</h3><div class="formgrid"><label><span>Nome</span><input wire:model="nomePainel"></label><label class="check"><input type="checkbox" wire:model="restrito"> Somente participantes (administradores mantêm acesso)</label></div>
+<button wire:click="arquivarPainel" wire:confirm="Alterar o arquivamento do painel? Todos os dados serão preservados.">{{ $painel->arquivado_em?'Restaurar painel':'Arquivar painel' }}</button>
+<label class="spaced"><span>Espaço / agrupamento (opcional)</span><input wire:model="espaco" placeholder="Ex.: Operação, Projetos, Suporte"></label>
+<h3 class="section">Participantes</h3><p class="muted">Painel aberto: membros sem papel definido podem editar. Painel restrito: apenas os participantes abaixo.</p>
+@foreach($todosColegas as $u)<div class="row spaced"><span style="min-width:180px">{{ $u->name }}</span><select style="width:200px" aria-label="Papel de {{ $u->name }}" wire:model="membros.{{ $u->id }}"><option value="">Sem papel definido</option><option value="leitor">Leitor</option><option value="editor">Editor</option><option value="gestor">Gestor</option></select></div>@endforeach
+<h3 class="section">Colunas</h3>@foreach($colunas as $i=>$col)<div class="row spaced" wire:key="col-{{ $i }}"><input style="width:220px" aria-label="Nome da coluna {{ $i+1 }}" wire:model="colunas.{{ $i }}.nome"><select style="width:130px" aria-label="Cor da coluna {{ $i+1 }}" wire:model="colunas.{{ $i }}.cor">@foreach(array_keys(\App\Models\Tag::PALETA) as $cor)<option>{{ $cor }}</option>@endforeach</select><label class="check"><input type="checkbox" wire:model="colunas.{{ $i }}.encerra"> Conclui a tarefa</label></div>@endforeach<button wire:click="adicionarColuna">+ Coluna</button>
+<h3 class="section">Campos personalizados</h3>@foreach($campos as $i=>$campo)<div class="formgrid spaced"><input aria-label="Nome do campo {{ $i+1 }}" placeholder="Nome" wire:model="campos.{{ $i }}.nome"><select aria-label="Tipo do campo {{ $i+1 }}" wire:model="campos.{{ $i }}.tipo">@foreach(\App\Models\BoardField::TIPOS as $key=>$label)<option value="{{ $key }}">{{ $label }}</option>@endforeach</select><input aria-label="Opções do campo {{ $i+1 }}" placeholder="Opções separadas por vírgula" wire:model="campos.{{ $i }}.opcoes"><label class="check"><input type="checkbox" wire:model="campos.{{ $i }}.obrigatorio"> Obrigatório</label>@if(!empty($campo['id']))<button wire:click="arquivarCampo({{ $campo['id'] }})" wire:confirm="Arquivar este campo? Valores já preenchidos serão preservados.">Arquivar campo</button>@endif</div>@endforeach<button wire:click="adicionarCampo">+ Campo</button>
+<h3 class="section">Remover coluna com transferência</h3><p class="muted">Tarefas e atendimentos serão transferidos para o destino; nenhum conteúdo será apagado.</p><div class="row"><select style="width:200px" aria-label="Coluna a remover" wire:model="etapaRemover"><option value="">Coluna a remover</option>@foreach($etapas as $et)<option value="{{ $et->id }}">{{ $et->nome }}</option>@endforeach</select><select style="width:200px" aria-label="Destino das tarefas" wire:model="destinoEtapa"><option value="">Destino</option>@foreach($etapas as $et)<option value="{{ $et->id }}">{{ $et->nome }}</option>@endforeach</select><button wire:click="removerColuna" wire:confirm="Transferir os itens e remover esta coluna?">Transferir e remover</button></div>
+<div class="row section"><button class="primary" wire:click="salvarConfiguracao">Salvar configurações</button><button wire:click="$set('configurando',false)">Fechar</button></div></section>
+@endif
+<div class="row tabs">@foreach(['lista'=>'Lista','quadro'=>'Quadro','calendario'=>'Agenda de tarefas','gantt'=>'Linha do tempo'] as $key=>$label)<button class="{{ $visualizacao===$key?'active':'' }}" wire:click="$set('visualizacao','{{ $key }}')">{{ $label }}</button>@endforeach<button wire:click="favoritar">{{ $favorito?'★ Favorito':'☆ Favoritar' }}</button><span class="muted">{{ $painel->espaco }}</span></div>
+<div class="row"><span class="muted">{{ $indicadores['total'] }} no filtro · {{ $indicadores['atrasadas'] }} atrasadas · {{ $indicadores['concluidas'] }} concluídas</span><label class="check"><input type="checkbox" wire:model.live="mostrarModelos"> Modelos de tarefa</label></div>
+<div class="row spaced"><select style="width:180px" aria-label="Filtrar status" wire:model.live="filtroStatus"><option value="">Todos os status</option>@foreach($etapas as $et)<option value="{{ $et->id }}">{{ $et->nome }}</option>@endforeach</select><select style="width:180px" aria-label="Filtrar responsável" wire:model.live="filtroResponsavel"><option value="">Todos os responsáveis</option>@foreach($colegas as $u)<option value="{{ $u->id }}">{{ $u->name }}</option>@endforeach</select><select style="width:180px" aria-label="Filtrar etiqueta" wire:model.live="filtroEtiqueta"><option value="">Todas as etiquetas</option>@foreach($etiquetas as $tag)<option value="{{ $tag->id }}">{{ $tag->nome }}</option>@endforeach</select></div>
+<div class="row toolbar"><input type="search" aria-label="Pesquisar tarefas" placeholder="Pesquisar tarefas…" wire:model.live.debounce.350ms="busca"><select style="width:150px" aria-label="Filtrar prioridade" wire:model.live="filtroPrioridade"><option value="">Prioridades</option>@foreach(['baixa','normal','alta','urgente'] as $pr)<option value="{{ $pr }}">{{ ucfirst($pr) }}</option>@endforeach</select><label class="check"><input type="checkbox" wire:model.live="soMinhas"> Minhas tarefas</label><label class="check"><input type="checkbox" wire:model.live="arquivados"> Arquivadas</label><span class="muted">{{ $tarefas->total() }} tarefas · até 50 por página</span></div>
+<div class="row spaced"><select style="width:200px" aria-label="Filtrar prazo" wire:model.live="filtroPrazo"><option value="">Todos os prazos</option><option value="atrasadas">Atrasadas</option><option value="proximas">Próximos 7 dias</option><option value="sem-prazo">Sem prazo</option></select><select style="width:220px" aria-label="Filtrar contato" wire:model.live="filtroContato"><option value="">Todos os contatos</option>@foreach($contatos as $c)<option value="{{ $c->id }}">{{ $c->nome }}</option>@endforeach</select></div>
+@if($editandoItem)
+<label class="spaced"><span>Pesquisar contatos salvos</span><input type="search" wire:model.live.debounce.350ms="buscaContato" placeholder="Nome ou telefone; grupos não são listados"></label>
+<section class="surface detail" aria-label="Detalhe da tarefa">
+<div class="body"><div class="row between"><span class="muted">{{ $itemId ? 'VT-'.$itemId : 'Nova tarefa' }}</span><button wire:click="$set('editandoItem',false)">Fechar</button></div>
+<form wire:submit="salvarItem"><fieldset @disabled(!$podeEditar)><label class="spaced"><span>Título</span><input wire:model="form.titulo" required></label>
+<div class="formgrid"><label><span>Status</span><select wire:model="form.funnel_stage_id">@foreach($etapas as $et)<option value="{{ $et->id }}">{{ $et->nome }}</option>@endforeach</select></label><label><span>Prioridade</span><select wire:model="form.prioridade">@foreach(['baixa','normal','alta','urgente'] as $pr)<option value="{{ $pr }}">{{ ucfirst($pr) }}</option>@endforeach</select></label><label><span>Prazo</span><input type="datetime-local" wire:model="form.prazo_em"></label><label><span>Contato salvo</span><select wire:model="form.contact_id"><option value="">Sem contato</option>@foreach($contatos as $c)<option value="{{ $c->id }}">{{ $c->nome ?: $c->telefone_e164 }}</option>@endforeach</select></label></div>
+<div class="formgrid spaced"><label><span>Início previsto</span><input type="datetime-local" wire:model="form.inicio_em"></label><label><span>Repetir ao concluir</span><select wire:model="form.recorrencia"><option value="">Não repetir</option><option value="diaria">Diariamente</option><option value="semanal">Semanalmente</option><option value="mensal">Mensalmente</option></select></label></div><p class="muted">A repetição cria uma nova tarefa após a conclusão, contando o intervalo a partir do prazo anterior. O histórico não é copiado.</p>
+<div class="section"><h3>Responsáveis</h3><div class="row">@foreach($colegas as $u)<label class="check"><input type="checkbox" value="{{ $u->id }}" wire:model="form.responsaveis"> {{ $u->name }}</label>@endforeach</div></div>
+<div class="section"><h3>Etiquetas</h3><div class="row">@forelse($etiquetas as $tag)<label class="check"><input type="checkbox" value="{{ $tag->id }}" wire:model="form.tags"><span class="badge">{{ $tag->nome }}</span></label>@empty<span class="muted">Nenhuma etiqueta cadastrada.</span>@endforelse</div></div>
+<label class="section"><span>Descrição</span><textarea rows="5" wire:model="form.descricao"></textarea></label>
+<details class="spaced"><summary>Prévia da descrição salva (aceita Markdown)</summary><div class="commenttext">{!! \App\Support\TaskText::render($selecionada?->descricao) !!}</div></details>
+@foreach($camposDoPainel as $field)<label class="spaced"><span>{{ $field->nome }}{{ $field->obrigatorio?' *':'' }}</span>@if($field->tipo==='lista')<select wire:model="form.dados.{{ $field->id }}"><option value="">Selecione</option>@foreach($field->opcoes??[] as $option)<option>{{ $option }}</option>@endforeach</select>@elseif($field->tipo==='checkbox')<input type="checkbox" wire:model="form.dados.{{ $field->id }}">@else<input type="{{ in_array($field->tipo,['numero','dinheiro'])?'number':($field->tipo==='data'?'date':'text') }}" step="any" wire:model="form.dados.{{ $field->id }}">@endif</label>@endforeach
+@if($podeEditar)<label class="check"><input type="checkbox" wire:model="confirmarConclusao"> Confirmar conclusão mesmo com pendências (não conclui subtarefas)</label><div class="spaced"><button type="submit" class="primary" wire:loading.attr="disabled">Salvar tarefa</button></div>@endif</fieldset></form>
+@if($podeEditar)<div class="row"><input style="width:190px" aria-label="Nova etiqueta" placeholder="Nova etiqueta" wire:model="novaEtiqueta"><button wire:click="criarEtiqueta">Criar etiqueta</button></div>@endif
+@if($selecionada)
+@if($podeEditar)<div class="row section"><button wire:click="duplicar(false)">{{ $selecionada->modelo?'Criar tarefa deste modelo':'Duplicar tarefa' }}</button><button wire:click="duplicar(true)">Salvar como modelo</button></div>@endif
+@if($selecionada->parent_id)<p class="spaced"><button wire:click="editarItem({{ $selecionada->parent_id }})">← Abrir tarefa principal</button></p>@endif
+<div class="section"><h3>Checklist</h3>@foreach($selecionada->checklist??[] as $check)<div class="row spaced" wire:key="check-{{ $check['id'] }}"><input type="checkbox" aria-label="Concluir {{ $check['texto'] }}" @checked($check['feito']) @disabled(!$podeEditar) wire:click="marcarChecklist('{{ $check['id'] }}')"><input style="flex:1" aria-label="Texto do item do checklist" value="{{ $check['texto'] }}" @disabled(!$podeEditar) wire:change="alterarChecklist('{{ $check['id'] }}',$event.target.value)">@if($podeEditar)<button wire:click="alterarChecklist('{{ $check['id'] }}')" wire:confirm="Remover este item do checklist?">Remover</button>@endif</div>@endforeach @if($podeEditar)<div class="row"><input style="flex:1" aria-label="Novo item do checklist" wire:model="novoChecklist" placeholder="Adicionar item"><button wire:click="adicionarChecklist">Adicionar</button></div>@endif</div>
+<div class="section"><h3>Subtarefas</h3>@foreach($filhas as $child)<p class="spaced"><button wire:click="editarItem({{ $child->id }})">VT-{{ $child->id }} · {{ $child->titulo }}</button></p>@endforeach @if($podeEditar && !$selecionada->parent_id)<div class="row"><input style="flex:1" aria-label="Nova subtarefa" wire:model="novaSubtarefa" placeholder="Título da subtarefa"><button wire:click="criarSubtarefa">Criar</button></div>@endif</div>
+<div class="section"><h3>Depende de</h3><p class="muted">Dependências sinalizam trabalho relacionado; não reagendam prazos automaticamente.</p>@foreach($dependencias as $dep)<div class="row spaced"><button wire:click="editarItem({{ $dep->id }})">{{ $dep->titulo }}</button>@if($podeEditar)<button wire:click="removerDependencia({{ $dep->id }})" aria-label="Remover dependência de {{ $dep->titulo }}">×</button>@endif</div>@endforeach @if($podeEditar)<div class="row"><select style="flex:1" aria-label="Adicionar dependência" wire:model="dependencia"><option value="">Selecione uma tarefa</option>@foreach($opcoesDependencia as $dep)<option value="{{ $dep->id }}">{{ $dep->titulo }}</option>@endforeach</select><button wire:click="adicionarDependencia">Vincular</button></div>@endif</div>
+<div class="section"><h3>Arquivos privados</h3>@foreach($anexos as $file)<p class="spaced"><button wire:click="baixar({{ $file->id }})">↓ {{ $file->name }}</button><span class="muted"> {{ number_format($file->size/1024,0,',','.') }} KB</span></p>@endforeach @if($podeEditar)<input type="file" aria-label="Arquivo da tarefa" wire:model="arquivo"><p class="muted">Até 25 MB por arquivo. Somente participantes autorizados podem baixar.</p><button wire:click="anexar" wire:loading.attr="disabled">Anexar arquivo</button>@endif</div>
+<div class="row section"><button wire:click="acompanhar">{{ $seguindo?'Deixar de acompanhar':'Acompanhar tarefa' }}</button>@if($podeEditar)@if($selecionada->arquivado_em)<button wire:click="restaurarItem">Restaurar tarefa</button>@else<button wire:click="arquivarItem" wire:confirm="Arquivar esta tarefa? Ela continuará disponível no filtro Arquivadas.">Arquivar tarefa</button>@endif @endif</div>
+@endif
+</div>
+<aside class="activity">@if($itemId)<livewire:board-item-discussion :item-id="$itemId" :key="'discussion-'.$itemId" />@else<h3>Atividade</h3><p class="muted">Salve a tarefa para iniciar a conversa com a equipe.</p>@endif</aside></section>
+@endif
+@if($visualizacao==='quadro')
+<div class="columns">@foreach($etapas as $et)<section class="column" x-data @dragover.prevent @drop.prevent="if($event.dataTransfer.getData('text/plain')){let d=JSON.parse($event.dataTransfer.getData('text/plain'));$wire.moverItem(d.id,{{ $et->id }},d.version)}"><h3>{{ $et->nome }} <span class="muted">{{ $tarefas->where('funnel_stage_id',$et->id)->count() }} nesta página</span></h3>@foreach($tarefas->where('funnel_stage_id',$et->id) as $t)<article class="surface card" wire:key="card-{{ $t->id }}" draggable="{{ $podeEditar?'true':'false' }}" @dragstart="$event.dataTransfer.setData('text/plain',JSON.stringify({id:{{ $t->id }},version:{{ $t->version }}}))"><span class="muted">VT-{{ $t->id }}</span><p><button class="titlebutton" wire:click="editarItem({{ $t->id }})">{{ $t->titulo }}</button></p><div class="row"><span class="muted">{{ $t->responsaveis->pluck('name')->join(', ') ?: 'Sem responsável' }}</span><span class="badge">{{ $t->prioridade }}</span></div><p class="muted">{{ $t->prazo_em?->format('d/m H:i') ?: 'Sem prazo' }}</p>@if($podeEditar)<select aria-label="Mover {{ $t->titulo }}" wire:change="moverItem({{ $t->id }},$event.target.value,{{ $t->version }})">@foreach($etapas as $dest)<option value="{{ $dest->id }}" @selected($t->funnel_stage_id===$dest->id)>{{ $dest->nome }}</option>@endforeach</select>@endif</article>@endforeach @if($podeEditar)<button wire:click="abrirNovoItem({{ $et->id }})">+ Tarefa</button>@endif</section>@endforeach</div>
+@elseif($visualizacao==='gantt')
+@php
+ $comData=$tarefas->filter(fn($t)=>$t->prazo_em);
+ $start=$comData->map(fn($t)=>$t->inicio_em??$t->prazo_em)->min()??now();
+ $end=$comData->max('prazo_em')??now();$days=max(1,$start->diffInDays($end)+1);
+@endphp
+<div class="surface body"><div class="row between"><strong>{{ $start->format('d/m/Y') }}</strong><span class="muted">Início → prazo · tarefas desta página</span><strong>{{ $end->format('d/m/Y') }}</strong></div>
+@forelse($comData as $t)@php $offset=max(0,$start->diffInDays($t->inicio_em??$t->prazo_em));$width=max(1,($t->inicio_em??$t->prazo_em)->diffInDays($t->prazo_em)+1); @endphp
+<div class="spaced"><button class="titlebutton" wire:click="editarItem({{ $t->id }})">{{ $t->titulo }}</button><div style="background:#8881;border-radius:5px;height:20px;margin-top:7px"><div title="{{ $t->prazo_em->format('d/m H:i') }}" style="background:#E8A924;border-radius:5px;height:20px;margin-left:{{ min(99,$offset/$days*100) }}%;width:{{ min(100-$offset/$days*100,$width/$days*100) }}%"></div></div></div>
+@empty<p class="empty">Defina um prazo para visualizar tarefas na linha do tempo.</p>@endforelse</div>
+@elseif($visualizacao==='calendario')
+<section class="surface">@forelse($tarefas->groupBy(fn($t)=>$t->prazo_em?->format('d/m/Y')??'Sem prazo') as $date=>$group)<div class="body"><h3>{{ $date }}</h3>@foreach($group as $t)<p class="spaced"><button wire:click="editarItem({{ $t->id }})">{{ $t->prazo_em?->format('H:i') }} · {{ $t->titulo }}</button> <span class="muted">{{ $t->stage?->nome }}</span></p>@endforeach</div>@empty<div class="empty">Nenhuma tarefa neste filtro.</div>@endforelse</section>
+@else
+<div class="surface table"><table><thead><tr><th>Tarefa</th><th>Status</th><th>Responsáveis</th><th>Prazo</th><th>Prioridade</th><th>Etiquetas</th></tr></thead><tbody>@forelse($tarefas as $t)<tr wire:key="row-{{ $t->id }}"><td><div class="muted">VT-{{ $t->id }}{{ $t->parent_id?' · Subtarefa':'' }}</div><button class="titlebutton" wire:click="editarItem({{ $t->id }})">{{ $t->titulo }}</button></td><td><span class="badge">{{ $t->stage?->nome }}</span></td><td>{{ $t->responsaveis->pluck('name')->join(', ') ?: 'Sem responsável' }}</td><td>{{ $t->prazo_em?->format('d/m/Y H:i') ?: 'Sem prazo' }}</td><td>{{ ucfirst($t->prioridade) }}</td><td>@foreach($t->tags as $tag)<span class="badge">{{ $tag->nome }}</span> @endforeach</td></tr>@empty<tr><td colspan="6" class="empty">Nenhuma tarefa encontrada. Crie uma tarefa ou ajuste os filtros.</td></tr>@endforelse</tbody></table></div>
+@endif
+<div class="spaced">{{ $tarefas->links() }}</div>
+<details class="surface body section"><summary style="cursor:pointer;font-weight:600">Atendimentos vinculados ao painel ({{ $atendimentos->count() }})</summary><p class="muted">Os cartões de conversa anteriores continuam disponíveis aqui. Tarefas e atendimentos permanecem registros distintos.</p>
+@forelse($atendimentos as $conv)<div class="row spaced"><span style="flex:1">{{ $conv->contact?->nome ?: $conv->contact?->telefone_e164 }} · #{{ $conv->id }}</span>@if($podeEditar)<select style="width:180px" aria-label="Mover atendimento {{ $conv->id }}" wire:change="mover({{ $conv->id }},$event.target.value || null)"><option value="">Retirar do painel</option>@foreach($etapas as $et)<option value="{{ $et->id }}" @selected($conv->funnel_stage_id===$et->id)>{{ $et->nome }}</option>@endforeach</select>@endif</div>@empty<p class="muted spaced">Nenhum atendimento vinculado.</p>@endforelse
+@if($podeEditar)<h3 class="section">Atendimentos fora do painel</h3>@foreach($foraDoFunil as $conv)<div class="row spaced"><span style="flex:1">{{ $conv->contact?->nome ?: $conv->contact?->telefone_e164 }} · #{{ $conv->id }}</span><select style="width:180px" aria-label="Adicionar atendimento {{ $conv->id }}" wire:change="mover({{ $conv->id }},$event.target.value || null)"><option value="">Adicionar na coluna…</option>@foreach($etapas as $et)<option value="{{ $et->id }}">{{ $et->nome }}</option>@endforeach</select></div>@endforeach @endif</details>
+@else<div class="surface empty">Nenhum painel disponível. Peça acesso ao administrador ou crie seu primeiro painel.</div>@endif
+</div>
 </x-filament-panels::page>

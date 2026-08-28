@@ -95,7 +95,7 @@ it('Paineis deixou de ser tela reservada: virou o funil', function () {
         ->assertSuccessful()
         ->assertDontSee('em constru')
         // conta sem coluna nenhuma e convidada a criar, em vez de encarar um quadro em branco
-        ->assertSee('Você ainda não tem nenhum funil');
+        ->assertSee('Nenhum painel disponível')->assertSee('Criar painel');
 });
 
 it('relatorios e barrado para atendente', function () {

@@ -36,3 +36,5 @@ Schedule::job(new \App\Jobs\ProcurarSumidos)->hourly();
 // A foto do consumo do mes que acabou. No dia 1 as 00h10 — depois da virada, com folga para o
 // relogio e para qualquer job atrasado da noite terminar.
 Schedule::job(new \App\Jobs\FecharConsumoDoMes)->monthlyOn(1, '00:10');
+
+Schedule::command('virtus:task-notices')->everyMinute()->withoutOverlapping();

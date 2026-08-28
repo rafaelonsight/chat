@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /** Recado direto entre duas pessoas da equipe. */
-#[Fillable(['tenant_id', 'de_user_id', 'para_user_id', 'corpo', 'lida_em'])]
+#[Fillable(['tenant_id', 'de_user_id', 'para_user_id', 'corpo', 'lida_em','file_path','file_name','file_mime','file_size'])]
 class DirectMessage extends Model
 {
     use BelongsToTenant;

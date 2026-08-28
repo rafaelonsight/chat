@@ -19,6 +19,7 @@ use Livewire\Livewire;
  */
 
 beforeEach(function () {
+    config(['boards.foundation_enabled' => true]);
     $this->conta = Tenant::create(['nome' => 'Conta', 'slug' => 'funis']);
     TenantContext::set($this->conta->id);
 
@@ -34,6 +35,8 @@ beforeEach(function () {
 
     $this->actingAs($this->admin);
 });
+
+afterEach(fn () => TenantContext::forget());
 
 function conversaDoQuadro($ctx, string $nome): Conversation
 {
@@ -53,22 +56,22 @@ function conversaDoQuadro($ctx, string $nome): Conversation
 
 // =========================================================== criar funis
 
-it('o primeiro funil nasce com as cinco colunas comuns', function () {
+it('o primeiro funil nasce com as tres colunas de tarefas', function () {
     // Quadro vazio nao ensina nada: a pessoa abre, ve o branco e fecha.
-    Livewire::actingAs($this->admin)->test(Paineis::class)->call('criarPadrao');
+    Livewire::actingAs($this->admin)->test(Paineis::class)->set('novoPainel', 'Funil')->call('criarFunil')->assertHasNoErrors();
 
     expect(Funnel::count())->toBe(1)
-        ->and(Funnel::first()->stages)->toHaveCount(5);
+        ->and(Funnel::first()->stages)->toHaveCount(3);
 });
 
 it('da para ter mais de um funil, cada um com suas etapas', function () {
     $tela = Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->call('criarPadrao')
-        ->set('nomeDoNovoFunil', 'Suporte')
+        ->set('novoPainel', 'Funil')->call('criarFunil')->assertHasNoErrors()
+        ->set('novoPainel', 'Suporte')
         ->call('criarFunil');
 
     expect(Funnel::count())->toBe(2)
-        ->and(Funnel::where('nome', 'Suporte')->first()->stages)->toHaveCount(5)
+        ->and(Funnel::where('nome', 'Suporte')->first()->stages)->toHaveCount(3)
         // criar ja abre o novo: quem acabou de criar quer mexer nele
         ->and($tela->get('funilId'))->toBe(Funnel::where('nome', 'Suporte')->value('id'));
 });
@@ -77,26 +80,25 @@ it('a criacao dedicada preserva o painel atual e abre o novo', function () {
     $atual = Funnel::criarCom('Comercial');
 
     $tela = Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->call('abrirCriacao')
-        ->assertSet('criandoFunil', true)
-        ->set('nomeDoNovoFunil', 'Suporte')
+        ->assertSet('funilId', $atual->id)
+        ->set('novoPainel', 'Suporte')
         ->call('criarFunil')
         ->assertHasNoErrors()
-        ->assertSet('criandoFunil', false);
+        ->assertSet('novoPainel', '');
 
     $novo = Funnel::where('nome', 'Suporte')->firstOrFail();
 
     expect(Funnel::pluck('nome')->all())->toContain('Comercial', 'Suporte')
         ->and($atual->fresh())->not->toBeNull()
-        ->and($novo->stages)->toHaveCount(5)
+        ->and($novo->stages)->toHaveCount(3)
         ->and($tela->get('funilId'))->toBe($novo->id);
 });
 
 it('funil sem nome nao e criado', function () {
     Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->set('nomeDoNovoFunil', '   ')
+        ->set('novoPainel', '   ')
         ->call('criarFunil')
-        ->assertHasErrors('nomeDoNovoFunil');
+        ->assertHasErrors('novoPainel');
 
     expect(Funnel::count())->toBe(0);
 });
@@ -104,18 +106,35 @@ it('funil sem nome nao e criado', function () {
 // ================================================ as etapas sao de cada funil
 
 it('editar as colunas de um funil NAO mexe nas do outro', function () {
-    // Sem o recorte por funil, salvar as colunas de um apagaria as dos outros — e os cartoes
-    // deles cairiam todos para fora de uma vez.
     $vendas = Funnel::criarCom('Vendas');
     $suporte = Funnel::criarCom('Suporte');
+    $originais = $vendas->stages()->get();
+    $colunasSuporte = $suporte->stages()->orderBy('ordem')->get()->toArray();
+    $conversa = conversaDoQuadro($this, 'Cliente de suporte');
+    $conversa->moverPara($suporte->stages()->first());
+    $item = BoardItem::create([
+        'tenant_id' => $this->conta->id, 'funnel_id' => $suporte->id,
+        'funnel_stage_id' => $suporte->stages()->first()->id, 'titulo' => 'Não alterar',
+    ]);
 
-    Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->call('abrirFunil', $vendas->id)
-        ->set('colunas', [['id' => null, 'nome' => 'Só uma', 'cor' => 'azul', 'encerra' => false]])
-        ->call('salvarColunas');
+    $tela = Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('abrirFunil', $vendas->id)->call('configurar')
+        ->call('adicionarColuna')->set('colunas.5.nome', 'Só uma')
+        ->call('salvarConfiguracao')->assertHasNoErrors();
+    $destino = $vendas->stages()->where('nome', 'Só uma')->firstOrFail();
+
+    // A remoção agora exige transferência explícita, nunca omissão no formulário.
+    foreach ($originais as $origem) {
+        $tela->set('etapaRemover', $origem->id)->set('destinoEtapa', $destino->id)
+            ->call('removerColuna')->assertHasNoErrors();
+    }
 
     expect($vendas->fresh()->stages)->toHaveCount(1)
-        ->and($suporte->fresh()->stages)->toHaveCount(5);
+        ->and($suporte->fresh()->stages)->toHaveCount(5)
+        ->and($suporte->stages()->orderBy('ordem')->get()->toArray())->toBe($colunasSuporte)
+        ->and($conversa->fresh()->funnel_stage_id)->toBe($suporte->stages()->first()->id)
+        ->and($item->fresh()->funnel_stage_id)->toBe($suporte->stages()->first()->id)
+        ->and($item->fresh()->titulo)->toBe('Não alterar');
 });
 
 it('coluna nova nasce no funil que esta aberto', function () {
@@ -124,9 +143,10 @@ it('coluna nova nasce no funil que esta aberto', function () {
 
     Livewire::actingAs($this->admin)->test(Paineis::class)
         ->call('abrirFunil', $vendas->id)
+        ->call('configurar')
         ->call('adicionarColuna')
         ->set('colunas.5.nome', 'Proposta enviada')
-        ->call('salvarColunas');
+        ->call('salvarConfiguracao');
 
     expect(FunnelStage::where('nome', 'Proposta enviada')->first()->funnel_id)->toBe($vendas->id);
 });
@@ -140,8 +160,8 @@ it('cria item generico sem conversa e sem contato', function () {
     Livewire::actingAs($this->admin)->test(Paineis::class)
         ->call('abrirFunil', $painel->id)
         ->call('abrirNovoItem', $etapa->id)
-        ->set('tituloDoItem', 'Revisar proposta')
-        ->set('prioridadeDoItem', 'alta')
+        ->set('form.titulo', 'Revisar proposta')
+        ->set('form.prioridade', 'alta')
         ->call('salvarItem')
         ->assertHasNoErrors();
 
@@ -170,9 +190,9 @@ it('item generico pode selecionar contato cadastrado e campos do painel', functi
     Livewire::actingAs($this->admin)->test(Paineis::class)
         ->call('abrirFunil', $painel->id)
         ->call('abrirNovoItem', $etapa->id)
-        ->set('tituloDoItem', 'Plano empresarial')
-        ->set('contatoDoItem', $contato->id)
-        ->set('valoresDoItem.'.$valor->id, '1490.00')
+        ->set('form.titulo', 'Plano empresarial')
+        ->set('form.contact_id', $contato->id)
+        ->set('form.dados.'.$valor->id, '1490.00')
         ->call('salvarItem')
         ->assertHasNoErrors();
 
@@ -195,8 +215,8 @@ it('item aceita etiquetas proprias de painel', function () {
     Livewire::actingAs($this->admin)->test(Paineis::class)
         ->call('abrirFunil', $painel->id)
         ->call('abrirNovoItem', $etapa->id)
-        ->set('tituloDoItem', 'Confirmar visita')
-        ->set('etiquetasDoItem', [$etiqueta->id])
+        ->set('form.titulo', 'Confirmar visita')
+        ->set('form.tags', [$etiqueta->id])
         ->call('salvarItem')
         ->assertHasNoErrors();
 
@@ -204,22 +224,27 @@ it('item aceita etiquetas proprias de painel', function () {
         ->and(BoardItem::first()->tags->first()->nome)->toBe('Aguardando retorno');
 });
 
-it('clicar na etiqueta alterna a selecao antes de salvar', function () {
+it('checkbox de etiqueta alterna a selecao antes de salvar', function () {
     $painel = Funnel::criarCom('Tarefas');
     $etiqueta = Tag::create([
-        'tenant_id' => $this->conta->id,
-        'nome' => 'Importante',
-        'cor' => 'vermelho',
-        'contexto' => Tag::ITEM,
+        'tenant_id' => $this->conta->id, 'nome' => 'Importante',
+        'cor' => 'vermelho', 'contexto' => Tag::ITEM,
     ]);
 
+    // Os checkboxes fazem binding em form.tags; não há mais ação alternarEtiqueta.
     $tela = Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->call('abrirFunil', $painel->id)
-        ->call('alternarEtiqueta', $etiqueta->id)
-        ->assertSet('etiquetasDoItem', [$etiqueta->id]);
+        ->call('abrirFunil', $painel->id)->call('abrirNovoItem')
+        ->set('form.titulo', 'Confirmar seleção')
+        ->set('form.tags', [$etiqueta->id])->assertSet('form.tags', [$etiqueta->id]);
+    expect(BoardItem::count())->toBe(0);
 
-    $tela->call('alternarEtiqueta', $etiqueta->id)
-        ->assertSet('etiquetasDoItem', []);
+    $tela->set('form.tags', [])->assertSet('form.tags', [])
+        ->call('salvarItem')->assertHasNoErrors();
+    $item = BoardItem::firstOrFail();
+    expect($item->tags)->toHaveCount(0);
+
+    $tela->set('form.tags', [$etiqueta->id])->call('salvarItem')->assertHasNoErrors();
+    expect($item->fresh()->tags->pluck('id')->all())->toBe([$etiqueta->id]);
 });
 
 it('seletor de contato mostra pessoas salvas mas nao grupos', function () {
@@ -246,22 +271,28 @@ it('seletor de contato mostra pessoas salvas mas nao grupos', function () {
 it('item so se move entre colunas do proprio painel', function () {
     $comercial = Funnel::criarCom('Comercial');
     $suporte = Funnel::criarCom('Suporte');
+    $origem = $comercial->stages()->orderBy('ordem')->first();
+    $destino = $comercial->stages()->orderBy('ordem')->skip(1)->first();
     $item = BoardItem::create([
-        'tenant_id' => $this->conta->id,
-        'funnel_id' => $comercial->id,
-        'funnel_stage_id' => $comercial->stages()->first()->id,
-        'titulo' => 'Item',
+        'tenant_id' => $this->conta->id, 'funnel_id' => $comercial->id,
+        'funnel_stage_id' => $origem->id, 'titulo' => 'Item',
     ]);
+    $version = $item->fresh()->version;
 
-    $tela = Livewire::actingAs($this->admin)->test(Paineis::class)
+    expect(fn () => Livewire::actingAs($this->admin)->test(Paineis::class)
         ->call('abrirFunil', $comercial->id)
-        ->call('moverItem', $item->id, $suporte->stages()->first()->id);
+        ->call('moverItem', $item->id, $suporte->stages()->first()->id, $version))
+        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 
-    expect($item->fresh()->funnel_stage_id)->toBe($comercial->stages()->first()->id);
+    expect($item->fresh()->funnel_stage_id)->toBe($origem->id)
+        ->and($item->fresh()->version)->toBe($version);
 
-    $tela->call('moverItem', $item->id, $comercial->stages()->skip(1)->first()->id);
+    Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('abrirFunil', $comercial->id)
+        ->call('moverItem', $item->id, $destino->id, $version)->assertHasNoErrors();
 
-    expect($item->fresh()->funnel_stage_id)->toBe($comercial->stages()->skip(1)->first()->id);
+    expect($item->fresh()->funnel_stage_id)->toBe($destino->id)
+        ->and($item->fresh()->version)->toBe($version + 1);
 });
 
 // ================================================= o quadro mostra so um funil
@@ -278,7 +309,7 @@ it('o quadro mostra so os cartoes do funil aberto', function () {
 
     $tela = Livewire::actingAs($this->admin)->test(Paineis::class)->call('abrirFunil', $vendas->id);
 
-    $ids = collect($tela->viewData('conversas'))->flatten()->pluck('id')->all();
+    $ids = $tela->viewData('atendimentos')->pluck('id')->all();
 
     expect($ids)->toContain($c1->id)->not->toContain($c2->id);
 });
@@ -312,18 +343,21 @@ it('abre diretamente o painel informado na url', function () {
 
 // ========================================================== apagar
 
-it('excluir o funil NAO apaga as conversas', function () {
+it('arquivar e restaurar o painel preserva conversas e colunas', function () {
     // Perder atendimento porque alguem reorganizou o quadro seria perder dado por arrumacao.
     $funil = Funnel::criarCom('Vendas');
     $conversa = conversaDoQuadro($this, 'Cliente');
     $conversa->moverPara($funil->stages()->first());
 
-    Livewire::actingAs($this->admin)->test(Paineis::class)->call('excluirFunil', $funil->id);
+    $tela=Livewire::actingAs($this->admin)->test(Paineis::class)->call('arquivarPainel')->assertHasNoErrors();
 
-    expect(Funnel::count())->toBe(0)
-        ->and(FunnelStage::count())->toBe(0)
+    expect(Funnel::count())->toBe(1)
+        ->and($funil->fresh()->arquivado_em)->not->toBeNull()
+        ->and(FunnelStage::count())->toBe(5)
         ->and(Conversation::find($conversa->id))->not->toBeNull()
-        ->and($conversa->fresh()->funnel_stage_id)->toBeNull();
+        ->and($conversa->fresh()->funnel_stage_id)->toBe($funil->stages()->first()->id);
+    $tela->set('paineisArquivados',true)->call('arquivarPainel')->assertHasNoErrors();
+    expect($funil->fresh()->arquivado_em)->toBeNull();
 });
 
 it('funil de outra conta nao abre nem se apaga', function () {
@@ -334,12 +368,15 @@ it('funil de outra conta nao abre nem se apaga', function () {
         'tenant_id' => $outra->id, 'nome' => 'Alheio', 'ordem' => 0,
     ]);
 
-    $tela = Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->call('abrirFunil', $alheio->id);
+    expect(fn () => Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('abrirFunil', $alheio->id))
+        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 
-    expect($tela->get('funilId'))->not->toBe($alheio->id);
+    expect(Funnel::withoutGlobalScope('tenant')->whereKey($alheio->id)->exists())->toBeTrue();
 
-    $tela->call('excluirFunil', $alheio->id);
+    expect(fn()=>Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->set('funilId',$alheio->id)->call('arquivarPainel'))
+        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 
     expect(Funnel::withoutGlobalScope('tenant')->whereKey($alheio->id)->exists())->toBeTrue()
         ->and(Funnel::count())->toBe(1)
@@ -348,12 +385,13 @@ it('funil de outra conta nao abre nem se apaga', function () {
 
 it('renomear o funil vale, e nome vazio nao apaga o que havia', function () {
     $funil = Funnel::criarCom('Vendas');
+    $tela = Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('abrirFunil', $funil->id)->call('configurar');
 
-    $tela = Livewire::actingAs($this->admin)->test(Paineis::class);
-
-    $tela->call('renomearFunil', $funil->id, 'Comercial');
+    $tela->set('nomePainel', 'Comercial')->call('salvarConfiguracao')->assertHasNoErrors();
     expect($funil->fresh()->nome)->toBe('Comercial');
 
-    $tela->call('renomearFunil', $funil->id, '   ');
+    $tela->call('configurar')->set('nomePainel', '   ')
+        ->call('salvarConfiguracao')->assertHasErrors('nomePainel');
     expect($funil->fresh()->nome)->toBe('Comercial');
 });

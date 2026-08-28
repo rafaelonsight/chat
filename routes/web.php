@@ -2,6 +2,19 @@
 
 use Illuminate\Support\Facades\Route;
 
+Route::get('/internal-media/{id}', function (int $id) {
+    $user=auth()->user();
+    $message=\App\Models\DirectMessage::withoutGlobalScopes()->where('tenant_id',$user->tenant_id)
+        ->where(fn($q)=>$q->where('de_user_id',$user->id)->orWhere('para_user_id',$user->id))->findOrFail($id);
+    abort_unless($message->file_path,404);
+    $disk=\Illuminate\Support\Facades\Storage::disk('local');
+    abort_unless($disk->exists($message->file_path),404);
+    if(str_starts_with($message->file_mime??'','audio/') || in_array($message->file_mime,['video/webm','video/mp4'])) {
+        return response()->file($disk->path($message->file_path),['Content-Type'=>$message->file_mime,'X-Content-Type-Options'=>'nosniff','Cache-Control'=>'private, no-store']);
+    }
+    return $disk->download($message->file_path,$message->file_name,['X-Content-Type-Options'=>'nosniff','Cache-Control'=>'private, no-store']);
+})->middleware(['auth',\App\Http\Middleware\SessaoBloqueada::class])->name('internal-media');
+
 use App\Http\Controllers\EvolutionWebhookController;
 
 Route::post('/webhooks/evolution/{channel}/{secret}', EvolutionWebhookController::class)
