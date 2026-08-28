@@ -88,3 +88,17 @@ it('blocks attachment downloads while the session is locked',function(){
  Livewire::test(ChatInterno::class)->call('abrir',$this->peer->id)->set('arquivo',UploadedFile::fake()->create('file.pdf',10,'application/pdf'))->call('enviar')->assertHasNoErrors();
  $this->withSession([\App\Http\Middleware\SessaoBloqueada::CHAVE=>true])->get(route('internal-media',DirectMessage::first()->id))->assertRedirect(route('sessao.travada'));
 });
+it('accepts a real short WAV and streams it only to its participants',function(){
+ Storage::fake('local');
+ $pcm=str_repeat("\0",16000);
+ $wav='RIFF'.pack('V',36+strlen($pcm)).'WAVEfmt '.pack('VvvVVvv',16,1,1,8000,16000,2,16).'data'.pack('V',strlen($pcm)).$pcm;
+ Livewire::test(ChatInterno::class)->call('abrir',$this->peer->id)->set('arquivo',UploadedFile::fake()->createWithContent('recording.wav',$wav))->call('enviar')->assertHasNoErrors();
+ $message=DirectMessage::firstOrFail();
+ expect($message->file_mime)->toStartWith('audio/');
+ $this->get(route('internal-media',$message->id))->assertOk()->assertHeader('X-Content-Type-Options','nosniff');
+});
+it('rejects an unreadable recording instead of publishing a broken player',function(){
+ Storage::fake('local');
+ Livewire::test(ChatInterno::class)->call('abrir',$this->peer->id)->set('arquivo',UploadedFile::fake()->create('broken.wav',10,'audio/wav'))->call('enviar')->assertHasErrors('arquivo');
+ expect(DirectMessage::count())->toBe(0);
+});
