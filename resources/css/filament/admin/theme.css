@@ -92,6 +92,74 @@
     .vc-control { transition: none; }
 }
 
+/* ============================================================ FASE 6 — MÓDULOS
+
+   Agenda, contatos, canais, automações, relatórios e configurações misturam
+   componentes Filament e views próprias. Esta camada padroniza o vocabulário
+   visual uma única vez, sem duplicar regras por tela. */
+
+.fi-header-heading {
+    color: var(--vc-text);
+    letter-spacing: -0.025em;
+}
+
+.fi-header-subheading { color: var(--vc-text-muted); }
+
+:where(.fi-section, .fi-ta-ctn, .fi-modal-window, .fi-dropdown-panel) {
+    border-color: var(--vc-border);
+    background: var(--vc-surface);
+}
+
+:where(.fi-section, .fi-ta-ctn) {
+    border-radius: 1rem;
+    box-shadow: 0 10px 30px rgb(15 23 42 / 0.055);
+}
+
+.dark :where(.fi-section, .fi-ta-ctn) {
+    box-shadow: 0 16px 38px rgb(0 0 0 / 0.18);
+}
+
+:where(.fi-input-wrp, .fi-select-input) {
+    border-color: var(--vc-border-strong);
+    background: var(--vc-surface);
+    color: var(--vc-text);
+}
+
+.fi-input-wrp:focus-within {
+    outline: 2px solid var(--vc-focus);
+    outline-offset: 1px;
+}
+
+:where(.fi-ta-header, .fi-ta-header-ctn, .fi-ta-table thead) {
+    background: var(--vc-surface-muted);
+    color: var(--vc-text-muted);
+}
+
+.fi-ta-row:hover { background: color-mix(in srgb, var(--vc-surface-muted) 72%, transparent); }
+
+:where(.fi-empty-state, .fi-ta-empty-state) {
+    color: var(--vc-text-muted);
+    background: var(--vc-surface);
+}
+
+/* Views próprias ainda usam utilitários de cor. Dentro de uma página Filament,
+   esses papéis passam a seguir os mesmos tokens dos componentes nativos. */
+.fi-page .bg-white { background-color: var(--vc-surface); }
+.fi-page .bg-gray-50 { background-color: var(--vc-surface-muted); }
+.fi-page .border-gray-200 { border-color: var(--vc-border); }
+.fi-page .border-gray-300 { border-color: var(--vc-border-strong); }
+.fi-page .text-gray-900 { color: var(--vc-text); }
+.fi-page .text-gray-500 { color: var(--vc-text-muted); }
+
+@media (prefers-reduced-motion: reduce) {
+    .fi-page *, .fi-modal-window * {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
 /* ============================================================ A INBOX OCUPA A TELA
 
    O QUE ESTAVA ERRADO era aritmetica, nao falta de espaco. O painel se limitava com
