@@ -1,10 +1,12 @@
 <?php
 
 use App\Livewire\Inbox\ConversationWindow;
-use App\Models\{Channel, Contact, Conversation, Message, Tenant, User};
+use App\Models\{Channel, Chatbot, ChatbotAction, Contact, Conversation, Message, Tenant, User};
 use App\Jobs\EncerrarChatDoSitePorInatividade;
 use App\Services\Canais\Enviadores;
 use App\Services\Canais\SiteEnviador;
+use App\Services\ChatbotFluxo;
+use App\Services\ChatbotMotor;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
@@ -118,6 +120,49 @@ it('a mensagem do visitante conta como palavra de cliente', function () {
     expect($conversa->nao_lidas)->toBe(1)
         ->and($conversa->ultima_entrada_em)->not->toBeNull()
         ->and(Message::first()->direcao)->toBe('in');
+});
+
+it('a primeira mensagem do chat do site inicia o fluxo publicado', function () {
+    TenantContext::set($this->conta->id);
+
+    $bot = Chatbot::create([
+        'nome' => 'Recepção do site',
+        'channel_id' => $this->canal->id,
+        'ativo' => true,
+        'mensagem_boas_vindas' => 'Olá!',
+        'mensagem_nao_entendi' => 'Não entendi.',
+        'tolerancia_segundos' => 0,
+    ]);
+    $bot->forceFill(['status' => Chatbot::PUBLICADO])->save();
+
+    $fluxo = app(ChatbotFluxo::class);
+    $inicio = $fluxo->garantirInicio($bot);
+    $recepcao = $fluxo->criarPasso($bot, 300, 100, 'Recepção');
+    $fluxo->adicionarAcao($recepcao, ChatbotAction::MENSAGEM, [
+        'texto' => 'Escolha: Suporte, Comercial ou Financeiro.',
+    ]);
+    $fluxo->ligar($inicio, $recepcao);
+
+    TenantContext::forget();
+
+    $token = $this->postJson($this->url.'/abrir', [
+        'nome' => 'Joana', 'telefone' => '(41) 99999-0000',
+    ])->json('token');
+
+    $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => 'oi'])
+        ->assertOk();
+
+    TenantContext::set($this->conta->id);
+
+    $conversa = Conversation::firstOrFail();
+
+    expect($conversa->chatbot_estado)->toBe(ChatbotMotor::ATIVO)
+        ->and($conversa->chatbot_id)->toBe($bot->id)
+        ->and(
+            Message::where('conversation_id', $conversa->id)
+                ->where('automatica', true)
+                ->value('corpo')
+        )->toBe('Escolha: Suporte, Comercial ou Financeiro.');
 });
 
 it('mensagem vazia nao vira linha no banco', function () {

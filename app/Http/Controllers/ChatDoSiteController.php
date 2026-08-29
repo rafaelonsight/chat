@@ -8,6 +8,7 @@ use App\Models\Channel;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Services\ChatbotMotor;
 use App\Support\TenantContext;
 use App\Support\PhoneNumber;
 use Illuminate\Http\Request;
@@ -143,6 +144,11 @@ class ChatDoSiteController extends Controller
             ]);
 
             broadcast(new MessageStored($mensagem->refresh()));
+
+            // O widget e um canal como qualquer outro: a primeira mensagem do novo
+            // atendimento precisa entrar no fluxo publicado. Sem esta chamada, ela
+            // aparecia na fila, mas o menu so funcionava nos webhooks do WhatsApp.
+            app(ChatbotMotor::class)->talvezAtender($canal, $mensagem);
 
             EncerrarChatDoSitePorInatividade::dispatch($conversa->id, $mensagem->id)
                 ->delay(now()->addMinutes(5));
