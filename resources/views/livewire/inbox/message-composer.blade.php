@@ -419,6 +419,13 @@
                         const total = this.achados.length;
                         if (total) this.indice = (this.indice + passo + total) % total;
                     },
+
+                    novaLinha(el) {
+                        const inicio = el.selectionStart;
+                        const fim = el.selectionEnd;
+                        el.setRangeText('\n', inicio, fim, 'end');
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                    },
                  }">
 
                 @if ($nota)
@@ -428,18 +435,13 @@
                               x-on:keydown.arrow-down="if (aberto) { $event.preventDefault(); andar(1) }"
                               x-on:keydown.arrow-up="if (aberto) { $event.preventDefault(); andar(-1) }"
                               x-on:keydown.escape="aberto = false"
+                              x-on:keydown.ctrl.enter.prevent.stop="aberto = false; novaLinha($el)"
+                              x-on:keydown.meta.enter.prevent.stop="aberto = false; novaLinha($el)"
                               x-on:keydown.enter="
                                   if (aberto) {
                                       $event.preventDefault();
                                       escolher(achados[indice], $el);
-                                  } else if ($event.ctrlKey || $event.metaKey) {
-                                      $event.preventDefault();
-                                      const inicio = $el.selectionStart;
-                                      const fim = $el.selectionEnd;
-                                      $el.value = $el.value.slice(0, inicio) + '\n' + $el.value.slice(fim);
-                                      $el.dispatchEvent(new Event('input', { bubbles: true }));
-                                      $el.selectionStart = $el.selectionEnd = inicio + 1;
-                                  } else {
+                                  } else if (! $event.ctrlKey && ! $event.metaKey) {
                                       $event.preventDefault();
                                       $el.form.requestSubmit();
                                   }
