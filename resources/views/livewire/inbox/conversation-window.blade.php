@@ -389,19 +389,12 @@
         @enderror
 
         {{--
-            AS MENSAGENS GANHARAM MEDIDA.
-
-            A coluna da conversa tem 894px numa tela de 1600. As bolhas se agarram ao canto
-            esquerdo e sobra meia tela de vazio a direita — nao um vazio calmo, um vazio torto,
-            que e o que fazia a tela parecer mal aproveitada mesmo estando cheia.
-
-            Com uma medida centrada de 768px o texto fica no comprimento em que se le sem
-            varrer a cabeca, e o vazio passa a ser simetrico: deliberado em vez de sobra. E a
-            variante [&>*] em vez de um invólucro novo — o mesmo efeito sem outro nivel de
-            div entre a rolagem e as mensagens, que e onde erro de altura se esconde.
+            A linha usa toda a largura da conversa. Limitar cada linha a 768px aproximava
+            artificialmente mensagens recebidas e enviadas e criava grandes faixas vazias em
+            monitores largos. A legibilidade continua protegida pelo max-width do próprio balão.
         --}}
         <div class="vc-thread flex-1 space-y-2 overflow-y-auto p-4
-                     [&>*]:mx-auto [&>*]:w-full [&>*]:max-w-3xl">
+                     [&>*]:w-full">
             @if ($mensagens->count() >= $limite)
                 <button type="button" wire:click="carregarMais" class="mx-auto block text-xs text-slate-500 underline dark:text-gray-400">
                     carregar mensagens anteriores
