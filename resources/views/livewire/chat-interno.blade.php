@@ -9,7 +9,7 @@
     ela envelheceria sozinha, e a pessoa que fechou o navegador continuaria verde ate alguem
     lembrar de limpar. Aqui, quem cai some.
 --}}
-<div class="fixed bottom-4 right-4 z-30 print:hidden"
+<div class="fixed bottom-28 right-3 z-30 print:hidden sm:bottom-20 sm:right-4"
      x-data="{
         online: [],
 
@@ -171,8 +171,8 @@
 
     {{-- ------------------------------------------------------------- a bolha --}}
     <button type="button" wire:click="$toggle('aberto')"
-            class="relative grid h-12 w-12 place-items-center rounded-full bg-emerald-600 text-white shadow-lg transition hover:bg-emerald-700"
-            title="Chat da equipe">
+            class="relative grid h-12 w-12 place-items-center rounded-2xl border border-emerald-400/30 bg-emerald-600 text-white shadow-[0_10px_30px_rgba(5,150,105,0.3)] transition duration-200 hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-[0_14px_34px_rgba(5,150,105,0.38)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 motion-reduce:transform-none"
+            title="Chat da equipe" aria-label="Abrir chat da equipe">
 
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-6 w-6">
             <path stroke-linecap="round" stroke-linejoin="round"

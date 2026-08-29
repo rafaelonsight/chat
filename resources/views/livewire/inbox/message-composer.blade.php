@@ -201,9 +201,11 @@
         <form wire:submit="enviar" class="flex items-end gap-2 {{ $nota ? 'rounded-lg bg-amber-50/60 p-1.5 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:ring-amber-500/30' : '' }}">
             {{-- anexar: escondido em nota interna, o arquivo iria para o cliente --}}
             @unless ($nota)
-                <label class="cursor-pointer rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-gray-300 dark:hover:bg-white/5"
-                       title="Anexar imagem, video, audio ou documento">
-                    &#128206;
+                <label class="grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm transition duration-150 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 focus-within:ring-2 focus-within:ring-emerald-500/40 dark:border-white/15 dark:bg-white/[0.03] dark:text-slate-300 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
+                       title="Anexar arquivo" aria-label="Anexar imagem, vídeo, áudio ou documento">
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m20.25 11.25-8.69 8.69a6 6 0 0 1-8.49-8.49l9.19-9.19a4.5 4.5 0 0 1 6.36 6.36l-9.19 9.19a3 3 0 0 1-4.24-4.24l8.69-8.69" />
+                    </svg>
                     <input type="file" wire:model="anexo" class="hidden"
                            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip">
                 </label>
@@ -213,8 +215,12 @@
             @if ($modelos->isNotEmpty() && ! $nota)
                 <div class="relative shrink-0" x-data="{ aberto: false }" x-on:click.outside="aberto = false">
                     <button type="button" x-on:click="aberto = !aberto" title="Modelos de mensagem"
-                            class="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-gray-300 dark:hover:bg-white/5">
-                        &#9998;
+                            aria-label="Abrir modelos de mensagem"
+                            class="grid h-11 w-11 place-items-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm transition duration-150 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 dark:border-white/15 dark:bg-white/[0.03] dark:text-slate-300 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h4.5M6.75 3.75h7.69a2 2 0 0 1 1.42.59l1.8 1.8a2 2 0 0 1 .59 1.42v10.69a2 2 0 0 1-2 2h-9.5a2 2 0 0 1-2-2V5.75a2 2 0 0 1 2-2Z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 3.9v3.35a.5.5 0 0 0 .5.5h3.35" />
+                        </svg>
                     </button>
                     <div x-show="aberto" x-cloak
                          class="absolute bottom-full left-0 z-20 mb-1 w-72 max-h-64 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1 shadow-lg dark:border-white/10 dark:bg-gray-800">
@@ -251,9 +257,13 @@
                         x-show="!gravando && !iniciando && !enviando"
                         x-on:pointerdown.prevent="segureParaGravar($event)"
                         style="touch-action: none"
-                        class="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-gray-300 dark:hover:bg-white/5"
+                        aria-label="Gravar mensagem de voz"
+                        class="grid h-11 w-11 place-items-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm transition duration-150 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 dark:border-white/15 dark:bg-white/[0.03] dark:text-slate-300 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
                         title="Segure para gravar. Arraste para cima para travar.">
-                    &#127908;
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                        <rect x="8.25" y="3" width="7.5" height="12" rx="3.75" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5.75 11.25a6.25 6.25 0 0 0 12.5 0M12 17.5V21m-3 0h6" />
+                    </svg>
                 </button>
 
                 <div x-show="iniciando" x-cloak
@@ -291,7 +301,9 @@
 
                     <button type="button" x-on:click="pararEEnviar()"
                             class="rounded bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"
-                            title="Enviar agora">&#10148;</button>
+                            title="Enviar agora" aria-label="Enviar áudio agora">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="m5 12 14-8-4.5 16-3-6.5L5 12Zm6.5 1.5L19 4" /></svg>
+                    </button>
                 </div>
 
                 <div x-show="erro" x-cloak class="flex max-w-xs items-center gap-2 text-xs text-red-600 dark:text-red-300">
@@ -315,8 +327,10 @@
                 <div class="relative shrink-0" x-data="{ aberto: false }" x-on:click.outside="aberto = false">
                     <button type="button" x-on:click="aberto = !aberto"
                             title="Emojis" aria-label="Escolher um emoji"
-                            class="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-gray-300 dark:hover:bg-white/5">
-                        &#128512;
+                            class="grid h-11 w-11 place-items-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm transition duration-150 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 dark:border-white/15 dark:bg-white/[0.03] dark:text-slate-300 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                            <circle cx="12" cy="12" r="8.75" /><path stroke-linecap="round" d="M8.5 14.25c.9 1.15 2.05 1.75 3.5 1.75s2.6-.6 3.5-1.75" /><path stroke-linecap="round" d="M8.75 9.5h.01M15.25 9.5h.01" stroke-width="2.5" />
+                        </svg>
                     </button>
 
                     <div x-show="aberto" x-cloak id="onchat-emojis"
@@ -339,8 +353,11 @@
             {{-- alternar entre responder o cliente e escrever nota interna --}}
             <button type="button" wire:click="alternarNota"
                     title="{{ $nota ? 'Voltar a responder o cliente' : 'Escrever nota interna (nao vai para o cliente)' }}"
-                    class="shrink-0 rounded border px-3 py-2 text-sm {{ $nota ? 'border-amber-400 bg-amber-100 text-amber-800 dark:border-amber-500/50 dark:bg-amber-500/15 dark:text-amber-200' : 'border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-gray-300 dark:hover:bg-white/5' }}">
-                &#128274;
+                    aria-label="{{ $nota ? 'Voltar a responder o cliente' : 'Escrever nota interna' }}"
+                    class="grid h-11 w-11 shrink-0 place-items-center rounded-xl border shadow-sm transition duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 {{ $nota ? 'border-amber-400 bg-amber-100 text-amber-800 dark:border-amber-500/50 dark:bg-amber-500/15 dark:text-amber-200' : 'border-slate-300 bg-white text-slate-600 hover:border-amber-400 hover:bg-amber-50 hover:text-amber-700 dark:border-white/15 dark:bg-white/[0.03] dark:text-gray-300 dark:hover:border-amber-500/60 dark:hover:bg-amber-500/10 dark:hover:text-amber-300' }}">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
+                    <rect x="5.25" y="10" width="13.5" height="10" rx="2" /><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 10V7.75a3.75 3.75 0 0 1 7.5 0V10M12 14v2" />
+                </svg>
             </button>
 
             {{-- throttle e nao debounce: com debounce o aviso so sairia depois que a pessoa
@@ -496,8 +513,9 @@
             </div>
 
             <button type="submit" wire:loading.attr="disabled" wire:target="enviar,anexo"
-                    class="rounded px-4 py-2 text-sm font-medium text-white disabled:opacity-60 {{ $nota ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700' }}">
-                {{ $nota ? 'Salvar nota' : 'Enviar' }}
+                    class="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white shadow-sm transition duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 {{ $nota ? 'bg-amber-600 hover:bg-amber-700 focus-visible:ring-amber-500' : 'bg-emerald-600 hover:bg-emerald-700 focus-visible:ring-emerald-500' }}">
+                <span>{{ $nota ? 'Salvar nota' : 'Enviar' }}</span>
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="m5 12 14-8-4.5 16-3-6.5L5 12Zm6.5 1.5L19 4" /></svg>
             </button>
         </form>
         @endif
