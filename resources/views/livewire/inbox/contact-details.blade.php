@@ -2,7 +2,7 @@
         // w-full no celular, w-80 no computador: la ele e uma coluna ao lado da conversa,
         // aqui ele E a tela. Largura fixa de 320px num telefone de 360 deixaria uma faixa
         // morta e o conteudo apertado do lado.
-        'flex w-full shrink-0 flex-col overflow-y-auto border-l border-gray-200 bg-white lg:w-80 dark:border-white/10 dark:bg-gray-900' => $aberto,
+        'vc-context flex w-full shrink-0 flex-col overflow-y-auto border-l lg:w-72 2xl:w-80' => $aberto,
         'hidden' => ! $aberto,
     ])>
     @if ($aberto && $conversa)

@@ -72,6 +72,21 @@
 .vc-message-in { border: 1px solid var(--vc-border); background: var(--vc-surface-raised); color: var(--vc-text); }
 .vc-message-out { background: var(--vc-success); color: #fff; }
 .vc-note { border-color: var(--vc-warning-border); background: var(--vc-warning-surface); color: var(--vc-warning-text); }
+.vc-workspace {
+    border-color: var(--vc-border);
+    background: var(--vc-surface);
+    color: var(--vc-text);
+    box-shadow: 0 18px 48px rgb(15 23 42 / 0.08);
+}
+.dark .vc-workspace { box-shadow: 0 24px 64px rgb(0 0 0 / 0.28); }
+.vc-queue,
+.vc-context { border-color: var(--vc-border); background: var(--vc-surface); }
+.vc-queue-body { background: var(--vc-surface); }
+
+@media (min-width: 1024px) {
+    .vc-context { box-shadow: -18px 0 38px rgb(15 23 42 / 0.06); }
+    .dark .vc-context { box-shadow: -18px 0 42px rgb(0 0 0 / 0.20); }
+}
 
 @media (prefers-reduced-motion: reduce) {
     .vc-control { transition: none; }

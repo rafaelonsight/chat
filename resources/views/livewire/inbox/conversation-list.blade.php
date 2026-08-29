@@ -1,7 +1,7 @@
-<div class="flex flex-1 flex-col overflow-hidden">
+<div class="vc-queue-body flex flex-1 flex-col overflow-hidden">
 
     {{-- linha 1: o balde. Palavra para o dia a dia, icone para consulta. --}}
-    <div class="flex shrink-0 items-center gap-1 border-b border-gray-200 px-2 py-2 dark:border-white/10">
+    <div class="vc-toolbar flex shrink-0 items-center gap-1 border-b px-2 py-2">
         @foreach (['novos', 'meus', 'outros'] as $chave)
             <button type="button" wire:key="bl-{{ $chave }}" wire:click="selecionarBalde('{{ $chave }}')"
                     {{-- Maior no celular: dedo nao acerta alvo de 24px. No computador volta
@@ -43,7 +43,7 @@
 
     {{-- linha 2: o recorte. Ortogonal, combina com qualquer balde. --}}
     <div x-data="{ busca: @js(trim($busca) !== ''), ordem: false }"
-         class="shrink-0 border-b border-gray-200 dark:border-white/10">
+         class="vc-toolbar shrink-0 border-b">
 
         {{--
             QUEBRA LINHA EM VEZ DE ESMAGAR.
@@ -266,8 +266,10 @@
         @forelse ($conversas as $conversa)
             <button type="button" wire:key="conv-{{ $conversa->id }}"
                     wire:click="selecionar({{ $conversa->id }})"
-                    class="block w-full border-b border-gray-100 px-4 py-3 text-left hover:bg-gray-50 dark:border-white/5 dark:hover:bg-white/5
-                           {{ $selecionada === $conversa->id ? 'bg-emerald-50 dark:bg-emerald-500/10' : '' }}">
+                    class="block w-full border-b border-l-[3px] px-4 py-3 text-left transition-colors hover:bg-gray-50 dark:border-white/5 dark:hover:bg-white/5
+                           {{ $selecionada === $conversa->id
+                                ? 'border-l-emerald-600 bg-emerald-50 dark:border-l-emerald-400 dark:bg-emerald-500/10'
+                                : 'border-l-transparent border-b-gray-100' }}">
                 <div class="flex items-center justify-between gap-2">
                     @if ($conversa->contact->fotoWhatsappUrl())
                         <img src="{{ $conversa->contact->fotoWhatsappUrl() }}" alt="" class="h-8 w-8 shrink-0 rounded-full object-cover">

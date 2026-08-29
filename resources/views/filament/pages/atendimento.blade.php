@@ -29,24 +29,24 @@
          {{-- No CELULAR a conta continua, e por um motivo que o flex nao resolve: a barra de
               endereco aparece e some, e so o dvh acompanha isso. No COMPUTADOR quem manda e o
               flex do tema — nenhum numero fixo, nenhuma tela em que a conta esteja errada. --}}
-         class="flex h-[calc(100dvh-7rem)] min-h-[24rem] overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm lg:h-auto dark:border-white/10 dark:bg-gray-900">
+         class="vc-workspace relative flex h-[calc(100dvh-7rem)] min-h-[24rem] overflow-hidden rounded-2xl border lg:h-auto">
 
         {{-- lista --}}
         <div :class="vista === 'lista' ? 'flex' : 'hidden'"
-             {{-- 384px e nao 320px. A coluna de 320 vinha cortando nome de contato no meio
+             {{-- 360px em telas amplas, 320px no primeiro breakpoint. A coluna estreita vinha cortando nome de contato no meio
                   ("Lohan Munhoz Property Dev…") e apertando SEIS controles de filtro numa
                   fileira — e aperto sempre cobra de alguem: primeiro quebrou o rotulo de um
-                  chip, depois esmagou os seletores ate sobrar so a setinha. Os 64px saem da
-                  conversa, que tem folga de sobra: ela fica com ~830px e o texto ja esta
-                  limitado a 768. --}}
-             class="w-full shrink-0 flex-col border-r border-gray-200 lg:flex lg:w-96 dark:border-white/10">
+                  chip, depois esmagou os seletores ate sobrar so a setinha. O breakpoint
+                  progressivo preserva a conversa em notebooks e entrega a fila completa em
+                  monitores operacionais. --}}
+             class="vc-queue w-full shrink-0 flex-col border-r lg:flex lg:w-80 xl:w-[22.5rem]">
             <livewire:inbox.new-conversation />
             <livewire:inbox.conversation-list />
         </div>
 
         {{-- conversa --}}
         <div :class="vista === 'conversa' ? 'flex' : 'hidden'"
-             class="w-full flex-1 flex-col overflow-hidden lg:flex">
+             class="min-w-0 w-full flex-1 flex-col overflow-hidden lg:flex">
             <livewire:inbox.conversation-window />
             <livewire:inbox.message-composer />
         </div>

@@ -1,7 +1,7 @@
 <div class="vc-panel flex flex-1 flex-col overflow-hidden">
     @if ($conversa)
-        <div class="vc-toolbar flex items-center justify-between gap-3 border-b px-4 py-3">
-            <div class="flex min-w-0 items-center gap-2">
+        <div class="vc-toolbar flex flex-col gap-2 border-b px-2 py-2 lg:flex-row lg:items-center lg:justify-between lg:px-4 lg:py-3">
+            <div class="flex min-w-0 w-full items-center gap-2 lg:flex-1">
                 {{-- So no celular. La a lista sumiu para a conversa caber, e sem este botao
                      o unico caminho de volta seria recarregar a pagina. No computador as duas
                      colunas convivem e a seta seria ruido. --}}
@@ -36,7 +36,7 @@
                          "Financeiro" sem passar o mouse nem abrir o painel. Tres no
                          maximo — o cabecalho tem os botoes de acao a disputar espaco. --}}
                     @if ($conversa->contact->tags->isNotEmpty())
-                        <span class="flex shrink-0 items-center gap-1"
+                        <span class="hidden shrink-0 items-center gap-1 sm:flex"
                               title="{{ $conversa->contact->tags->pluck('nome')->join(', ') }}">
                             @foreach ($conversa->contact->tags->take(3) as $etiqueta)
                                 <span wire:key="cab-et-{{ $etiqueta->id }}"
@@ -52,7 +52,7 @@
                         </span>
                     @endif
                 </div>
-                <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <div class="hidden items-center gap-2 text-xs text-gray-500 sm:flex dark:text-gray-400">
                     @if ($conversa->contact->whatsapp_nome && $conversa->contact->whatsapp_nome !== $conversa->contact->nomeExibicao())
                         <span class="truncate text-emerald-700 dark:text-emerald-400">WhatsApp: {{ $conversa->contact->whatsapp_nome }}</span>
                         <span>&middot;</span>
@@ -84,7 +84,7 @@
                 </div>
             </div>
 
-            <div class="flex shrink-0 items-center gap-2">
+            <div class="flex w-full items-center gap-2 overflow-x-auto pb-0.5 lg:w-auto lg:shrink-0 lg:overflow-visible lg:pb-0">
                 @if ($equipes->isNotEmpty())
                     <div class="relative" x-data="{ aberto: false }" x-on:click.outside="aberto = false">
                         <button type="button" x-on:click="aberto = !aberto"
@@ -534,7 +534,7 @@
                         </span>
                     @endif
 
-                    <div class="max-w-lg rounded-xl px-3 py-2 text-sm shadow-sm {{ $entrada
+                    <div class="min-w-0 max-w-[85%] break-words rounded-xl px-3 py-2 text-sm shadow-sm [overflow-wrap:anywhere] sm:max-w-lg {{ $entrada
                         ? ($m->mencao
                             ? 'vc-note border-2'
                             : 'vc-message-in')
