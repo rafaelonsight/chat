@@ -292,7 +292,8 @@ it('o trecho para colar carrega a chave do canal', function () {
 it('o widget e servido como javascript', function () {
     $this->get('/widget.js')
         ->assertOk()
-        ->assertHeader('Content-Type', 'application/javascript; charset=utf-8');
+        ->assertHeader('Content-Type', 'application/javascript; charset=utf-8')
+        ->assertSee('white-space:pre-wrap', false);
 });
 
 it('encerra uma vez depois de cinco minutos sem nova mensagem do visitante', function () {

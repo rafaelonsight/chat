@@ -58,7 +58,7 @@
     '.topo small{display:block;color:#a1a1aa;font-size:11px}',
     '.fechar{margin-left:auto;background:none;border:0;color:#a1a1aa;font-size:20px;cursor:pointer;line-height:1;padding:4px 6px}',
     '.corpo{flex:1;min-height:0;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px}',
-    '.b{max-width:84%;padding:8px 11px;border-radius:13px;font-size:13.5px;word-wrap:break-word;overflow-wrap:anywhere}',
+    '.b{max-width:84%;padding:8px 11px;border-radius:13px;font-size:13.5px;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere}',
     '.b.eu{align-self:flex-end;background:#f5b301;color:#1a1a17;border-bottom-right-radius:4px}',
     '.b.eles{align-self:flex-start;background:#252a35;border-bottom-left-radius:4px}',
     '.b time{display:block;margin-top:3px;font-size:10px;opacity:.6}',
