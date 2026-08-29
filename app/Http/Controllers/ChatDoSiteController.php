@@ -57,10 +57,15 @@ class ChatDoSiteController extends Controller
                 ? Conversation::where('channel_id', $canal->id)->where('contact_id', $contato->id)->latest('id')->first()
                 : null;
 
+            if ($contato && $pedido->boolean('nova')) {
+                $conversa = Conversation::abertaOuNova($canal->id, $contato->id, $canal->tenant_id);
+            }
+
             return response()->json([
                 'token'     => $token,
                 'saudacao'  => $canal->site_saudacao,
                 'cadastrado' => (bool) ($contato?->nome && $contato?->telefone_e164),
+                'encerrada' => $conversa?->status === Conversation::ARQUIVADA,
                 'mensagens' => $conversa ? $this->mensagensDe($conversa, 0) : [],
             ]);
         });
@@ -98,7 +103,20 @@ class ChatDoSiteController extends Controller
                 return response()->json(['erro' => 'Informe seu nome e WhatsApp antes de iniciar.'], 422);
             }
 
-            $conversa = Conversation::abertaOuNova($canal->id, $contato->id, $canal->tenant_id);
+            $conversa = Conversation::where('channel_id', $canal->id)
+                ->where('contact_id', $contato->id)
+                ->latest('id')
+                ->first();
+
+            if ($conversa?->status === Conversation::ARQUIVADA) {
+                return response()->json([
+                    'erro' => 'Este atendimento foi finalizado. Inicie uma nova conversa para continuar.',
+                    'encerrada' => true,
+                    'mensagens' => $this->mensagensDe($conversa, (int) $pedido->input('desde', 0)),
+                ], 409);
+            }
+
+            $conversa ??= Conversation::abertaOuNova($canal->id, $contato->id, $canal->tenant_id);
 
             $mensagem = Message::create([
                 'tenant_id'       => $canal->tenant_id,
@@ -131,6 +149,7 @@ class ChatDoSiteController extends Controller
 
             return response()->json([
                 'token'     => $token,
+                'encerrada' => false,
                 'mensagens' => $this->mensagensDe($conversa, (int) $pedido->input('desde', 0)),
             ]);
         });
@@ -157,7 +176,7 @@ class ChatDoSiteController extends Controller
             $contato = Contact::where('jid', $this->jidDo($token))->first();
 
             if (! $contato) {
-                return response()->json(['mensagens' => []]);
+                return response()->json(['mensagens' => [], 'encerrada' => false]);
             }
 
             $conversa = Conversation::where('channel_id', $canal->id)
@@ -166,6 +185,7 @@ class ChatDoSiteController extends Controller
                 ->first();
 
             return response()->json([
+                'encerrada' => $conversa?->status === Conversation::ARQUIVADA,
                 'mensagens' => $conversa ? $this->mensagensDe($conversa, (int) $pedido->query('desde', 0)) : [],
             ]);
         });

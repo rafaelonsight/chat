@@ -1,12 +1,14 @@
 <?php
 
-use App\Models\{Channel, Contact, Conversation, Message, Tenant};
+use App\Livewire\Inbox\ConversationWindow;
+use App\Models\{Channel, Contact, Conversation, Message, Tenant, User};
 use App\Jobs\EncerrarChatDoSitePorInatividade;
 use App\Services\Canais\Enviadores;
 use App\Services\Canais\SiteEnviador;
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
+use Livewire\Livewire;
 
 /*
  * O chat que mora no site do cliente.
@@ -272,4 +274,48 @@ it('temporizador antigo nao encerra se o visitante falou novamente', function ()
 
     expect($conversa->fresh()->status)->not->toBe(Conversation::ARQUIVADA)
         ->and(Message::where('direcao', 'out')->count())->toBe(0);
+});
+
+it('finalizar no painel encerra o widget e exige nova conversa explicita', function () {
+    $token = $this->postJson($this->url.'/abrir', ['nome' => 'Joana', 'telefone' => '(41) 99999-0000'])->json('token');
+    $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => 'Preciso de ajuda'])->assertOk();
+
+    TenantContext::set($this->conta->id);
+    $conversa = Conversation::first();
+    $atendente = User::create([
+        'tenant_id' => $this->conta->id,
+        'name' => 'Rafael',
+        'email' => 'rafael@site-close.test',
+        'password' => 'segredo123',
+    ]);
+
+    Livewire::actingAs($atendente)
+        ->test(ConversationWindow::class, ['conversationId' => $conversa->id])
+        ->call('encerrar');
+
+    expect($conversa->fresh()->status)->toBe(Conversation::ARQUIVADA);
+    TenantContext::forget();
+
+    $this->getJson($this->url.'/mensagens?token='.$token.'&desde=0')
+        ->assertOk()
+        ->assertJsonPath('encerrada', true)
+        ->assertJsonPath('mensagens.1.de', 'atendimento');
+
+    $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => 'Ainda estou aqui'])
+        ->assertStatus(409)
+        ->assertJsonPath('encerrada', true);
+
+    TenantContext::set($this->conta->id);
+    expect(Conversation::count())->toBe(1)
+        ->and(Message::where('direcao', 'in')->count())->toBe(1);
+    TenantContext::forget();
+
+    $this->postJson($this->url.'/abrir', ['token' => $token, 'nova' => true])
+        ->assertOk()
+        ->assertJsonPath('encerrada', false)
+        ->assertJsonCount(0, 'mensagens');
+
+    TenantContext::set($this->conta->id);
+    expect(Conversation::count())->toBe(2)
+        ->and(Conversation::latest('id')->first()->status)->not->toBe(Conversation::ARQUIVADA);
 });

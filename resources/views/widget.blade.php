@@ -29,6 +29,7 @@
   var aberto = false;
   var sondagem = null;
   var naoLidas = 0;
+  var encerrada = false;
 
   // ------------------------------------------------------------------ a casca
 
@@ -72,6 +73,11 @@
       'padding:0 14px;height:40px;cursor:pointer;flex:none}',
     '.enviar:disabled{opacity:.5;cursor:default}',
     '.aviso{margin:0;padding:8px 14px;background:rgba(245,179,1,.12);color:#fbbf24;font-size:12px}',
+    '.fim{padding:12px 14px;border-top:1px solid rgba(255,255,255,.08);background:#171a22}',
+    '.fim p{margin:0 0 9px;color:#d4d4d8;font-size:12px}',
+    '.novo{width:100%;border:1px solid rgba(245,179,1,.55);border-radius:10px;background:rgba(245,179,1,.1);',
+      'color:#fbbf24;font:700 13px/1 system-ui,sans-serif;padding:12px;cursor:pointer}',
+    '.novo:hover{background:rgba(245,179,1,.16)}.novo:disabled{opacity:.5;cursor:default}',
     '.creditos{padding:6px 14px 10px;font-size:10.5px;color:#71717a;text-align:center}',
     '.creditos a{color:#a1a1aa;text-decoration:none}',
     '.cadastro{padding:18px 14px;display:flex;flex-direction:column;gap:10px}',
@@ -137,6 +143,13 @@
   painel.appendChild(pe);
   pe.style.display = 'none';
 
+  var fim = el('div', { class: 'fim' });
+  fim.appendChild(el('p', {}, 'Atendimento finalizado. Quando precisar, abra uma nova conversa.'));
+  var novo = el('button', { class: 'novo', type: 'button' }, 'Iniciar novo atendimento');
+  fim.appendChild(novo);
+  painel.insertBefore(fim, pe);
+  fim.style.display = 'none';
+
   var creditos = el('p', { class: 'creditos' });
   creditos.innerHTML = 'Conversa por <a href="{{ url('/') }}" target="_blank" rel="noopener">{{ config('app.name') }}</a>';
   painel.appendChild(creditos);
@@ -185,11 +198,23 @@
     corpo.scrollTop = corpo.scrollHeight;
   }
 
+  function aplicarEstado(r) {
+    if (! r || typeof r.encerrada === 'undefined') return;
+
+    encerrada = !! r.encerrada;
+    fim.style.display = encerrada ? '' : 'none';
+
+    if (encerrada) {
+      cadastro.style.display = 'none';
+      pe.style.display = 'none';
+    }
+  }
+
   function olhar() {
     if (! token) return;
 
     pedir('/mensagens?token=' + encodeURIComponent(token) + '&desde=' + ultimoId, null, 'GET')
-      .then(function (r) { desenhar(r.mensagens); })
+      .then(function (r) { desenhar(r.mensagens); aplicarEstado(r); })
       .catch(function () {});
   }
 
@@ -223,6 +248,7 @@
 
         cadastro.style.display = r.cadastrado ? 'none' : '';
         pe.style.display = r.cadastrado ? 'flex' : 'none';
+        aplicarEstado(r);
 
         if (r.cadastrado && (! r.mensagens || ! r.mensagens.length)) {
           if (! sombra.querySelector('.vazio')) {
@@ -260,6 +286,7 @@
     pedir('/mandar', { token: token, corpo: texto, desde: ultimoId })
       .then(function (r) {
         enviar.disabled = false;
+        aplicarEstado(r);
 
         if (r.erro) {
           aviso.textContent = r.erro;
@@ -312,6 +339,33 @@
       .catch(function () {
         comecar.disabled = false;
         aviso.textContent = 'Não foi possível salvar seus dados agora. Tente novamente.';
+        aviso.style.display = '';
+      });
+  });
+
+  novo.addEventListener('click', function () {
+    novo.disabled = true;
+    aviso.style.display = 'none';
+
+    pedir('/abrir', { token: token, nova: true })
+      .then(function (r) {
+        novo.disabled = false;
+        if (r.erro || r.encerrada) {
+          aviso.textContent = r.erro || 'Não foi possível iniciar um novo atendimento.';
+          aviso.style.display = '';
+          return;
+        }
+
+        ultimoId = 0;
+        corpo.replaceChildren(el('div', { class: 'vazio' }, r.saudacao || 'Como podemos ajudar?'));
+        aplicarEstado(r);
+        pe.style.display = 'flex';
+        caixa.focus();
+        ritmo();
+      })
+      .catch(function () {
+        novo.disabled = false;
+        aviso.textContent = 'Não foi possível iniciar um novo atendimento agora.';
         aviso.style.display = '';
       });
   });

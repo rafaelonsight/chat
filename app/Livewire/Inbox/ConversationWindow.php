@@ -233,7 +233,11 @@ class ConversationWindow extends Component
 
         // Depois de arquivar, nao antes: se a pergunta saisse primeiro, o cliente responderia
         // numa conversa ainda aberta e a nota entraria como conversa normal.
-        app(\App\Services\PesquisaDeSatisfacao::class)->perguntar($conversa->refresh());
+        // No widget encerrado nao existe campo para responder a pesquisa; mostrar a pergunta
+        // e bloquear a resposta seria uma promessa quebrada. Ali vai apenas o aviso final.
+        if (! $conversa->channel?->ehSite()) {
+            app(\App\Services\PesquisaDeSatisfacao::class)->perguntar($conversa->refresh());
+        }
 
         // E a jornada de pos-atendimento, se houver alguma ligada.
         app(\App\Services\Cadenciador::class)->inscrever(
@@ -241,6 +245,11 @@ class ConversationWindow extends Component
             $conversa->contact,
             $conversa,
         );
+
+        // Deve ser a ultima transicao: criar uma mensagem de saida normalmente move a conversa
+        // para "em atendimento". O servico publica o aviso e reafirma o arquivamento em uma
+        // operacao idempotente, para painel e widget terminarem no mesmo estado.
+        app(\App\Services\EncerramentoChatDoSite::class)->avisar($conversa->refresh());
 
         $this->classificando = false;
 
