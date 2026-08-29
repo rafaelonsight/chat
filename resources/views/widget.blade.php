@@ -74,6 +74,9 @@
     '.aviso{margin:0;padding:8px 14px;background:rgba(245,179,1,.12);color:#fbbf24;font-size:12px}',
     '.creditos{padding:6px 14px 10px;font-size:10.5px;color:#71717a;text-align:center}',
     '.creditos a{color:#a1a1aa;text-decoration:none}',
+    '.cadastro{padding:18px 14px;display:flex;flex-direction:column;gap:10px}',
+    '.cadastro p{margin:0 0 4px;color:#d4d4d8;font-size:13px}',
+    '.comecar{width:100%;border:0;border-radius:10px;background:#f5b301;color:#1a1a17;font:700 13px/1 system-ui,sans-serif;padding:13px;cursor:pointer}',
   ].join('');
   sombra.appendChild(css);
 
@@ -115,7 +118,8 @@
   painel.appendChild(corpo);
 
   var pe = el('div', { class: 'pe' });
-  var campoNome = el('input', { type: 'text', placeholder: 'Seu nome', maxlength: '60', 'aria-label': 'Seu nome' });
+  var campoNome = el('input', { type: 'text', placeholder: 'Seu nome *', maxlength: '60', required: 'required', autocomplete: 'name', 'aria-label': 'Seu nome (obrigatório)' });
+  var campoTelefone = el('input', { type: 'tel', placeholder: 'WhatsApp com DDD *', maxlength: '20', required: 'required', autocomplete: 'tel', inputmode: 'tel', 'aria-label': 'Seu WhatsApp (obrigatório)' });
   var caixa = el('textarea', { rows: '1', placeholder: 'Escreva sua mensagem…', maxlength: '1500', 'aria-label': 'Mensagem' });
   var enviar = el('button', { class: 'enviar', type: 'button' }, 'Enviar');
   pe.appendChild(caixa);
@@ -123,12 +127,15 @@
 
   // O nome so e pedido enquanto ninguem falou: perguntar de novo a quem ja se apresentou e
   // fazer a pessoa repetir o que ela acabou de dizer.
-  var linhaNome = el('div', { class: 'pe' });
-  linhaNome.style.borderTop = '0';
-  linhaNome.style.paddingBottom = '0';
-  linhaNome.appendChild(campoNome);
-  painel.appendChild(linhaNome);
+  var cadastro = el('div', { class: 'cadastro' });
+  cadastro.appendChild(el('p', {}, 'Para começar, preencha os dois campos obrigatórios.'));
+  cadastro.appendChild(campoNome);
+  cadastro.appendChild(campoTelefone);
+  var comecar = el('button', { class: 'comecar', type: 'button' }, 'Iniciar conversa');
+  cadastro.appendChild(comecar);
+  painel.appendChild(cadastro);
   painel.appendChild(pe);
+  pe.style.display = 'none';
 
   var creditos = el('p', { class: 'creditos' });
   creditos.innerHTML = 'Conversa por <a href="{{ url('/') }}" target="_blank" rel="noopener">{{ config('app.name') }}</a>';
@@ -214,7 +221,10 @@
       .then(function (r) {
         guardarToken(r.token);
 
-        if (! r.mensagens || ! r.mensagens.length) {
+        cadastro.style.display = r.cadastrado ? 'none' : '';
+        pe.style.display = r.cadastrado ? 'flex' : 'none';
+
+        if (r.cadastrado && (! r.mensagens || ! r.mensagens.length)) {
           if (! sombra.querySelector('.vazio')) {
             corpo.appendChild(el('div', { class: 'vazio' },
               r.saudacao || 'Manda sua dúvida por aqui. Alguém responde já já.'));
@@ -222,7 +232,6 @@
         }
 
         desenhar(r.mensagens);
-        linhaNome.style.display = ultimoId > 0 ? 'none' : '';
         ritmo();
       })
       .catch(function () {
@@ -230,7 +239,7 @@
         aviso.style.display = '';
       });
 
-    setTimeout(function () { caixa.focus(); }, 60);
+    setTimeout(function () { (pe.style.display === 'none' ? campoNome : caixa).focus(); }, 60);
   }
 
   function esconder() {
@@ -248,7 +257,7 @@
     caixa.value = '';
     aviso.style.display = 'none';
 
-    pedir('/mandar', { token: token, corpo: texto, nome: campoNome.value, desde: ultimoId })
+    pedir('/mandar', { token: token, corpo: texto, desde: ultimoId })
       .then(function (r) {
         enviar.disabled = false;
 
@@ -261,7 +270,6 @@
 
         guardarToken(r.token);
         desenhar(r.mensagens);
-        linhaNome.style.display = 'none';
         ritmo();
       })
       .catch(function () {
@@ -275,6 +283,38 @@
   bolha.addEventListener('click', function () { aberto ? esconder() : abrir(); });
   fechar.addEventListener('click', esconder);
   enviar.addEventListener('click', mandar);
+  comecar.addEventListener('click', function () {
+    aviso.style.display = 'none';
+
+    if (campoNome.value.trim().length < 2 || ! campoTelefone.value.trim()) {
+      aviso.textContent = 'Preencha seu nome e WhatsApp com DDD.';
+      aviso.style.display = '';
+      (campoNome.value.trim().length < 2 ? campoNome : campoTelefone).focus();
+      return;
+    }
+
+    comecar.disabled = true;
+    pedir('/abrir', { token: token, nome: campoNome.value, telefone: campoTelefone.value })
+      .then(function (r) {
+        comecar.disabled = false;
+        if (r.erro || ! r.cadastrado) {
+          aviso.textContent = r.erro || 'Confira seu nome e WhatsApp.';
+          aviso.style.display = '';
+          return;
+        }
+        guardarToken(r.token);
+        cadastro.style.display = 'none';
+        pe.style.display = 'flex';
+        if (! sombra.querySelector('.vazio')) corpo.appendChild(el('div', { class: 'vazio' }, r.saudacao || 'Como podemos ajudar?'));
+        caixa.focus();
+        ritmo();
+      })
+      .catch(function () {
+        comecar.disabled = false;
+        aviso.textContent = 'Não foi possível salvar seus dados agora. Tente novamente.';
+        aviso.style.display = '';
+      });
+  });
 
   // Enter manda, Shift+Enter pula linha: e o que o dedo de quem usa WhatsApp ja espera.
   caixa.addEventListener('keydown', function (e) {

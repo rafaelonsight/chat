@@ -14,29 +14,32 @@ use Illuminate\Support\Carbon;
  */
 
 beforeEach(function () {
-    config(['mail.default' => 'array']);
+    config(["mail.default" => "array"]);
 
-    $this->casa = Tenant::create(['nome' => 'Casa', 'slug' => 'casa']);
+    $this->casa = Tenant::create(["nome" => "Casa", "slug" => "casa"]);
     TenantContext::set($this->casa->id);
 
     $this->operador = User::create([
-        'tenant_id' => $this->casa->id, 'name' => 'Dono',
-        'email' => 'dono@casa.test', 'password' => 'segredo123', 'admin' => true,
+        "tenant_id" => $this->casa->id, "name" => "Dono",
+        "email" => "dono@casa.test", "password" => "segredo123", "admin" => true,
     ]);
-    $this->operador->forceFill(['operador' => true])->save();
+    $this->operador->forceFill(["operador" => true])->save();
 });
 
 function tenantComUsuario(string $slug, array $licenca = []): array
 {
-    $tenant = Tenant::create(['nome' => $slug, 'slug' => $slug]);
+    $tenant = Tenant::create(["nome" => $slug, "slug" => $slug]);
 
     $usuario = User::create([
-        'tenant_id' => $tenant->id, 'name' => 'Fulano',
-        'email' => $slug.'@teste.test', 'password' => 'segredo123', 'admin' => true,
+        "tenant_id" => $tenant->id, "name" => "Fulano",
+        "email" => $slug."@teste.test", "password" => "segredo123", "admin" => true,
     ]);
 
     if ($licenca !== []) {
-        License::create(array_merge(['tenant_id' => $tenant->id], $licenca));
+        License::updateOrCreate(
+            ["tenant_id" => $tenant->id],
+            $licenca
+        );
     }
 
     return [$tenant, $usuario];
@@ -44,15 +47,15 @@ function tenantComUsuario(string $slug, array $licenca = []): array
 
 // ------------------------------------------------------------- nasce com o cliente
 
-it('cria o cliente com licenca em trial', function () {
+it("cria o cliente com licenca em trial", function () {
     $this->actingAs($this->operador);
 
     $r = app(CriarCliente::class)->criar([
-        'nome' => 'Padaria Aurora', 'fuso_horario' => 'America/Sao_Paulo',
-        'responsavel_nome' => 'Marina', 'responsavel_email' => 'marina@aurora.test',
+        "nome" => "Padaria Aurora", "fuso_horario" => "America/Sao_Paulo",
+        "responsavel_nome" => "Marina", "responsavel_email" => "marina@aurora.test",
     ]);
 
-    $licenca = $r['cliente']->license;
+    $licenca = $r["cliente"]->license;
 
     expect($licenca)->not->toBeNull()
         ->and($licenca->status)->toBe(License::TRIAL)
@@ -62,25 +65,25 @@ it('cria o cliente com licenca em trial', function () {
 
 // ------------------------------------------------------------------- estaValida()
 
-it('ativa vale sempre, sem olhar para a data', function () {
-    $licenca = new License(['status' => License::ATIVA, 'vence_em' => Carbon::yesterday()]);
+it("ativa vale sempre, sem olhar para a data", function () {
+    $licenca = new License(["status" => License::ATIVA, "vence_em" => Carbon::yesterday()]);
 
     expect($licenca->estaValida())->toBeTrue();
 });
 
-it('trial vale ate vencer', function () {
-    $valendo = new License(['status' => License::TRIAL, 'vence_em' => Carbon::tomorrow()]);
-    $vencido = new License(['status' => License::TRIAL, 'vence_em' => Carbon::yesterday()]);
-    $semPrazo = new License(['status' => License::TRIAL, 'vence_em' => null]);
+it("trial vale ate vencer", function () {
+    $valendo = new License(["status" => License::TRIAL, "vence_em" => Carbon::tomorrow()]);
+    $vencido = new License(["status" => License::TRIAL, "vence_em" => Carbon::yesterday()]);
+    $semPrazo = new License(["status" => License::TRIAL, "vence_em" => null]);
 
     expect($valendo->estaValida())->toBeTrue()
         ->and($vencido->estaValida())->toBeFalse()
         ->and($semPrazo->estaValida())->toBeTrue();
 });
 
-it('em atraso, suspensa e cancelada nunca valem, mesmo com vence_em no futuro', function () {
+it("em atraso, suspensa e cancelada nunca valem, mesmo com vence_em no futuro", function () {
     foreach ([License::EM_ATRASO, License::SUSPENSA, License::CANCELADA] as $status) {
-        $licenca = new License(['status' => $status, 'vence_em' => Carbon::tomorrow()]);
+        $licenca = new License(["status" => $status, "vence_em" => Carbon::tomorrow()]);
 
         expect($licenca->estaValida())->toBeFalse();
     }
@@ -88,47 +91,48 @@ it('em atraso, suspensa e cancelada nunca valem, mesmo com vence_em no futuro', 
 
 // ----------------------------------------------------------------- o bloqueio
 
-it('bloqueia quem tenta entrar com a licenca suspensa', function () {
-    [, $usuario] = tenantComUsuario('suspensa', ['status' => License::SUSPENSA, 'motivo' => 'Inadimplente']);
+it("bloqueia quem tenta entrar com a licenca suspensa", function () {
+    [, $usuario] = tenantComUsuario("suspensa", ["status" => License::SUSPENSA, "motivo" => "Inadimplente"]);
 
     $this->actingAs($usuario)
-        ->get('/admin')
-        ->assertRedirect(route('licenca.bloqueada'));
+        ->get("/admin")
+        ->assertRedirect(route("licenca.bloqueada"));
 });
 
-it('deixa passar quem tem licenca ativa', function () {
-    [, $usuario] = tenantComUsuario('ativa', ['status' => License::ATIVA]);
+it("deixa passar quem tem licenca ativa", function () {
+    [, $usuario] = tenantComUsuario("ativa", ["status" => License::ATIVA]);
 
     $this->actingAs($usuario)
-        ->get('/admin')
+        ->get("/admin")
         ->assertOk();
 });
 
-it('deixa passar tenant sem licenca nenhuma — conta anterior a esta tabela', function () {
-    [, $usuario] = tenantComUsuario('sem-licenca');
+it("deixa passar tenant sem licenca nenhuma — conta anterior a esta tabela", function () {
+    [, $usuario] = tenantComUsuario("sem-licenca");
 
     $this->actingAs($usuario)
-        ->get('/admin')
+        ->get("/admin")
         ->assertOk();
 });
 
-it('nunca bloqueia o operador, mesmo se a conta dele tivesse licenca invalida', function () {
-    License::create([
-        'tenant_id' => $this->casa->id, 'status' => License::CANCELADA,
-    ]);
+it("nunca bloqueia o operador, mesmo se a conta dele tivesse licenca invalida", function () {
+    License::updateOrCreate(
+        ["tenant_id" => $this->casa->id],
+        ["status" => License::CANCELADA]
+    );
 
     $this->actingAs($this->operador)
-        ->get('/admin')
+        ->get("/admin")
         ->assertOk();
 });
 
-it('mostra o motivo na tela de bloqueio', function () {
-    [, $usuario] = tenantComUsuario('cancelada', [
-        'status' => License::CANCELADA, 'motivo' => 'Contrato encerrado em 01/08.',
+it("mostra o motivo na tela de bloqueio", function () {
+    [, $usuario] = tenantComUsuario("cancelada", [
+        "status" => License::CANCELADA, "motivo" => "Contrato encerrado em 01/08.",
     ]);
 
     $this->actingAs($usuario)
-        ->get(route('licenca.bloqueada'))
+        ->get(route("licenca.bloqueada"))
         ->assertOk()
-        ->assertSee('Contrato encerrado em 01/08.');
+        ->assertSee("Contrato encerrado em 01/08.");
 });

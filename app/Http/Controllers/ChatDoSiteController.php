@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Events\MessageStored;
+use App\Jobs\EncerrarChatDoSitePorInatividade;
 use App\Models\Channel;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Support\TenantContext;
+use App\Support\PhoneNumber;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
@@ -44,14 +46,22 @@ class ChatDoSiteController extends Controller
         $token = $this->tokenValido($pedido->input('token'));
 
         return TenantContext::runAs($canal->tenant_id, function () use ($canal, $pedido, $token) {
-            $nome = Str::limit(trim((string) $pedido->input('nome')), 60, '');
+            $contato = Contact::where('jid', $this->jidDo($token))->first();
 
-            [$contato, $conversa] = $this->visitante($canal, $token, $nome);
+            if (! $contato && ($pedido->filled('nome') || $pedido->filled('telefone'))) {
+                [$nome, $telefone] = $this->identificacaoValida($pedido);
+                [$contato] = $this->visitante($canal, $token, $nome, $telefone);
+            }
+
+            $conversa = $contato
+                ? Conversation::where('channel_id', $canal->id)->where('contact_id', $contato->id)->latest('id')->first()
+                : null;
 
             return response()->json([
                 'token'     => $token,
                 'saudacao'  => $canal->site_saudacao,
-                'mensagens' => $this->mensagensDe($conversa, 0),
+                'cadastrado' => (bool) ($contato?->nome && $contato?->telefone_e164),
+                'mensagens' => $conversa ? $this->mensagensDe($conversa, 0) : [],
             ]);
         });
     }
@@ -82,9 +92,13 @@ class ChatDoSiteController extends Controller
         $token = $this->tokenValido($pedido->input('token'));
 
         return TenantContext::runAs($canal->tenant_id, function () use ($canal, $pedido, $token, $corpo) {
-            $nome = Str::limit(trim((string) $pedido->input('nome')), 60, '');
+            $contato = Contact::where('jid', $this->jidDo($token))->first();
 
-            [$contato, $conversa] = $this->visitante($canal, $token, $nome);
+            if (! $contato || ! $contato->nome || ! $contato->telefone_e164) {
+                return response()->json(['erro' => 'Informe seu nome e WhatsApp antes de iniciar.'], 422);
+            }
+
+            $conversa = Conversation::abertaOuNova($canal->id, $contato->id, $canal->tenant_id);
 
             $mensagem = Message::create([
                 'tenant_id'       => $canal->tenant_id,
@@ -111,6 +125,9 @@ class ChatDoSiteController extends Controller
             ]);
 
             broadcast(new MessageStored($mensagem->refresh()));
+
+            EncerrarChatDoSitePorInatividade::dispatch($conversa->id, $mensagem->id)
+                ->delay(now()->addMinutes(5));
 
             return response()->json([
                 'token'     => $token,
@@ -190,26 +207,40 @@ class ChatDoSiteController extends Controller
     }
 
     /** @return array{0: Contact, 1: Conversation} */
-    private function visitante(Channel $canal, string $token, string $nome): array
+    private function visitante(Channel $canal, string $token, string $nome, string $telefone): array
     {
         $contato = Contact::firstOrCreate(
             ['jid' => $this->jidDo($token)],
             [
                 'tenant_id' => $canal->tenant_id,
                 'tipo'      => Contact::PESSOA,
-                'nome'      => $nome ?: 'Visitante do site',
+                'nome'      => $nome,
+                'telefone_e164' => $telefone,
             ],
         );
 
-        // O nome digitado depois vale mais que o provisorio, mas nunca apaga um nome que a
-        // equipe ja corrigiu no cadastro.
-        if ($nome && $contato->nome === 'Visitante do site') {
-            $contato->update(['nome' => $nome]);
-        }
+        $contato->update(array_filter(['nome' => $nome, 'telefone_e164' => $telefone]));
 
         $conversa = Conversation::abertaOuNova($canal->id, $contato->id, $canal->tenant_id);
 
         return [$contato, $conversa];
+    }
+
+    /** @return array{0: string, 1: string} */
+    private function identificacaoValida(Request $pedido): array
+    {
+        $nome = Str::limit(trim((string) $pedido->input('nome')), 60, '');
+        $telefone = PhoneNumber::toE164(trim((string) $pedido->input('telefone')));
+
+        if (mb_strlen($nome) < 2) {
+            abort(response()->json(['erro' => 'Informe seu nome.'], 422));
+        }
+
+        if (! $telefone) {
+            abort(response()->json(['erro' => 'Informe um WhatsApp válido com DDD.'], 422));
+        }
+
+        return [$nome, $telefone];
     }
 
     /** @return list<array{id: int, de: string, corpo: string, hora: string}> */

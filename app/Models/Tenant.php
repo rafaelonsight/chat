@@ -25,7 +25,7 @@ class Tenant extends Model
             $padrao = Team::withoutGlobalScope('tenant')->firstOrCreate(
                 ['tenant_id' => $conta->id, 'nome' => Team::TRIAGEM],
                 [
-                    'descricao' => 'Fila de entrada: conversa nova cai aqui até ser direcionada.',
+                    'descricao' => 'Fila de entrada: conversa nova cai aqui ate ser direcionada.',
                     'ativa'     => true,
                 ],
             );
@@ -45,6 +45,26 @@ class Tenant extends Model
             if (! $padrao->padrao) {
                 $padrao->forceFill(['padrao' => true])->save();
             }
+
+            /*
+             * Toda conta nova ganha uma licenca em trial. AQUI, e nao no formulario de
+             * cadastro de revenda, pelo mesmo motivo da equipe Triagem: licenca que depende
+             * de alguem marcar uma caixinha e licenca que vai faltar justamente na conta
+             * criada com pressa. Sem ela, a conta nao aparece no painel de revenda —
+             * ausente nao e a mesma coisa que ativo, e 'cadeia sem licenca' um dia vira
+             * conta que ninguem lembra que e cliente.
+             *
+             * Trial sem prazo: o middleware LicencaValida aceita trial sem vence_em como
+             * valido, ate a revenda definir uma data.
+             */
+            License::withoutGlobalScope('tenant')->firstOrCreate(
+                ['tenant_id' => $conta->id],
+                [
+                    'status'    => License::TRIAL,
+                    'inicia_em' => now(),
+                    'vence_em'  => now()->addDays(14),
+                ],
+            );
         });
     }
 
@@ -61,7 +81,7 @@ class Tenant extends Model
 
     // data_abertura fica sem cast de proposito: a tela le e escreve o texto
     // 'AAAA-MM-DD' que a Receita devolve, e converter para Carbon aqui faria a
-    // volta gravar '... 00:00:00' no campo.
+    // volta gravar '...' 00:00:00' no campo.
     // Sem isto, uma conta recem-criada responde NULL a ->assinatura_ativa: o padrao existe no
     // BANCO, e o objeto em memoria so o conheceria depois de um refresh. Mesma aresta que o
     // 'operador' do User teve, e pelo mesmo motivo.

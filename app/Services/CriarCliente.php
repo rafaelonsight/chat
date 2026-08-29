@@ -61,7 +61,7 @@ class CriarCliente
             // licenca nenhuma, e o middleware que confere acesso trataria "sem licenca"
             // como bloqueado — o cadastro pareceria ter dado certo e a pessoa nao
             // conseguiria entrar.
-            License::create([
+            License::updateOrCreate([
                 'tenant_id'  => $cliente->id,
                 'status'     => License::TRIAL,
                 'inicia_em'  => now(),

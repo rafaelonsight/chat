@@ -18,9 +18,9 @@ class WidgetDoSiteController extends Controller
     {
         return response(view('widget')->render())
             ->header('Content-Type', 'application/javascript; charset=utf-8')
-            // Uma hora: curto para a correcao chegar no mesmo dia, longo para nao virar um
-            // pedido por visita.
-            ->header('Cache-Control', 'public, max-age=3600')
+            // O widget muda junto com regras do atendimento. Revalidar impede que um formulario
+            // antigo continue ativo quando um campo obrigatorio ou uma validacao mudar.
+            ->header('Cache-Control', 'no-cache, must-revalidate')
             ->header('Access-Control-Allow-Origin', '*');
     }
 }

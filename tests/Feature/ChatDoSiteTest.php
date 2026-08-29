@@ -1,9 +1,12 @@
 <?php
 
 use App\Models\{Channel, Contact, Conversation, Message, Tenant};
+use App\Jobs\EncerrarChatDoSitePorInatividade;
 use App\Services\Canais\Enviadores;
 use App\Services\Canais\SiteEnviador;
 use App\Support\TenantContext;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\RateLimiter;
 
 /*
  * O chat que mora no site do cliente.
@@ -22,6 +25,7 @@ use App\Support\TenantContext;
  */
 
 beforeEach(function () {
+    Queue::fake();
     $this->conta = Tenant::create(['nome' => 'Conta', 'slug' => 'site']);
     TenantContext::set($this->conta->id);
 
@@ -35,14 +39,27 @@ beforeEach(function () {
     ]);
 
     $this->url = '/chat-do-site/'.$this->canal->site_key;
+    RateLimiter::clear('site:'.$this->canal->site_key.':127.0.0.1');
 
     TenantContext::forget();
 });
 
 afterEach(fn () => TenantContext::forget());
 
-it('o visitante abre a conversa e ganha uma identidade', function () {
-    $r = $this->postJson($this->url.'/abrir', ['nome' => 'Joana'])->assertOk();
+it('nome e telefone sao obrigatorios para gerar o lead', function () {
+    $semDados = $this->postJson($this->url.'/abrir', [])->assertOk();
+    expect($semDados->json('cadastrado'))->toBeFalse();
+
+    TenantContext::set($this->conta->id);
+    expect(Contact::count())->toBe(0)->and(Conversation::count())->toBe(0);
+    TenantContext::forget();
+
+    $this->postJson($this->url.'/abrir', ['token' => $semDados->json('token'), 'nome' => 'Joana'])
+        ->assertUnprocessable();
+
+    $r = $this->postJson($this->url.'/abrir', [
+        'token' => $semDados->json('token'), 'nome' => 'Joana', 'telefone' => '(41) 99999-0000',
+    ])->assertOk()->assertJsonPath('cadastrado', true);
 
     $token = $r->json('token');
 
@@ -51,17 +68,17 @@ it('o visitante abre a conversa e ganha uma identidade', function () {
 
     TenantContext::set($this->conta->id);
 
-    // Contato de verdade, na tabela de sempre — so que sem telefone.
+    // O cadastro do widget ja entra como lead identificavel na tabela de contatos.
     $contato = Contact::first();
 
     expect($contato->jid)->toBe('site_'.$token)
-        ->and($contato->telefone_e164)->toBeNull()
+        ->and($contato->telefone_e164)->toBe('+5541999990000')
         ->and($contato->nome)->toBe('Joana');
 });
 
 it('quem volta com a mesma chave cai na mesma conversa', function () {
     // E o que impede o visitante virar um contato novo a cada visita.
-    $token = $this->postJson($this->url.'/abrir', [])->json('token');
+    $token = $this->postJson($this->url.'/abrir', ['nome' => 'Joana', 'telefone' => '(41) 99999-0000'])->json('token');
 
     $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => 'primeira'])->assertOk();
     $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => 'segunda'])->assertOk();
@@ -75,7 +92,7 @@ it('quem volta com a mesma chave cai na mesma conversa', function () {
 
 it('token inventado nao vira jid, ganha um novo', function () {
     // O token monta um jid: aceitar texto de fora ali seria plantar identidade alheia.
-    $token = $this->postJson($this->url.'/abrir', ['token' => 'site_../../outro@s.whatsapp.net'])
+    $token = $this->postJson($this->url.'/abrir', ['token' => 'site_../../outro@s.whatsapp.net', 'nome' => 'Joana', 'telefone' => '(41) 99999-0000'])
         ->json('token');
 
     expect($token)->toMatch('/^[A-Za-z0-9]{24,48}$/');
@@ -86,7 +103,7 @@ it('token inventado nao vira jid, ganha um novo', function () {
 });
 
 it('a mensagem do visitante conta como palavra de cliente', function () {
-    $token = $this->postJson($this->url.'/abrir', [])->json('token');
+    $token = $this->postJson($this->url.'/abrir', ['nome' => 'Joana', 'telefone' => '(41) 99999-0000'])->json('token');
 
     $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => 'Voces atendem em Curitiba?'])
         ->assertOk()
@@ -102,7 +119,7 @@ it('a mensagem do visitante conta como palavra de cliente', function () {
 });
 
 it('mensagem vazia nao vira linha no banco', function () {
-    $token = $this->postJson($this->url.'/abrir', [])->json('token');
+    $token = $this->postJson($this->url.'/abrir', ['nome' => 'Joana', 'telefone' => '(41) 99999-0000'])->json('token');
 
     $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => '   '])->assertStatus(422);
 
@@ -130,7 +147,7 @@ it('a chave posta num canal de WhatsApp nao serve', function () {
 });
 
 it('a resposta do atendimento chega ao visitante', function () {
-    $token = $this->postJson($this->url.'/abrir', [])->json('token');
+    $token = $this->postJson($this->url.'/abrir', ['nome' => 'Joana', 'telefone' => '(41) 99999-0000'])->json('token');
     $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => 'oi'])->assertOk();
 
     TenantContext::set($this->conta->id);
@@ -150,7 +167,7 @@ it('a resposta do atendimento chega ao visitante', function () {
 });
 
 it('o desde evita reentregar o que ja esta na tela', function () {
-    $token = $this->postJson($this->url.'/abrir', [])->json('token');
+    $token = $this->postJson($this->url.'/abrir', ['nome' => 'Joana', 'telefone' => '(41) 99999-0000'])->json('token');
     $ultimo = $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => 'oi'])
         ->json('mensagens.0.id');
 
@@ -159,7 +176,7 @@ it('o desde evita reentregar o que ja esta na tela', function () {
 });
 
 it('mensagem apagada nao volta para quem viu sumir', function () {
-    $token = $this->postJson($this->url.'/abrir', [])->json('token');
+    $token = $this->postJson($this->url.'/abrir', ['nome' => 'Joana', 'telefone' => '(41) 99999-0000'])->json('token');
     $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => 'oi'])->assertOk();
 
     TenantContext::set($this->conta->id);
@@ -170,7 +187,7 @@ it('mensagem apagada nao volta para quem viu sumir', function () {
 });
 
 it('nao mistura conta', function () {
-    $token = $this->postJson($this->url.'/abrir', [])->json('token');
+    $token = $this->postJson($this->url.'/abrir', ['nome' => 'Joana', 'telefone' => '(41) 99999-0000'])->json('token');
     $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => 'segredo'])->assertOk();
 
     $outra = Tenant::create(['nome' => 'Outra', 'slug' => 'site-outra']);
@@ -229,4 +246,30 @@ it('o widget e servido como javascript', function () {
     $this->get('/widget.js')
         ->assertOk()
         ->assertHeader('Content-Type', 'application/javascript; charset=utf-8');
+});
+
+it('encerra uma vez depois de cinco minutos sem nova mensagem do visitante', function () {
+    $token = $this->postJson($this->url.'/abrir', ['nome' => 'Joana', 'telefone' => '(41) 99999-0000'])->json('token');
+    $mensagemId = $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => 'Olá'])->assertOk()->json('mensagens.0.id');
+
+    TenantContext::set($this->conta->id);
+    $conversa = Conversation::first();
+    (new EncerrarChatDoSitePorInatividade($conversa->id, $mensagemId))->handle();
+
+    expect($conversa->fresh()->status)->toBe(Conversation::ARQUIVADA)
+        ->and(Message::where('direcao', 'out')->count())->toBe(1)
+        ->and(Message::where('direcao', 'out')->first()->corpo)->toContain('inatividade');
+});
+
+it('temporizador antigo nao encerra se o visitante falou novamente', function () {
+    $token = $this->postJson($this->url.'/abrir', ['nome' => 'Joana', 'telefone' => '(41) 99999-0000'])->json('token');
+    $primeira = $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => 'Primeira'])->json('mensagens.0.id');
+    $this->postJson($this->url.'/mandar', ['token' => $token, 'corpo' => 'Ainda estou aqui']);
+
+    TenantContext::set($this->conta->id);
+    $conversa = Conversation::first();
+    (new EncerrarChatDoSitePorInatividade($conversa->id, $primeira))->handle();
+
+    expect($conversa->fresh()->status)->not->toBe(Conversation::ARQUIVADA)
+        ->and(Message::where('direcao', 'out')->count())->toBe(0);
 });
