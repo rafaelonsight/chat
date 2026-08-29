@@ -10,6 +10,73 @@
 @source '../../../../app/**/*.php';
 @source '../../../../resources/views/**/*.blade.php';
 
+/* ============================================================ VIRTUS VISUAL FOUNDATION
+
+   Tokens semanticos: componentes escolhem o PAPEL da cor, nao um cinza especifico.
+   A paleta continua deliberadamente neutra; o dourado fica reservado para foco,
+   selecao e acao primaria. */
+
+:root {
+    --vc-canvas: #f6f7f9;
+    --vc-surface: #ffffff;
+    --vc-surface-raised: #ffffff;
+    --vc-surface-muted: #f1f3f6;
+    --vc-border: #dfe3e8;
+    --vc-border-strong: #c8ced6;
+    --vc-text: #20242a;
+    --vc-text-muted: #68717d;
+    --vc-accent: #e8a924;
+    --vc-focus: #d99a17;
+    --vc-success: #059669;
+    --vc-warning-surface: #fff8e8;
+    --vc-warning-border: #e8c56d;
+    --vc-warning-text: #7a4c05;
+    --vc-shadow-popover: 0 16px 40px rgb(15 23 42 / 0.14);
+}
+
+.dark {
+    --vc-canvas: #101113;
+    --vc-surface: #17181b;
+    --vc-surface-raised: #202226;
+    --vc-surface-muted: #26282d;
+    --vc-border: #30333a;
+    --vc-border-strong: #41454e;
+    --vc-text: #f3f4f6;
+    --vc-text-muted: #9ca3af;
+    --vc-accent: #e8a924;
+    --vc-focus: #f0b735;
+    --vc-success: #10a574;
+    --vc-warning-surface: rgb(232 169 36 / 0.10);
+    --vc-warning-border: rgb(232 169 36 / 0.36);
+    --vc-warning-text: #f6d88a;
+    --vc-shadow-popover: 0 18px 48px rgb(0 0 0 / 0.42);
+}
+
+.vc-panel { background: var(--vc-surface); color: var(--vc-text); }
+.vc-thread { background: var(--vc-canvas); color: var(--vc-text); }
+.vc-toolbar { border-color: var(--vc-border); background: var(--vc-surface); }
+.vc-popover {
+    border: 1px solid var(--vc-border);
+    background: var(--vc-surface-raised);
+    color: var(--vc-text);
+    box-shadow: var(--vc-shadow-popover);
+}
+.vc-control {
+    border: 1px solid var(--vc-border-strong);
+    background: transparent;
+    color: var(--vc-text-muted);
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+.vc-control:hover { border-color: var(--vc-border-strong); background: var(--vc-surface-muted); color: var(--vc-text); }
+.vc-control:focus-visible { outline: 2px solid var(--vc-focus); outline-offset: 2px; }
+.vc-message-in { border: 1px solid var(--vc-border); background: var(--vc-surface-raised); color: var(--vc-text); }
+.vc-message-out { background: var(--vc-success); color: #fff; }
+.vc-note { border-color: var(--vc-warning-border); background: var(--vc-warning-surface); color: var(--vc-warning-text); }
+
+@media (prefers-reduced-motion: reduce) {
+    .vc-control { transition: none; }
+}
+
 /* ============================================================ A INBOX OCUPA A TELA
 
    O QUE ESTAVA ERRADO era aritmetica, nao falta de espaco. O painel se limitava com

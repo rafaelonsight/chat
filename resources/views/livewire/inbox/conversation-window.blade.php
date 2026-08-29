@@ -1,6 +1,6 @@
-<div class="flex flex-1 flex-col overflow-hidden">
+<div class="vc-panel flex flex-1 flex-col overflow-hidden">
     @if ($conversa)
-        <div class="flex items-center justify-between gap-3 border-b border-gray-200 px-4 py-3 dark:border-white/10">
+        <div class="vc-toolbar flex items-center justify-between gap-3 border-b px-4 py-3">
             <div class="flex min-w-0 items-center gap-2">
                 {{-- So no celular. La a lista sumiu para a conversa caber, e sem este botao
                      o unico caminho de volta seria recarregar a pagina. No computador as duas
@@ -400,17 +400,17 @@
             variante [&>*] em vez de um invólucro novo — o mesmo efeito sem outro nivel de
             div entre a rolagem e as mensagens, que e onde erro de altura se esconde.
         --}}
-        <div class="flex-1 space-y-2 overflow-y-auto bg-slate-50 p-4
-                    [&>*]:mx-auto [&>*]:w-full [&>*]:max-w-3xl">
+        <div class="vc-thread flex-1 space-y-2 overflow-y-auto p-4
+                     [&>*]:mx-auto [&>*]:w-full [&>*]:max-w-3xl">
             @if ($mensagens->count() >= $limite)
-                <button type="button" wire:click="carregarMais" class="mx-auto block text-xs text-slate-500 underline">
+                <button type="button" wire:click="carregarMais" class="mx-auto block text-xs text-slate-500 underline dark:text-gray-400">
                     carregar mensagens anteriores
                 </button>
             @endif
 
             @if ($procurado !== '' && $mensagens->isEmpty())
                 {{-- Lista vazia sem explicacao parece defeito, nao busca sem resultado. --}}
-                <p class="py-6 text-center text-xs text-slate-500">
+                <p class="py-6 text-center text-xs text-slate-500 dark:text-gray-400">
                     Nenhuma mensagem desta conversa contém <strong>{{ $procurado }}</strong>.
                 </p>
             @endif
@@ -443,7 +443,7 @@
                     --}}
                     <button type="button" wire:click="responder({{ $m->id }})"
                             title="Responder citando" aria-label="Responder citando esta mensagem"
-                            class="shrink-0 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700
+                            class="shrink-0 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-gray-200
                                    opacity-100 lg:opacity-0 lg:group-hover:opacity-100
                                    {{ $entrada ? 'order-last' : 'order-first' }}">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
@@ -459,7 +459,7 @@
                     @unless ($m->apagada())
                         <button type="button" wire:click="$set('encaminhando', {{ $m->id }})"
                                 title="Encaminhar" aria-label="Encaminhar esta mensagem"
-                                class="shrink-0 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700
+                                class="shrink-0 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-gray-200
                                        opacity-100 lg:opacity-0 lg:group-hover:opacity-100
                                        {{ $entrada ? 'order-last' : 'order-first' }}">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
@@ -477,7 +477,7 @@
                         <button type="button" wire:click="apagar({{ $m->id }})"
                                 wire:confirm="Apagar esta mensagem para todos? O cliente deixa de ver."
                                 title="Apagar para todos" aria-label="Apagar esta mensagem para todos"
-                                class="shrink-0 order-first rounded-full p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600
+                                class="shrink-0 order-first rounded-full p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10 dark:hover:text-red-400
                                        opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                                  stroke-width="2" stroke="currentColor" class="h-4 w-4">
@@ -502,7 +502,7 @@
                          x-data="{ aberto: false }" x-on:click.outside="aberto = false">
                         <button type="button" x-on:click="aberto = !aberto"
                                 title="Reagir" aria-label="Reagir a esta mensagem"
-                                class="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700
+                                class="rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-gray-200
                                        opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                                  stroke-width="2" stroke="currentColor" class="h-4 w-4">
@@ -512,19 +512,19 @@
                         </button>
 
                         <div x-show="aberto" x-cloak id="onchat-reacoes"
-                             class="absolute bottom-full z-30 mb-1 flex gap-0.5 rounded-full border border-slate-200 bg-white p-1 shadow-lg
+                             class="vc-popover absolute bottom-full z-30 mb-1 flex gap-0.5 rounded-full p-1
                                     {{ $entrada ? 'left-0' : 'right-0' }}">
                             @foreach (["\u{1F44D}", "\u{2764}", "\u{1F602}", "\u{1F62E}", "\u{1F622}", "\u{1F64F}"] as $r)
                                 <button type="button" wire:key="rc-{{ $m->id }}-{{ $loop->index }}"
                                         wire:click="reagir({{ $m->id }}, @js($r))" x-on:click="aberto = false"
-                                        class="rounded-full p-1 text-lg leading-none hover:bg-slate-100">{{ $r }}</button>
+                                        class="rounded-full p-1 text-lg leading-none hover:bg-slate-100 dark:hover:bg-white/10">{{ $r }}</button>
                             @endforeach
                         </div>
                     </div>
                     @endif
 
                     @if ($m->reacao_cliente || $m->reacao_nossa)
-                        <span class="order-last flex shrink-0 items-center gap-0.5 self-end rounded-full border border-slate-200 bg-white px-1.5 py-0.5 text-xs shadow-sm">
+                        <span class="vc-popover order-last flex shrink-0 items-center gap-0.5 self-end rounded-full px-1.5 py-0.5 text-xs">
                             @if ($m->reacao_cliente)
                                 <span title="Reação do cliente">{{ $m->reacao_cliente }}</span>
                             @endif
@@ -534,22 +534,22 @@
                         </span>
                     @endif
 
-                    <div class="max-w-lg rounded-lg px-3 py-2 text-sm {{ $entrada
+                    <div class="max-w-lg rounded-xl px-3 py-2 text-sm shadow-sm {{ $entrada
                         ? ($m->mencao
-                            ? 'border-2 border-amber-400 bg-amber-50 text-slate-800'
-                            : 'border border-slate-200 bg-white text-slate-800')
-                        : 'bg-emerald-600 text-white' }}">
+                            ? 'vc-note border-2'
+                            : 'vc-message-in')
+                        : 'vc-message-out' }}">
                         {{-- No meio de duzentas mensagens de grupo, a que te chama precisa
                              saltar sem precisar de leitura. --}}
                         @if ($m->mencao)
-                            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                            <div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
                                 mencionaram você
                             </div>
                         @endif
                         {{-- A mensagem citada, do jeito que o WhatsApp mostra: faixa curta
                              acima, com quem falou e o comeco do que foi dito. --}}
                         @if ($m->respondeA)
-                            <div class="mb-1.5 rounded border-l-2 px-2 py-1 text-xs {{ $entrada ? 'border-emerald-600 bg-slate-100 text-slate-600' : 'border-white/70 bg-white/15 text-white/90' }}">
+                            <div class="mb-1.5 rounded border-l-2 px-2 py-1 text-xs {{ $entrada ? 'border-emerald-600 bg-slate-100 text-slate-600 dark:bg-black/20 dark:text-gray-300' : 'border-white/70 bg-white/15 text-white/90' }}">
                                 <div class="font-semibold">
                                     {{ $m->respondeA->entrada() ? ($m->respondeA->remetente_nome ?: 'Cliente') : 'Você' }}
                                 </div>
@@ -559,14 +559,14 @@
 
                         @if ($entrada && $m->remetente_nome)
                             {{-- em grupo, quem falou importa tanto quanto o que foi dito --}}
-                            <div class="mb-0.5 text-xs font-semibold text-emerald-700">{{ $m->remetente_nome }}</div>
+                            <div class="mb-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">{{ $m->remetente_nome }}</div>
                         @endif
 
                         @if ($m->apagada())
                             {{-- O texto original nao e mostrado nem em cinza: apagar so vale se
                                  apagar. Fica o registro de que existiu, que e o que o WhatsApp
                                  tambem faz e o que o historico precisa para nao ter buraco. --}}
-                            <div class="italic {{ $entrada ? 'text-slate-400' : 'text-white/70' }}">
+                            <div class="italic {{ $entrada ? 'text-slate-400 dark:text-gray-500' : 'text-white/70' }}">
                                 Mensagem apagada
                             </div>
 
@@ -641,7 +641,7 @@
                         </div>
 
                         @if ($m->erro)
-                            <div class="mt-1 text-[10px] {{ $entrada ? 'text-red-600' : 'text-red-200' }}">{{ $m->erro }}</div>
+                            <div class="mt-1 text-[10px] {{ $entrada ? 'text-red-600 dark:text-red-400' : 'text-red-200' }}">{{ $m->erro }}</div>
                         @endif
                     </div>
                 </div>
