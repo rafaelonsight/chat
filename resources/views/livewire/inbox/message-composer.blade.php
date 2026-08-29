@@ -421,16 +421,43 @@
                     },
                  }">
 
-                <input type="text" wire:model="corpo" autocomplete="off" data-atalho="responder"
-                       x-on:input.throttle.3000ms="$wire.digitando(true)"
-                       x-on:input="aoDigitar($el)"
-                       x-on:blur="$wire.digitando(false); setTimeout(() => aberto = false, 150)"
-                       x-on:keydown.arrow-down="if (aberto) { $event.preventDefault(); andar(1) }"
-                       x-on:keydown.arrow-up="if (aberto) { $event.preventDefault(); andar(-1) }"
-                       x-on:keydown.escape="aberto = false"
-                       x-on:keydown.enter="if (aberto) { $event.preventDefault(); escolher(achados[indice], $el) }"
-                       placeholder="{{ $nota ? 'Nota interna, só a equipe vê — @ chama alguém' : ($anexo ? 'Legenda (opcional)' : 'Escreva uma mensagem') }}"
-                       class="w-full rounded border px-3 py-2 text-sm {{ $nota ? 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/50 dark:bg-amber-500/10 dark:text-amber-100' : 'border-slate-300 bg-white text-slate-900 dark:border-white/15 dark:bg-gray-800 dark:text-gray-100' }}">
+                @if ($nota)
+                    {{-- Enter salva; Ctrl/Cmd + Enter abre uma nova linha sem enviar. --}}
+                    <textarea wire:model="corpo" rows="2" autocomplete="off" data-atalho="responder"
+                              x-on:input="aoDigitar($el)"
+                              x-on:keydown.arrow-down="if (aberto) { $event.preventDefault(); andar(1) }"
+                              x-on:keydown.arrow-up="if (aberto) { $event.preventDefault(); andar(-1) }"
+                              x-on:keydown.escape="aberto = false"
+                              x-on:keydown.enter="
+                                  if (aberto) {
+                                      $event.preventDefault();
+                                      escolher(achados[indice], $el);
+                                  } else if ($event.ctrlKey || $event.metaKey) {
+                                      $event.preventDefault();
+                                      const inicio = $el.selectionStart;
+                                      const fim = $el.selectionEnd;
+                                      $el.value = $el.value.slice(0, inicio) + '\n' + $el.value.slice(fim);
+                                      $el.dispatchEvent(new Event('input', { bubbles: true }));
+                                      $el.selectionStart = $el.selectionEnd = inicio + 1;
+                                  } else {
+                                      $event.preventDefault();
+                                      $el.form.requestSubmit();
+                                  }
+                              "
+                              placeholder="Nota interna, só a equipe vê — @ chama alguém"
+                              class="max-h-32 min-h-10 w-full resize-y rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/50 dark:bg-amber-500/10 dark:text-amber-100"></textarea>
+                @else
+                    <input type="text" wire:model="corpo" autocomplete="off" data-atalho="responder"
+                           x-on:input.throttle.3000ms="$wire.digitando(true)"
+                           x-on:input="aoDigitar($el)"
+                           x-on:blur="$wire.digitando(false); setTimeout(() => aberto = false, 150)"
+                           x-on:keydown.arrow-down="if (aberto) { $event.preventDefault(); andar(1) }"
+                           x-on:keydown.arrow-up="if (aberto) { $event.preventDefault(); andar(-1) }"
+                           x-on:keydown.escape="aberto = false"
+                           x-on:keydown.enter="if (aberto) { $event.preventDefault(); escolher(achados[indice], $el) }"
+                           placeholder="{{ $anexo ? 'Legenda (opcional)' : 'Escreva uma mensagem' }}"
+                           class="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/15 dark:bg-gray-800 dark:text-gray-100">
+                @endif
 
                 {{-- Sobe em vez de descer: embaixo do campo ela cairia atras da barra de
                      escrever, que e o unico lugar onde nao se pode ler nada. --}}
@@ -438,7 +465,7 @@
                      class="absolute bottom-full left-0 z-30 mb-1 w-64 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-white/10 dark:bg-gray-800">
                     <template x-for="(p, i) in achados" :key="p.id">
                         <button type="button"
-                                x-on:mousedown.prevent="escolher(p, $el.closest('div').parentElement.querySelector('input'))"
+                                x-on:mousedown.prevent="escolher(p, $el.closest('div').parentElement.querySelector('[data-atalho=responder]'))"
                                 :class="i === indice ? 'bg-amber-50 dark:bg-amber-500/10' : ''"
                                 class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-amber-50 dark:hover:bg-amber-500/10">
                             <span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-amber-500/20 text-[11px] font-semibold text-amber-700 dark:text-amber-300"
