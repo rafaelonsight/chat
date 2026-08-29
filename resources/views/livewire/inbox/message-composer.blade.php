@@ -1,4 +1,4 @@
-<div class="border-t border-slate-200 p-3">
+<div class="border-t border-slate-200 p-3 dark:border-white/10">
     @if ($conversationId)
         {{-- Janela de 24h. So aparece em canal que TEM janela: avisar de um limite
              onde ele nao vale ensina o atendente a ignorar o aviso, inclusive quando
@@ -22,7 +22,7 @@
         @endif
         {{-- previa do anexo antes de enviar --}}
         @if ($anexo)
-            <div class="mb-2 flex items-center gap-3 rounded border border-slate-200 bg-slate-50 p-2">
+            <div class="mb-2 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-2 dark:border-white/10 dark:bg-white/5">
                 @php
                     $mime = method_exists($anexo, 'getMimeType') ? ($anexo->getMimeType() ?? '') : '';
                     $nome = method_exists($anexo, 'getClientOriginalName') ? $anexo->getClientOriginalName() : 'arquivo';
@@ -31,31 +31,31 @@
                 @if (str_starts_with($mime, 'image/'))
                     <img src="{{ $anexo->temporaryUrl() }}" alt="" class="h-14 w-14 rounded object-cover">
                 @elseif (str_starts_with($mime, 'audio/'))
-                    <span class="grid h-14 w-14 place-items-center rounded bg-emerald-100 text-emerald-700">&#9835;</span>
+                    <span class="grid h-14 w-14 place-items-center rounded bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">&#9835;</span>
                 @elseif (str_starts_with($mime, 'video/'))
-                    <span class="grid h-14 w-14 place-items-center rounded bg-slate-200 text-slate-600">&#9654;</span>
+                    <span class="grid h-14 w-14 place-items-center rounded bg-slate-200 text-slate-600 dark:bg-white/10 dark:text-gray-300">&#9654;</span>
                 @else
-                    <span class="grid h-14 w-14 place-items-center rounded bg-slate-200 text-slate-600">&#128196;</span>
+                    <span class="grid h-14 w-14 place-items-center rounded bg-slate-200 text-slate-600 dark:bg-white/10 dark:text-gray-300">&#128196;</span>
                 @endif
 
                 <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm text-slate-700">{{ $nome }}</p>
-                    <p class="text-xs text-slate-500">{{ $mime ?: 'arquivo' }}</p>
+                    <p class="truncate text-sm text-slate-700 dark:text-gray-100">{{ $nome }}</p>
+                    <p class="text-xs text-slate-500 dark:text-gray-400">{{ $mime ?: 'arquivo' }}</p>
                 </div>
 
                 <button type="button" wire:click="removerAnexo"
-                        class="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50">
+                        class="rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10">
                     remover
                 </button>
             </div>
         @endif
 
-        <div wire:loading wire:target="anexo" class="mb-2 text-xs text-slate-500">
+        <div wire:loading wire:target="anexo" class="mb-2 text-xs text-slate-500 dark:text-gray-400">
             enviando arquivo para o servidor&hellip;
         </div>
 
         @if ($nota)
-            <div class="mb-2 rounded border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+            <div class="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
                 <div class="flex items-center gap-2">
                     <span>&#128274;</span>
                     <span>Nota interna: fica no histórico da conversa e <strong>não é enviada ao cliente</strong>. Escreva <strong>@</strong> para chamar alguém.</span>
@@ -74,15 +74,15 @@
                 @endphp
 
                 @if ($chamados->isNotEmpty())
-                    <div class="mt-1.5 flex flex-wrap items-center gap-1 border-t border-amber-200 pt-1.5">
-                        <span class="text-amber-700">Avisando:</span>
+                    <div class="mt-1.5 flex flex-wrap items-center gap-1 border-t border-amber-200 pt-1.5 dark:border-amber-500/30">
+                        <span class="text-amber-700 dark:text-amber-300">Avisando:</span>
                         @foreach ($chamados as $quem)
                             <button type="button"
                                     wire:click="$set('mencionados', {{ json_encode(array_values(array_diff($mencionados, [$quem['id']]))) }})"
-                                    class="group flex items-center gap-1 rounded-full bg-amber-200/70 px-2 py-0.5 font-medium text-amber-900 hover:bg-amber-300"
+                                    class="group flex items-center gap-1 rounded-full bg-amber-200/70 px-2 py-0.5 font-medium text-amber-900 hover:bg-amber-300 dark:bg-amber-500/20 dark:text-amber-200 dark:hover:bg-amber-500/30"
                                     title="Não avisar {{ $quem['nome'] }}">
                                 {{ $quem['primeiro'] }}
-                                <span class="text-amber-700 group-hover:text-amber-900">&times;</span>
+                                <span class="text-amber-700 group-hover:text-amber-900 dark:text-amber-300 dark:group-hover:text-amber-100">&times;</span>
                             </button>
                         @endforeach
                     </div>
@@ -167,16 +167,16 @@
              uma acao sem retorno visivel: a pessoa nao sabe se pegou, nem qual pegou, e so
              descobre depois de enviar. --}}
         @if ($citada = $this->mensagemCitada())
-            <div class="mb-2 flex items-start gap-2 rounded-lg border-l-4 border-emerald-500 bg-slate-50 px-3 py-2">
+            <div class="mb-2 flex items-start gap-2 rounded-lg border-l-4 border-emerald-500 bg-slate-50 px-3 py-2 dark:bg-white/5">
                 <div class="min-w-0 flex-1">
-                    <div class="text-xs font-semibold text-emerald-700">
+                    <div class="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                         Respondendo {{ $citada->entrada() ? ($citada->remetente_nome ?: 'o cliente') : 'você mesmo' }}
                     </div>
-                    <div class="truncate text-xs text-slate-600">{{ $citada->resumo(120) }}</div>
+                    <div class="truncate text-xs text-slate-600 dark:text-gray-300">{{ $citada->resumo(120) }}</div>
                 </div>
 
                 <button type="button" wire:click="cancelarResposta"
-                        class="shrink-0 rounded px-2 text-lg leading-none text-slate-400 hover:text-slate-700"
+                        class="shrink-0 rounded px-2 text-lg leading-none text-slate-400 hover:text-slate-700 dark:text-gray-500 dark:hover:text-gray-200"
                         title="Não citar" aria-label="Cancelar a citação">&times;</button>
             </div>
         @endif
@@ -198,10 +198,10 @@
              x-effect="$wire.corpo ? localStorage.setItem(chave, $wire.corpo) : localStorage.removeItem(chave)">
         </div>
 
-        <form wire:submit="enviar" class="flex items-end gap-2 {{ $nota ? 'rounded-lg bg-amber-50/60 p-1.5 ring-1 ring-amber-200' : '' }}">
+        <form wire:submit="enviar" class="flex items-end gap-2 {{ $nota ? 'rounded-lg bg-amber-50/60 p-1.5 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:ring-amber-500/30' : '' }}">
             {{-- anexar: escondido em nota interna, o arquivo iria para o cliente --}}
             @unless ($nota)
-                <label class="cursor-pointer rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                <label class="cursor-pointer rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-gray-300 dark:hover:bg-white/5"
                        title="Anexar imagem, video, audio ou documento">
                     &#128206;
                     <input type="file" wire:model="anexo" class="hidden"
@@ -213,7 +213,7 @@
             @if ($modelos->isNotEmpty() && ! $nota)
                 <div class="relative shrink-0" x-data="{ aberto: false }" x-on:click.outside="aberto = false">
                     <button type="button" x-on:click="aberto = !aberto" title="Modelos de mensagem"
-                            class="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                            class="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-gray-300 dark:hover:bg-white/5">
                         &#9998;
                     </button>
                     <div x-show="aberto" x-cloak
@@ -251,7 +251,7 @@
                         x-show="!gravando"
                         x-on:pointerdown.prevent="segureParaGravar($event)"
                         style="touch-action: none"
-                        class="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                        class="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-gray-300 dark:hover:bg-white/5"
                         title="Segure para gravar. Arraste para cima para travar.">
                     &#127908;
                 </button>
@@ -269,7 +269,7 @@
                 {{-- Travado: as maos livres. Enviar manda DIRETO, sem parar antes. --}}
                 <div x-show="gravando && travado" x-cloak class="flex items-center gap-1">
                     <button type="button" x-on:click="cancelar()"
-                            class="rounded border border-slate-300 px-2 py-2 text-sm text-slate-500 hover:bg-slate-50"
+                            class="rounded border border-slate-300 px-2 py-2 text-sm text-slate-500 hover:bg-slate-50 dark:border-white/15 dark:text-gray-400 dark:hover:bg-white/5"
                             title="Descartar">&times;</button>
 
                     <span class="flex items-center gap-1.5 rounded bg-red-600 px-2 py-2 text-sm text-white">
@@ -298,12 +298,12 @@
                 <div class="relative shrink-0" x-data="{ aberto: false }" x-on:click.outside="aberto = false">
                     <button type="button" x-on:click="aberto = !aberto"
                             title="Emojis" aria-label="Escolher um emoji"
-                            class="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                            class="rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-gray-300 dark:hover:bg-white/5">
                         &#128512;
                     </button>
 
                     <div x-show="aberto" x-cloak id="onchat-emojis"
-                         class="absolute bottom-full left-0 z-30 mb-1 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
+                         class="absolute bottom-full left-0 z-30 mb-1 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-lg dark:border-white/10 dark:bg-gray-800">
                         <div class="grid grid-cols-8 gap-0.5">
                             @foreach (["\u{1F44D}", "\u{1F44C}", "\u{1F64F}", "\u{1F60A}", "\u{1F600}", "\u{1F602}", "\u{1F605}", "\u{1F609}",
                                        "\u{1F60D}", "\u{1F618}", "\u{1F44F}", "\u{1F64C}", "\u{1F4AA}", "\u{1F91D}", "\u{1F389}", "\u{2705}",
@@ -312,7 +312,7 @@
                                        "\u{1F4CD}", "\u{1F642}", "\u{1F615}", "\u{1F622}", "\u{1F621}", "\u{1F44B}", "\u{1F914}", "\u{1F4A1}"] as $emoji)
                                 <button type="button" wire:key="em-{{ $loop->index }}"
                                         x-on:click="$wire.corpo = ($wire.corpo ?? '') + @js($emoji)"
-                                        class="rounded p-1 text-lg leading-none hover:bg-slate-100">{{ $emoji }}</button>
+                                        class="rounded p-1 text-lg leading-none hover:bg-slate-100 dark:hover:bg-white/10">{{ $emoji }}</button>
                             @endforeach
                         </div>
                     </div>
@@ -322,7 +322,7 @@
             {{-- alternar entre responder o cliente e escrever nota interna --}}
             <button type="button" wire:click="alternarNota"
                     title="{{ $nota ? 'Voltar a responder o cliente' : 'Escrever nota interna (nao vai para o cliente)' }}"
-                    class="shrink-0 rounded border px-3 py-2 text-sm {{ $nota ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-slate-300 text-slate-600 hover:bg-slate-50' }}">
+                    class="shrink-0 rounded border px-3 py-2 text-sm {{ $nota ? 'border-amber-400 bg-amber-100 text-amber-800 dark:border-amber-500/50 dark:bg-amber-500/15 dark:text-amber-200' : 'border-slate-300 text-slate-600 hover:bg-slate-50 dark:border-white/15 dark:text-gray-300 dark:hover:bg-white/5' }}">
                 &#128274;
             </button>
 
@@ -430,7 +430,7 @@
                        x-on:keydown.escape="aberto = false"
                        x-on:keydown.enter="if (aberto) { $event.preventDefault(); escolher(achados[indice], $el) }"
                        placeholder="{{ $nota ? 'Nota interna, só a equipe vê — @ chama alguém' : ($anexo ? 'Legenda (opcional)' : 'Escreva uma mensagem') }}"
-                       class="w-full rounded border px-3 py-2 text-sm {{ $nota ? 'border-amber-300 bg-amber-50 text-amber-900' : 'border-slate-300' }}">
+                       class="w-full rounded border px-3 py-2 text-sm {{ $nota ? 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/50 dark:bg-amber-500/10 dark:text-amber-100' : 'border-slate-300 bg-white text-slate-900 dark:border-white/15 dark:bg-gray-800 dark:text-gray-100' }}">
 
                 {{-- Sobe em vez de descer: embaixo do campo ela cairia atras da barra de
                      escrever, que e o unico lugar onde nao se pode ler nada. --}}
