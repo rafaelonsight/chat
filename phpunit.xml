@@ -19,6 +19,8 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <!-- Nunca reutilizar o config.php de produção: ele contém fila e banco reais. -->
+        <env name="APP_CONFIG_CACHE" value="/tmp/virtus-phpunit-config.php"/>
 
         <!--
             O MESMO FUSO DA PRODUCAO.
