@@ -140,6 +140,32 @@ it('a mensagem do bot nao tira a conversa de Novos', function () {
         ->and($c->nao_lidas)->toBeGreaterThan(0);
 });
 
+it('mostra o menu novamente ao mesmo contato em cada novo atendimento', function () {
+    fluxoComMenu();
+
+    recebe('oi');
+
+    $primeiroAtendimento = $this->conversa->fresh();
+    $primeiroAtendimento->arquivar();
+
+    recebe('olá novamente');
+
+    $novoAtendimento = Conversation::query()
+        ->where('channel_id', $this->channel->id)
+        ->where('contact_id', $this->contato->id)
+        ->where('status', '!=', Conversation::ARQUIVADA)
+        ->firstOrFail();
+
+    expect($novoAtendimento->id)->not->toBe($primeiroAtendimento->id)
+        ->and($novoAtendimento->chatbot_estado)->toBe(ChatbotMotor::ATIVO)
+        ->and(
+            Message::where('conversation_id', $novoAtendimento->id)
+                ->where('automatica', true)
+                ->latest('id')
+                ->value('corpo')
+        )->toContain('1 - Suporte');
+});
+
 // ----------------------------------------------------------------------- menu
 
 function fluxoComMenu(): array

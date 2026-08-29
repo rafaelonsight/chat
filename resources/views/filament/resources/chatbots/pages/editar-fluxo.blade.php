@@ -220,7 +220,7 @@
                             {{-- acoes --}}
                             @if ($passo['inicio'])
                                 <p class="px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400">
-                                    Quando o cliente manda a primeira mensagem.
+                                    Quando o cliente manda a primeira mensagem de cada novo atendimento.
                                 </p>
                             @else
                                 <div class="divide-y divide-gray-100 dark:divide-white/5">
