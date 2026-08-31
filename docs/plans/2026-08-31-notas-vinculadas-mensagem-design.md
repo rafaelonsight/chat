@@ -5,8 +5,8 @@
 - Cada mensagem recebe um botão de nota interna ao lado das ações de reação.
 - O botão ativa o compositor no modo interno e mostra a prévia da mensagem vinculada.
 - É possível registrar várias notas na mesma mensagem e mencionar colaboradores com `@`.
-- Acima da mensagem aparece somente um alerta âmbar compacto com contador; o conteúdo fica recolhido por padrão.
-- Ao clicar no alerta, as notas expandem com autor, data e conteúdo; outro clique recolhe.
+- Não existe faixa permanente acima da mensagem: quando houver nota, o próprio ícone de anotação fica sempre visível, amarelo e com contador.
+- Ao clicar no ícone, as notas expandem com autor, data e conteúdo; outro clique recolhe. O painel expandido oferece “Adicionar outra nota”.
 - Notas nunca são enviadas ao cliente.
 - Autor, administrador ou operador podem editar e excluir; os demais apenas leem.
 

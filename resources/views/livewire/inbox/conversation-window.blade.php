@@ -430,22 +430,9 @@
                 @endphp
                 <div wire:key="msg-{{ $m->id }}" x-data="{ notasAbertas: false }" class="w-full">
                     @if ($notasDaMensagem->isNotEmpty())
-                        <div class="mb-1 flex {{ $entrada ? 'justify-start' : 'justify-end' }}">
+                        <div x-show="notasAbertas" x-collapse x-cloak class="mb-1 flex {{ $entrada ? 'justify-start' : 'justify-end' }}">
                             <div class="w-full max-w-lg">
-                                <button type="button" x-on:click="notasAbertas = !notasAbertas"
-                                        :aria-expanded="notasAbertas"
-                                        class="flex w-full items-center justify-between gap-2 rounded-lg border border-amber-300/70 bg-amber-50 px-3 py-1.5 text-left text-xs text-amber-900 transition hover:bg-amber-100 dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-amber-200 dark:hover:bg-amber-500/15">
-                                    <span class="flex min-w-0 items-center gap-2 font-semibold">
-                                        <span class="relative grid h-6 w-6 shrink-0 place-items-center rounded-full bg-amber-200/70 dark:bg-amber-500/20">
-                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-3.5 w-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 4.5h9a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-4.2L8 19v-3.5h-.5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z" /></svg>
-                                            <span class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-amber-50 dark:ring-gray-950"></span>
-                                        </span>
-                                        {{ $notasDaMensagem->count() }} {{ $notasDaMensagem->count() === 1 ? 'nota interna' : 'notas internas' }}
-                                    </span>
-                                    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 shrink-0 transition" :class="notasAbertas ? 'rotate-180' : ''"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" /></svg>
-                                </button>
-
-                                <div x-show="notasAbertas" x-collapse x-cloak class="mt-1 space-y-1.5">
+                                <div class="space-y-1.5">
                                     @foreach ($notasDaMensagem as $notaVinculada)
                                         <div class="rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-slate-800 dark:border-amber-500/25 dark:bg-amber-500/[0.07] dark:text-gray-100">
                                             @if ($editandoNota === $notaVinculada->id)
@@ -469,6 +456,10 @@
                                             @endif
                                         </div>
                                     @endforeach
+                                    <button type="button" wire:click="anotar({{ $m->id }})"
+                                            class="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-500/10">
+                                        <span aria-hidden="true">+</span> Adicionar outra nota
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -566,12 +557,23 @@
                     </div>
                     @endif
 
-                    <button type="button" wire:click="anotar({{ $m->id }})"
-                            title="Adicionar nota interna" aria-label="Adicionar nota interna sobre esta mensagem"
-                            class="shrink-0 rounded-full p-1.5 text-slate-400 transition hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-500/10 dark:hover:text-amber-300
-                                   opacity-100 lg:opacity-0 lg:group-hover:opacity-100
+                    <button type="button"
+                            @if ($notasDaMensagem->isNotEmpty())
+                                x-on:click="notasAbertas = !notasAbertas" :aria-expanded="notasAbertas"
+                                title="{{ $notasDaMensagem->count() }} {{ $notasDaMensagem->count() === 1 ? 'nota interna' : 'notas internas' }}"
+                            @else
+                                wire:click="anotar({{ $m->id }})" title="Adicionar nota interna"
+                            @endif
+                            aria-label="{{ $notasDaMensagem->isNotEmpty() ? 'Ver notas internas desta mensagem' : 'Adicionar nota interna sobre esta mensagem' }}"
+                            class="relative shrink-0 rounded-full p-1.5 transition hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-500/10 dark:hover:text-amber-300
+                                   {{ $notasDaMensagem->isNotEmpty()
+                                       ? 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/35 opacity-100'
+                                       : 'text-slate-400 opacity-100 lg:opacity-0 lg:group-hover:opacity-100' }}
                                    {{ $entrada ? 'order-last' : 'order-first' }}">
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 4.5h9a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-4.2L8 19v-3.5h-.5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z" /><path stroke-linecap="round" d="M9 8.5h6M9 11.5h4" /></svg>
+                        @if ($notasDaMensagem->isNotEmpty())
+                            <span class="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-none text-gray-950 ring-2 ring-gray-950">{{ $notasDaMensagem->count() }}</span>
+                        @endif
                     </button>
 
                     @if ($m->reacao_cliente || $m->reacao_nossa)
