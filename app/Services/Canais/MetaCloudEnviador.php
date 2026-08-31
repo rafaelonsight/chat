@@ -90,7 +90,7 @@ class MetaCloudEnviador implements Enviador
         return 'meta_cloud';
     }
 
-    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null): array
+    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null, array $mencoes = []): array
     {
         $r = $this->cliente($canal)
             ->post($this->url($canal).'/messages', array_filter([

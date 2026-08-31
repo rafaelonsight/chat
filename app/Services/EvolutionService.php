@@ -101,12 +101,17 @@ class EvolutionService
         return $this->client()->delete("/instance/delete/{$instance}")->json() ?? [];
     }
 
-    public function sendText(string $instance, string $to, string $text, ?array $quoted = null): array
+    public function sendText(string $instance, string $to, string $text, ?array $quoted = null, array $mentioned = []): array
     {
         return $this->client()->post("/message/sendText/{$instance}", array_filter([
             'number' => $to,
             'text'   => $text,
             'quoted' => $quoted,
+            // A Evolution valida este campo como numeros, nao JIDs completos.
+            'mentioned' => $mentioned === [] ? null : array_values(array_unique(array_filter(array_map(
+                fn (string $jid) => preg_replace('/\D+/', '', explode(':', explode('@', $jid)[0])[0]),
+                $mentioned,
+            )))),
         ], fn ($v) => $v !== null))->throw()->json();
     }
 
@@ -279,6 +284,14 @@ class EvolutionService
         return $this->client()
             ->get("/group/findGroupInfos/{$instance}", ['groupJid' => $groupJid])
             ->throw()->json();
+    }
+
+    /** Participantes enriquecidos com nome e foto quando a Evolution os conhece. */
+    public function groupParticipants(string $instance, string $groupJid): array
+    {
+        return $this->client()
+            ->get("/group/participants/{$instance}", ['groupJid' => $groupJid])
+            ->throw()->json() ?? [];
     }
 
     /**

@@ -22,7 +22,7 @@ class MetaMessengerEnviador implements Enviador
         private readonly int $timeout,
     ) {}
 
-    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null): array
+    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null, array $mencoes = []): array
     {
         return $this->enviarMensagem($canal, $this->idDoDestino($destino, $canal), ['text' => $texto]);
     }

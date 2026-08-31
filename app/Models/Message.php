@@ -22,7 +22,7 @@ class Message extends Model
         'remetente_nome', 'remetente_jid', 'automatica', 'por_fora',
         'transcricao', 'transcricao_status',
         'media_path', 'media_mime', 'media_nome', 'media_tamanho', 'media_duracao', 'legenda',
-        'lida_em', 'reacao_cliente', 'reacao_nossa', 'apagada_em', 'mencao',
+        'lida_em', 'reacao_cliente', 'reacao_nossa', 'apagada_em', 'mencao', 'mencionados',
     ];
 
     protected $casts = [
@@ -30,6 +30,7 @@ class Message extends Model
         'enviada_em'     => 'datetime',
         'apagada_em'     => 'datetime',
         'mencao'         => 'boolean',
+        'mencionados'    => 'array',
         'media_tamanho'  => 'integer',
         'media_duracao'  => 'integer',
         'automatica'     => 'boolean',

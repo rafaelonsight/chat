@@ -19,7 +19,7 @@ use RuntimeException;
  */
 class SiteEnviador implements Enviador
 {
-    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null): array
+    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null, array $mencoes = []): array
     {
         // Um id nosso, no mesmo formato dos outros: o resto do sistema casa recibo por ele.
         return ['external_id' => 'site_'.Str::lower(Str::random(20))];

@@ -32,7 +32,7 @@ interface Enviador
      *
      * @param  array{external_id: string, texto: ?string, minha: bool}|null  $citar
      */
-    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null): array;
+    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null, array $mencoes = []): array;
 
     /**
      * Envia arquivo.

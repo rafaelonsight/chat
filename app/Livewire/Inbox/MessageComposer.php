@@ -50,6 +50,9 @@ class MessageComposer extends Component
      */
     public array $mencionados = [];
 
+    /** JIDs de participantes marcados na mensagem que sera enviada ao grupo. */
+    public array $mencionadosWhatsapp = [];
+
     /** Template escolhido quando a janela de 24h esta fechada: la, texto livre nao sai. */
     public ?int $templateId = null;
 
@@ -78,7 +81,7 @@ class MessageComposer extends Component
         $this->respondendoA = null;
 
         $this->conversationId = $conversationId;
-        $this->reset(['corpo', 'anexo', 'nota', 'templateId', 'valoresTemplate']);
+        $this->reset(['corpo', 'anexo', 'nota', 'templateId', 'valoresTemplate', 'mencionados', 'mencionadosWhatsapp']);
     }
 
     public function responderA(int $messageId): void
@@ -231,7 +234,7 @@ class MessageComposer extends Component
 
         $conversa->update(['ultima_msg_em' => now()]);
 
-        $this->reset(['corpo', 'anexo', 'respondendoA']);
+        $this->reset(['corpo', 'anexo', 'respondendoA', 'mencionadosWhatsapp']);
         $this->dispatch('abrir-conversa', conversationId: $conversa->id);
     }
 
@@ -314,12 +317,42 @@ class MessageComposer extends Component
             'tipo'            => 'text',
             'responde_a_id'            => $this->respondendoA,
             'corpo'           => $this->assinar($this->corpo),
+            'mencionados'     => $this->mencoesValidas($conversa),
             'status'          => Message::STATUS_QUEUED,
         ]);
 
         SendTextMessage::dispatch($mensagem->id);
 
         return $mensagem;
+    }
+
+    /** @return array<int, array{jid:string,nome:string,telefone:string,foto:?string}> */
+    public function carregarParticipantesGrupo(): array
+    {
+        if (! $this->conversationId) {
+            return [];
+        }
+
+        $conversa = Conversation::with(['channel', 'contact'])->find($this->conversationId);
+
+        return $conversa
+            ? app(\App\Services\ParticipantesGrupoWhatsapp::class)->listar($conversa)
+            : [];
+    }
+
+    /** Impede JID forjado no navegador: so sai quem pertence a lista atual do grupo. */
+    private function mencoesValidas(Conversation $conversa): array
+    {
+        if ($this->mencionadosWhatsapp === []) {
+            return [];
+        }
+
+        $permitidos = collect(app(\App\Services\ParticipantesGrupoWhatsapp::class)->listar($conversa))
+            ->pluck('jid');
+
+        return collect($this->mencionadosWhatsapp)
+            ->filter(fn ($jid) => is_string($jid) && $permitidos->contains($jid))
+            ->unique()->values()->all();
     }
 
     private function comAnexo(Conversation $conversa): ?Message
@@ -368,7 +401,7 @@ class MessageComposer extends Component
     public function render()
     {
         $conversa = $this->conversationId
-            ? \App\Models\Conversation::with('channel')->find($this->conversationId)
+            ? \App\Models\Conversation::with(['channel', 'contact'])->find($this->conversationId)
             : null;
 
         return view('livewire.inbox.message-composer', [
@@ -386,6 +419,10 @@ class MessageComposer extends Component
                     ])
                     ->all()
                 : [],
+
+            'podeMencionarGrupo' => ! $this->nota
+                && $conversa?->contact?->eGrupo()
+                && $conversa?->channel?->tipo === \App\Models\Channel::EVOLUTION,
 
             'modelos' => $this->conversationId
                 ? MessageTemplate::ativos()->orderBy('titulo')->limit(30)->get()

@@ -59,7 +59,7 @@ class EvolutionEnviador implements Enviador
         return 'evolution';
     }
 
-    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null): array
+    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null, array $mencoes = []): array
     {
         $r = $this->evolution->sendText(
             $this->instancia($canal),
@@ -67,6 +67,7 @@ class EvolutionEnviador implements Enviador
             $texto,
             // O destino serve de remoteJid: e a mesma conversa, vista do lado de la.
             $citar ? \App\Services\EvolutionService::quoted($citar, $destino) : null,
+            $mencoes,
         );
 
         return ['external_id' => data_get($r, 'key.id')];

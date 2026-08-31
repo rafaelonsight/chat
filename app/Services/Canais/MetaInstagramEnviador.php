@@ -34,7 +34,7 @@ class MetaInstagramEnviador implements Enviador
      * sem resposta" foi descartado de proposito — errar o alvo posta uma resposta
      * publica no comentario errado, e isso nao tem como desfazer sozinho.
      */
-    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null): array
+    public function texto(Channel $canal, string $destino, string $texto, ?array $citar = null, array $mencoes = []): array
     {
         $comentario = $this->comentarioCitado($canal, $citar);
 

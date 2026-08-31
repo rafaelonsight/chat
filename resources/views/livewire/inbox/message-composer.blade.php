@@ -387,10 +387,12 @@
                 Lendo do atributo na hora do uso, o valor e sempre o do ultimo desenho, porque
                 atributo o Livewire atualiza.
             --}}
-            <div class="relative flex-1"
+            <div wire:key="mencoes-compositor-{{ $conversationId }}" class="relative flex-1"
                  data-mencionaveis="{{ json_encode($mencionaveis) }}"
+                 data-pode-mencionar-grupo="{{ $podeMencionarGrupo ? '1' : '0' }}"
                  x-data="{
                     pessoas: [],
+                    participantesCarregados: false,
                     aberto: false,
                     busca: '',
                     indice: 0,
@@ -399,13 +401,13 @@
                         const b = this.busca.toLowerCase();
 
                         return this.pessoas
-                            .filter((p) => p.primeiro.toLowerCase().startsWith(b) || p.nome.toLowerCase().includes(b))
+                            .filter((p) => (p.primeiro || p.nome).toLowerCase().startsWith(b) || p.nome.toLowerCase().includes(b) || (p.telefone || '').includes(b))
                             .slice(0, 6);
                     },
 
                     /* Abre so quando o cursor esta DENTRO de um @palavra: um arroba no meio de
                        um e-mail digitado nao e um pedido de mencao. */
-                    aoDigitar(el) {
+                    async aoDigitar(el) {
                         /*
                            A LISTA E RELIDA A CADA TECLA, do atributo, pelo elemento que veio no
                            evento — e nao por this.$el.
@@ -421,10 +423,24 @@
                            e o atributo e sempre o do ultimo desenho.
                         */
                         const caixa = el.closest('[data-mencionaveis]');
-                        this.pessoas = JSON.parse(caixa?.dataset.mencionaveis || '[]');
-
                         const antes = el.value.slice(0, el.selectionStart);
                         const achou = antes.match(/@([\p{L}0-9._-]*)$/u);
+
+                        if (!achou) {
+                            this.aberto = false;
+                            return;
+                        }
+
+                        if (caixa?.dataset.podeMencionarGrupo === '1' && !this.participantesCarregados) {
+                            const participantes = await $wire.carregarParticipantesGrupo();
+                            this.pessoas = [
+                                { id: '__todos__', jid: '__todos__', nome: 'Todos do grupo', primeiro: 'todos', telefone: '', todos: true },
+                                ...participantes.map((p) => ({ ...p, id: p.jid, primeiro: p.nome.split(' ')[0] || p.telefone }))
+                            ];
+                            this.participantesCarregados = true;
+                        } else if (caixa?.dataset.podeMencionarGrupo !== '1') {
+                            this.pessoas = JSON.parse(caixa?.dataset.mencionaveis || '[]');
+                        }
 
                         this.aberto = Boolean(achou) && this.pessoas.length > 0;
                         this.busca = achou ? achou[1] : '';
@@ -435,7 +451,8 @@
                         if (! p) return;
 
                         const pos = el.selectionStart;
-                        const antes = el.value.slice(0, pos).replace(/@([\p{L}0-9._-]*)$/u, '@' + p.primeiro + ' ');
+                        const rotulo = p.todos ? 'todos' : p.primeiro;
+                        const antes = el.value.slice(0, pos).replace(/@([\p{L}0-9._-]*)$/u, '@' + rotulo + ' ');
 
                         el.value = antes + el.value.slice(pos);
 
@@ -443,7 +460,15 @@
                            chamada leva a primeira de carona no mesmo pedido, e a volta redesenha
                            as etiquetas de quem sera avisado. */
                         $wire.set('corpo', el.value, false);
-                        $wire.set('mencionados', [...new Set([...$wire.get('mencionados'), p.id])]);
+                        if (p.jid) {
+                            const atuais = $wire.get('mencionadosWhatsapp') || [];
+                            const escolhidos = p.todos
+                                ? this.pessoas.filter((x) => x.jid && !x.todos).map((x) => x.jid)
+                                : [p.jid];
+                            $wire.set('mencionadosWhatsapp', [...new Set([...atuais, ...escolhidos])]);
+                        } else {
+                            $wire.set('mencionados', [...new Set([...$wire.get('mencionados'), p.id])]);
+                        }
 
                         this.aberto = false;
                         el.focus();
@@ -506,7 +531,10 @@
                                 class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-amber-50 dark:hover:bg-amber-500/10">
                             <span class="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-amber-500/20 text-[11px] font-semibold text-amber-700 dark:text-amber-300"
                                   x-text="p.primeiro.charAt(0).toUpperCase()"></span>
-                            <span class="truncate text-gray-800 dark:text-gray-100" x-text="p.nome"></span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block truncate text-gray-800 dark:text-gray-100" x-text="p.nome"></span>
+                                <span x-show="p.telefone" class="block truncate text-[11px] text-gray-500" x-text="'+' + p.telefone"></span>
+                            </span>
                         </button>
                     </template>
                 </div>

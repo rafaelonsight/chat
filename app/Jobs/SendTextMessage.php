@@ -74,7 +74,13 @@ class SendTextMessage implements ShouldQueue
                 // de nao ir: o vinculo continua registrado aqui dentro.
                 $citar = $mensagem->respondeA?->paraCitacao();
 
-                $r = $enviadores->para($canal)->texto($canal, $destino, (string) $mensagem->corpo, $citar);
+                $r = $enviadores->para($canal)->texto(
+                    $canal,
+                    $destino,
+                    (string) $mensagem->corpo,
+                    $citar,
+                    $mensagem->mencionados ?? [],
+                );
 
                 $mensagem->update([
                     'external_id' => Arr::get($r, 'external_id'),

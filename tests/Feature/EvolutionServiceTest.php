@@ -16,6 +16,33 @@ it('envia texto com a apikey no cabecalho', function () {
         && $req['text'] === 'ola');
 });
 
+it('envia mencoes de grupo como numeros aceitos pela Evolution', function () {
+    Http::fake(['*/message/sendText/*' => Http::response(['key' => ['id' => 'MEN1']], 201)]);
+
+    (new EvolutionService('http://127.0.0.1:8081', 'k'))->sendText(
+        'instancia',
+        '120363000000000000@g.us',
+        '@Celso e @Rafael',
+        null,
+        ['5541984606033@s.whatsapp.net', '5541984919939:2@s.whatsapp.net'],
+    );
+
+    Http::assertSent(fn ($req) => $req['mentioned'] === ['5541984606033', '5541984919939']);
+});
+
+it('consulta participantes enriquecidos do grupo', function () {
+    Http::fake(['*/group/participants/*' => Http::response([
+        ['id' => '5541984606033@s.whatsapp.net', 'name' => 'Celso'],
+    ])]);
+
+    $r = (new EvolutionService('http://127.0.0.1:8081', 'k'))
+        ->groupParticipants('instancia', '120363000000000000@g.us');
+
+    expect($r[0]['name'])->toBe('Celso');
+    Http::assertSent(fn ($req) => str_contains($req->url(), '/group/participants/instancia')
+        && str_contains($req->url(), 'groupJid=120363000000000000%40g.us'));
+});
+
 it('cria instancia assinando os eventos necessarios', function () {
     Http::fake(['*/instance/create' => Http::response(['instance' => ['instanceName' => 't1-c1']], 201)]);
 
