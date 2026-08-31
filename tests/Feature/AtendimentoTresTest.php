@@ -148,6 +148,19 @@ it('a conversa volta a aparecer no filtro de nao lidas', function () {
     expect($conversas->pluck('id')->all())->toContain($this->conversa->id);
 });
 
+it('transforma links da conversa em hyperlink sem executar html recebido', function () {
+    $mensagem = $this->conversa->messages()->firstOrFail();
+    $mensagem->update([
+        'corpo' => '<script>alert(1)</script> Veja https://example.com/planilha?a=1&b=2.',
+    ]);
+
+    Livewire::actingAs($this->joao)
+        ->test(ConversationWindow::class, ['conversationId' => $this->conversa->id])
+        ->assertSeeHtml('href="https://example.com/planilha?a=1&amp;b=2"')
+        ->assertSeeHtml('target="_blank"')
+        ->assertDontSeeHtml('<script>alert(1)</script>');
+});
+
 // ========================================================== 3. digitando
 
 it('avisa o provedor que alguem esta escrevendo', function () {

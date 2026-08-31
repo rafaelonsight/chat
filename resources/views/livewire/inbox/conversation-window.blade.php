@@ -564,7 +564,7 @@
                             </div>
 
                         @elseif ($m->tipo === 'text')
-                            <div class="whitespace-pre-wrap">{{ $m->corpo }}</div>
+                            <div class="whitespace-pre-wrap">{{ \App\Support\TextoComLinks::render((string) $m->corpo) }}</div>
 
                         @elseif ($m->temMidia())
                             @if (in_array($m->tipo, ['image', 'sticker']))
