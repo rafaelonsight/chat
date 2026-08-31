@@ -17,6 +17,10 @@ class ConversationWindow extends Component
 
     public string $buscaEncaminhar = '';
 
+    public ?int $editandoNota = null;
+
+    public string $textoNota = '';
+
     /** Quantas mensagens por vez. Constante porque tres lugares precisam voltar a ela. */
     public const PAGINA = 30;
 
@@ -125,8 +129,16 @@ class ConversationWindow extends Component
         $eventos = ($conversa && $procurado === '')
             ? $conversa->events()
                 ->with('user')
+                ->whereNull('dados->message_id')
                 ->when($desde, fn ($q) => $q->where('created_at', '>=', $desde))
                 ->get()
+            : collect();
+
+        $notasPorMensagem = ($conversa && $procurado === '')
+            ? $conversa->events()->with('user')
+                ->where('tipo', \App\Models\ConversationEvent::NOTA)
+                ->whereNotNull('dados->message_id')
+                ->get()->groupBy(fn ($nota) => (int) data_get($nota->dados, 'message_id'))
             : collect();
 
         /*
@@ -181,7 +193,7 @@ class ConversationWindow extends Component
         $podeApagar = $this->canalApaga();
         $podeReagir = $this->canalReage();
 
-        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'pessoas', 'eventos', 'linha', 'podeApagar', 'podeReagir', 'etiquetasDeConversa', 'procurado', 'paraEncaminhar'));
+        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'pessoas', 'eventos', 'linha', 'notasPorMensagem', 'podeApagar', 'podeReagir', 'etiquetasDeConversa', 'procurado', 'paraEncaminhar'));
     }
 
     public function assumir(): void
@@ -328,6 +340,54 @@ class ConversationWindow extends Component
         }
 
         $this->dispatch('responder-a', messageId: $messageId);
+    }
+
+    public function anotar(int $messageId): void
+    {
+        $mensagem = \App\Models\Message::find($messageId);
+
+        if (! $mensagem || $mensagem->conversation_id !== $this->conversationId) {
+            return;
+        }
+
+        $this->dispatch('anotar-mensagem', messageId: $messageId);
+    }
+
+    public function editarNota(int $notaId): void
+    {
+        $nota = $this->notaEditavel($notaId);
+        if (! $nota) return;
+
+        $this->editandoNota = $nota->id;
+        $this->textoNota = $nota->descricao;
+    }
+
+    public function salvarEdicaoNota(): void
+    {
+        $nota = $this->notaEditavel((int) $this->editandoNota);
+        if (! $nota) return;
+
+        $this->validate(['textoNota' => 'required|string|max:4000']);
+        $nota->update(['descricao' => trim($this->textoNota)]);
+        $this->reset(['editandoNota', 'textoNota']);
+    }
+
+    public function excluirNota(int $notaId): void
+    {
+        $nota = $this->notaEditavel($notaId);
+        if ($nota) $nota->delete();
+    }
+
+    private function notaEditavel(int $notaId): ?\App\Models\ConversationEvent
+    {
+        $nota = \App\Models\ConversationEvent::find($notaId);
+        $usuario = auth()->user();
+
+        if (! $nota || $nota->conversation_id !== $this->conversationId || ! $nota->ehNota()) {
+            return null;
+        }
+
+        return ($nota->user_id === $usuario?->id || $usuario?->veTudo()) ? $nota : null;
     }
 
     public function passarPara(int $userId): void

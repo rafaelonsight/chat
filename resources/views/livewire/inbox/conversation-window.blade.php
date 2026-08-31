@@ -423,8 +423,58 @@
                     @continue
                 @endif
 
-                @php $m = $item; $entrada = $m->entrada(); @endphp
-                <div wire:key="msg-{{ $m->id }}" class="group flex items-end gap-1 {{ $entrada ? 'justify-start' : 'justify-end' }}">
+                @php
+                    $m = $item;
+                    $entrada = $m->entrada();
+                    $notasDaMensagem = $notasPorMensagem->get($m->id, collect());
+                @endphp
+                <div wire:key="msg-{{ $m->id }}" x-data="{ notasAbertas: false }" class="w-full">
+                    @if ($notasDaMensagem->isNotEmpty())
+                        <div class="mb-1 flex {{ $entrada ? 'justify-start' : 'justify-end' }}">
+                            <div class="w-full max-w-lg">
+                                <button type="button" x-on:click="notasAbertas = !notasAbertas"
+                                        :aria-expanded="notasAbertas"
+                                        class="flex w-full items-center justify-between gap-2 rounded-lg border border-amber-300/70 bg-amber-50 px-3 py-1.5 text-left text-xs text-amber-900 transition hover:bg-amber-100 dark:border-amber-500/35 dark:bg-amber-500/10 dark:text-amber-200 dark:hover:bg-amber-500/15">
+                                    <span class="flex min-w-0 items-center gap-2 font-semibold">
+                                        <span class="relative grid h-6 w-6 shrink-0 place-items-center rounded-full bg-amber-200/70 dark:bg-amber-500/20">
+                                            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-3.5 w-3.5"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 4.5h9a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-4.2L8 19v-3.5h-.5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z" /></svg>
+                                            <span class="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-amber-50 dark:ring-gray-950"></span>
+                                        </span>
+                                        {{ $notasDaMensagem->count() }} {{ $notasDaMensagem->count() === 1 ? 'nota interna' : 'notas internas' }}
+                                    </span>
+                                    <svg aria-hidden="true" viewBox="0 0 20 20" fill="currentColor" class="h-4 w-4 shrink-0 transition" :class="notasAbertas ? 'rotate-180' : ''"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clip-rule="evenodd" /></svg>
+                                </button>
+
+                                <div x-show="notasAbertas" x-collapse x-cloak class="mt-1 space-y-1.5">
+                                    @foreach ($notasDaMensagem as $notaVinculada)
+                                        <div class="rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-slate-800 dark:border-amber-500/25 dark:bg-amber-500/[0.07] dark:text-gray-100">
+                                            @if ($editandoNota === $notaVinculada->id)
+                                                <textarea wire:model="textoNota" rows="3" class="w-full resize-y rounded-lg border border-amber-300 bg-white px-2 py-1.5 text-sm dark:border-amber-500/40 dark:bg-gray-900"></textarea>
+                                                @error('textoNota') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                                <div class="mt-2 flex gap-2">
+                                                    <button type="button" wire:click="salvarEdicaoNota" class="rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-700">Salvar</button>
+                                                    <button type="button" wire:click="$set('editandoNota', null)" class="px-2 py-1 text-xs text-slate-500">Cancelar</button>
+                                                </div>
+                                            @else
+                                                <div class="whitespace-pre-wrap">{{ $notaVinculada->descricao }}</div>
+                                                <div class="mt-1 flex items-center justify-between gap-2 text-[10px] text-amber-700/80 dark:text-amber-300/70">
+                                                    <span>{{ $notaVinculada->user?->name ?: 'Equipe' }} &middot; {{ $notaVinculada->created_at?->format('d/m H:i') }}</span>
+                                                    @if ($notaVinculada->user_id === auth()->id() || auth()->user()?->veTudo())
+                                                        <span class="flex gap-1">
+                                                            <button type="button" wire:click="editarNota({{ $notaVinculada->id }})" class="rounded px-1.5 py-0.5 hover:bg-amber-200/60 dark:hover:bg-amber-500/20">Editar</button>
+                                                            <button type="button" wire:click="excluirNota({{ $notaVinculada->id }})" wire:confirm="Excluir esta nota interna?" class="rounded px-1.5 py-0.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-500/10">Excluir</button>
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+
+                    <div class="group flex items-end gap-1 {{ $entrada ? 'justify-start' : 'justify-end' }}">
                     {{--
                         order-first/order-last poe a seta sempre do lado de DENTRO do balao,
                         seja ele da esquerda ou da direita — assim ela ocupa o vao que ja
@@ -515,6 +565,14 @@
                         </div>
                     </div>
                     @endif
+
+                    <button type="button" wire:click="anotar({{ $m->id }})"
+                            title="Adicionar nota interna" aria-label="Adicionar nota interna sobre esta mensagem"
+                            class="shrink-0 rounded-full p-1.5 text-slate-400 transition hover:bg-amber-50 hover:text-amber-700 dark:hover:bg-amber-500/10 dark:hover:text-amber-300
+                                   opacity-100 lg:opacity-0 lg:group-hover:opacity-100
+                                   {{ $entrada ? 'order-last' : 'order-first' }}">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 4.5h9a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-4.2L8 19v-3.5h-.5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z" /><path stroke-linecap="round" d="M9 8.5h6M9 11.5h4" /></svg>
+                    </button>
 
                     @if ($m->reacao_cliente || $m->reacao_nossa)
                         <span class="vc-popover order-last flex shrink-0 items-center gap-0.5 self-end rounded-full px-1.5 py-0.5 text-xs">
@@ -636,6 +694,7 @@
                         @if ($m->erro)
                             <div class="mt-1 text-[10px] {{ $entrada ? 'text-red-600 dark:text-red-400' : 'text-red-200' }}">{{ $m->erro }}</div>
                         @endif
+                    </div>
                     </div>
                 </div>
             @endforeach

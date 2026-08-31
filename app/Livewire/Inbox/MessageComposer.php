@@ -39,6 +39,9 @@ class MessageComposer extends Component
      */
     public ?int $respondendoA = null;
 
+    /** Mensagem sobre a qual a proxima nota interna sera registrada. */
+    public ?int $anotandoMensagem = null;
+
     /**
      * Quem a pessoa escolheu chamar na nota, por id.
      *
@@ -69,6 +72,7 @@ class MessageComposer extends Component
         return [
             'abrir-conversa' => 'abrir',
             'responder-a'    => 'responderA',
+            'anotar-mensagem' => 'anotarMensagem',
         ];
     }
 
@@ -79,6 +83,7 @@ class MessageComposer extends Component
         // outro cliente — e a checagem de conversa no responderA nao pega isto, porque aqui
         // quem mudou foi a conversa, nao a mensagem.
         $this->respondendoA = null;
+        $this->anotandoMensagem = null;
 
         $this->conversationId = $conversationId;
         $this->reset(['corpo', 'anexo', 'nota', 'templateId', 'valoresTemplate', 'mencionados', 'mencionadosWhatsapp']);
@@ -138,6 +143,31 @@ class MessageComposer extends Component
     public function cancelarResposta(): void
     {
         $this->respondendoA = null;
+    }
+
+    public function anotarMensagem(int $messageId): void
+    {
+        $mensagem = Message::find($messageId);
+
+        if (! $mensagem || $mensagem->conversation_id !== $this->conversationId) {
+            return;
+        }
+
+        $this->respondendoA = null;
+        $this->anotandoMensagem = $messageId;
+        $this->nota = true;
+        $this->resetErrorBag();
+        $this->dispatch('focar-compositor');
+    }
+
+    public function cancelarAnotacao(): void
+    {
+        $this->anotandoMensagem = null;
+    }
+
+    public function mensagemAnotada(): ?Message
+    {
+        return $this->anotandoMensagem ? Message::find($this->anotandoMensagem) : null;
     }
 
     /**
@@ -283,6 +313,9 @@ class MessageComposer extends Component
             'user_id'         => auth()->id(),
             'tipo'            => ConversationEvent::NOTA,
             'descricao'       => trim($this->corpo),
+            'dados'           => $this->anotandoMensagem
+                ? ['message_id' => $this->anotandoMensagem]
+                : null,
         ]);
 
         /*
@@ -302,7 +335,7 @@ class MessageComposer extends Component
         // De proposito NAO toca ultima_msg_em: essa coluna responde "quem esta
         // esperando ha mais tempo". Nota nossa subindo a conversa na fila faria
         // a ordenacao mentir sobre o cliente.
-        $this->reset(['corpo', 'anexo', 'mencionados']);
+        $this->reset(['corpo', 'anexo', 'mencionados', 'anotandoMensagem']);
         $this->dispatch('abrir-conversa', conversationId: $conversa->id);
     }
 

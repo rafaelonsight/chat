@@ -88,6 +88,17 @@
                     </div>
                 @endif
             </div>
+
+            @if ($anotada = $this->mensagemAnotada())
+                <div class="mb-2 flex items-start gap-2 rounded-lg border-l-4 border-amber-500 bg-amber-50 px-3 py-2 dark:bg-amber-500/10">
+                    <div class="min-w-0 flex-1">
+                        <div class="text-xs font-semibold text-amber-800 dark:text-amber-200">Nota vinculada a esta mensagem</div>
+                        <div class="truncate text-xs text-amber-700/80 dark:text-amber-300/80">{{ $anotada->resumo(120) }}</div>
+                    </div>
+                    <button type="button" wire:click="cancelarAnotacao" title="Remover vínculo"
+                            class="rounded px-2 text-lg leading-none text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-500/20">&times;</button>
+                </div>
+            @endif
         @endif
 
         @php
