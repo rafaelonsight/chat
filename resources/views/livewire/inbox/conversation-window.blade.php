@@ -393,8 +393,8 @@
             artificialmente mensagens recebidas e enviadas e criava grandes faixas vazias em
             monitores largos. A legibilidade continua protegida pelo max-width do próprio balão.
         --}}
-        <div class="vc-thread flex-1 space-y-2 overflow-y-auto p-4
-                     [&>*]:w-full">
+        <div class="vc-thread flex-1 overflow-y-auto px-3 py-4 sm:px-5 lg:px-6">
+            <div class="mx-auto w-full max-w-[1150px]">
             @if ($mensagens->count() >= $limite)
                 <button type="button" wire:click="carregarMais" class="mx-auto block text-xs text-slate-500 underline dark:text-gray-400">
                     carregar mensagens anteriores
@@ -427,8 +427,19 @@
                     $m = $item;
                     $entrada = $m->entrada();
                     $notasDaMensagem = $notasPorMensagem->get($m->id, collect());
+                    $anterior = $linha->get($loop->index - 1);
+                    $proxima = $linha->get($loop->index + 1);
+                    $chaveAutor = fn ($msg) => $msg instanceof \App\Models\Message
+                        ? ($msg->entrada() ? 'entrada:'.($msg->remetente_jid ?: 'cliente') : 'saida')
+                        : null;
+                    $perto = fn ($a, $b) => $a instanceof \App\Models\Message
+                        && $b instanceof \App\Models\Message
+                        && abs(($a->created_at?->getTimestamp() ?? 0) - ($b->created_at?->getTimestamp() ?? 0)) <= 300;
+                    $continuaAnterior = $chaveAutor($anterior) === $chaveAutor($m) && $perto($anterior, $m);
+                    $continuaDepois = $chaveAutor($proxima) === $chaveAutor($m) && $perto($m, $proxima);
                 @endphp
-                <div wire:key="msg-{{ $m->id }}" x-data="{ notasAbertas: false }" class="w-full">
+                <div wire:key="msg-{{ $m->id }}" x-data="{ notasAbertas: false }"
+                     class="w-full {{ $continuaAnterior ? 'mt-1' : 'mt-3.5' }} first:mt-0">
                     @if ($notasDaMensagem->isNotEmpty())
                         <div x-show="notasAbertas" x-collapse x-cloak class="mb-1 flex {{ $entrada ? 'justify-start' : 'justify-end' }}">
                             <div class="w-full max-w-lg">
@@ -465,7 +476,7 @@
                         </div>
                     @endif
 
-                    <div class="group flex items-end gap-1 {{ $entrada ? 'justify-start' : 'justify-end' }}">
+                    <div class="group flex items-end gap-1.5 {{ $entrada ? 'justify-start' : 'justify-end' }}">
                     {{--
                         order-first/order-last poe a seta sempre do lado de DENTRO do balao,
                         seja ele da esquerda ou da direita — assim ela ocupa o vao que ja
@@ -479,7 +490,7 @@
                             title="Responder citando" aria-label="Responder citando esta mensagem"
                             class="shrink-0 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-gray-200
                                    opacity-100 lg:opacity-0 lg:group-hover:opacity-100
-                                   {{ $entrada ? 'order-last' : 'order-first' }}">
+                                   {{ $entrada ? 'order-[2]' : 'order-[-2]' }}">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                              stroke-width="2" stroke="currentColor" class="h-4 w-4">
                             <path stroke-linecap="round" stroke-linejoin="round"
@@ -495,7 +506,7 @@
                                 title="Encaminhar" aria-label="Encaminhar esta mensagem"
                                 class="shrink-0 rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-gray-200
                                        opacity-100 lg:opacity-0 lg:group-hover:opacity-100
-                                       {{ $entrada ? 'order-last' : 'order-first' }}">
+                                       {{ $entrada ? 'order-[2]' : 'order-[-2]' }}">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
                                  stroke-width="2" stroke="currentColor" class="h-4 w-4">
                                 <path stroke-linecap="round" stroke-linejoin="round"
@@ -532,7 +543,7 @@
                         oferecem reacao por API, e um botao que sempre falha e pior que nenhum.
                     --}}
                     @if ($podeReagir)
-                    <div class="relative shrink-0 {{ $entrada ? 'order-last' : 'order-first' }}"
+                    <div class="relative shrink-0 {{ $entrada ? 'order-[2]' : 'order-[-2]' }}"
                          x-data="{ aberto: false }" x-on:click.outside="aberto = false">
                         <button type="button" x-on:click="aberto = !aberto"
                                 title="Reagir" aria-label="Reagir a esta mensagem"
@@ -569,7 +580,7 @@
                                    {{ $notasDaMensagem->isNotEmpty()
                                        ? 'bg-amber-500/15 text-amber-500 ring-1 ring-amber-500/35 opacity-100'
                                        : 'text-slate-400 opacity-100 lg:opacity-0 lg:group-hover:opacity-100' }}
-                                   {{ $entrada ? 'order-last' : 'order-first' }}">
+                                   {{ $entrada ? 'order-[1]' : 'order-[-1]' }}">
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 4.5h9a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-4.2L8 19v-3.5h-.5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z" /><path stroke-linecap="round" d="M9 8.5h6M9 11.5h4" /></svg>
                         @if ($notasDaMensagem->isNotEmpty())
                             <span class="absolute -right-1 -top-1 grid min-h-4 min-w-4 place-items-center rounded-full bg-amber-500 px-1 text-[9px] font-bold leading-none text-gray-950 ring-2 ring-gray-950">{{ $notasDaMensagem->count() }}</span>
@@ -587,11 +598,15 @@
                         </span>
                     @endif
 
-                    <div class="min-w-0 max-w-[85%] break-words rounded-xl px-3 py-2 text-sm shadow-sm [overflow-wrap:anywhere] sm:max-w-lg {{ $entrada
+                    <div class="min-w-0 max-w-[82%] break-words px-3.5 py-2.5 text-sm leading-relaxed shadow-[0_1px_2px_rgba(0,0,0,0.12)] [overflow-wrap:anywhere] sm:max-w-[68%] lg:max-w-[65%]
+                                {{ $entrada
                         ? ($m->mencao
                             ? 'vc-note border-2'
                             : 'vc-message-in')
-                        : 'vc-message-out' }}">
+                        : 'vc-message-out' }}
+                                {{ $entrada
+                                    ? ($continuaAnterior ? 'rounded-tl-md' : 'rounded-tl-2xl') .' '. ($continuaDepois ? 'rounded-bl-md' : 'rounded-bl-2xl') .' rounded-r-2xl'
+                                    : ($continuaAnterior ? 'rounded-tr-md' : 'rounded-tr-2xl') .' '. ($continuaDepois ? 'rounded-br-md' : 'rounded-br-2xl') .' rounded-l-2xl' }}">
                         {{-- No meio de duzentas mensagens de grupo, a que te chama precisa
                              saltar sem precisar de leitura. --}}
                         @if ($m->mencao)
@@ -610,7 +625,7 @@
                             </div>
                         @endif
 
-                        @if ($entrada && $m->remetente_nome)
+                        @if ($entrada && $m->remetente_nome && ! $continuaAnterior)
                             {{-- em grupo, quem falou importa tanto quanto o que foi dito --}}
                             <div class="mb-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-400">{{ $m->remetente_nome }}</div>
                         @endif
@@ -682,7 +697,7 @@
                             @endif
                         @endif
 
-                        <div class="mt-1 text-[10px] opacity-70">
+                        <div class="mt-1 text-[10px] opacity-65 {{ $continuaDepois ? 'hidden group-hover:block group-focus-within:block' : '' }}">
                             {{ $m->created_at?->format('H:i') }}
                             @unless ($entrada) &middot; {{ $m->status }} @endunless
                             @if ($m->automatica) &middot; automática @endif
@@ -700,6 +715,7 @@
                     </div>
                 </div>
             @endforeach
+            </div>
         </div>
     @else
         {{--
