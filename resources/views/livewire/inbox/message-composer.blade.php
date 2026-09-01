@@ -519,16 +519,29 @@
                               placeholder="Nota interna, só a equipe vê — @ chama alguém"
                               class="max-h-32 min-h-10 w-full resize-y rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/50 dark:bg-amber-500/10 dark:text-amber-100"></textarea>
                 @else
-                    <input type="text" wire:model="corpo" autocomplete="off" data-atalho="responder"
+                    {{-- Enter envia; Ctrl/Cmd + Enter insere uma quebra de linha. Um input
+                         comum nunca poderia cumprir esse atalho, por isso o compositor de
+                         mensagem tambem precisa ser textarea. --}}
+                    <textarea wire:model="corpo" rows="1" autocomplete="off" data-atalho="responder"
                            x-on:input.throttle.3000ms="$wire.digitando(true)"
                            x-on:input="aoDigitar($el)"
                            x-on:blur="$wire.digitando(false); setTimeout(() => aberto = false, 150)"
                            x-on:keydown.arrow-down="if (aberto) { $event.preventDefault(); andar(1) }"
                            x-on:keydown.arrow-up="if (aberto) { $event.preventDefault(); andar(-1) }"
                            x-on:keydown.escape="aberto = false"
-                           x-on:keydown.enter="if (aberto) { $event.preventDefault(); escolher(achados[indice], $el) }"
+                           x-on:keydown.ctrl.enter.prevent.stop="aberto = false; novaLinha($el)"
+                           x-on:keydown.meta.enter.prevent.stop="aberto = false; novaLinha($el)"
+                           x-on:keydown.enter="
+                               if (aberto) {
+                                   $event.preventDefault();
+                                   escolher(achados[indice], $el);
+                               } else if (! $event.ctrlKey && ! $event.metaKey) {
+                                   $event.preventDefault();
+                                   $el.form.requestSubmit();
+                               }
+                           "
                            placeholder="{{ $anexo ? 'Legenda (opcional)' : 'Escreva uma mensagem' }}"
-                           class="w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/15 dark:bg-gray-800 dark:text-gray-100">
+                           class="max-h-32 min-h-10 w-full resize-y rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/15 dark:bg-gray-800 dark:text-gray-100"></textarea>
                 @endif
 
                 {{-- Sobe em vez de descer: embaixo do campo ela cairia atras da barra de

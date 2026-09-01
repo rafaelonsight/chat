@@ -532,6 +532,18 @@
                         </button>
                     @endif
 
+                    {{-- WhatsApp permite editar texto próprio por uma janela curta. O botão
+                         só aparece quando ainda há chance real de o provedor aceitar. --}}
+                    @if (! $entrada && $podeEditar && $m->tipo === 'text' && $m->external_id && ! $m->apagada() && $m->created_at?->gte(now()->subMinutes(15)))
+                        <button type="button" wire:click="iniciarEdicaoMensagem({{ $m->id }})"
+                                title="Editar mensagem" aria-label="Editar esta mensagem"
+                                class="shrink-0 order-first rounded-full p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/10 dark:hover:text-gray-200 opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931ZM16.862 4.487 19.5 7.125" />
+                            </svg>
+                        </button>
+                    @endif
+
                     {{--
                         Reagir. Seis emojis e mais nada: reacao e gesto de um toque, e uma
                         grade de cinquenta transformaria isso numa escolha — que e exatamente
@@ -639,7 +651,22 @@
                             </div>
 
                         @elseif ($m->tipo === 'text')
-                            <div class="whitespace-pre-wrap">{{ \App\Support\TextoComLinks::render((string) $m->corpo) }}</div>
+                            @if ($editandoMensagem === $m->id)
+                                <div class="space-y-2" x-data x-init="$nextTick(() => $refs.edicao?.focus())">
+                                    <textarea x-ref="edicao" wire:model="textoMensagem" rows="3"
+                                              x-on:keydown.escape.prevent="$wire.cancelarEdicaoMensagem()"
+                                              x-on:keydown.ctrl.enter.prevent.stop="$wire.salvarEdicaoMensagem()"
+                                              x-on:keydown.meta.enter.prevent.stop="$wire.salvarEdicaoMensagem()"
+                                              class="w-full min-w-64 resize-y rounded-lg border border-white/30 bg-black/10 px-3 py-2 text-sm text-inherit outline-none focus:ring-2 focus:ring-white/50"></textarea>
+                                    <div class="flex justify-end gap-2">
+                                        <button type="button" wire:click="cancelarEdicaoMensagem" class="rounded px-2 py-1 text-xs hover:bg-black/10">Cancelar</button>
+                                        <button type="button" wire:click="salvarEdicaoMensagem" class="rounded bg-white/20 px-2 py-1 text-xs font-semibold hover:bg-white/30">Salvar</button>
+                                    </div>
+                                    @error('editarMensagem') <div class="text-xs text-red-200">{{ $message }}</div> @enderror
+                                </div>
+                            @else
+                                <div class="whitespace-pre-wrap">{{ \App\Support\TextoComLinks::render((string) $m->corpo) }}</div>
+                            @endif
 
                         @elseif ($m->temMidia())
                             @if (in_array($m->tipo, ['image', 'sticker']))

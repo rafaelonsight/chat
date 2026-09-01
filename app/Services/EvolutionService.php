@@ -160,6 +160,20 @@ class EvolutionService
         ])->throw()->json();
     }
 
+    /** Edita uma mensagem de texto enviada por esta instancia. */
+    public function updateMessage(string $instance, string $to, array $alvo, string $texto): array
+    {
+        return $this->client()->post("/chat/updateMessage/{$instance}", [
+            'number' => $to,
+            'key' => [
+                'id'        => $alvo['external_id'],
+                'fromMe'    => true,
+                'remoteJid' => self::jid($to),
+            ],
+            'text' => $texto,
+        ])->throw()->json();
+    }
+
     /**
      * Transforma o destino num JID de verdade.
      *

@@ -54,6 +54,11 @@ class EvolutionEnviador implements Enviador
         $this->evolution->deleteMessage($this->instancia($canal), $destino, $alvo);
     }
 
+    public function editar(Channel $canal, string $destino, array $alvo, string $texto): void
+    {
+        $this->evolution->updateMessage($this->instancia($canal), $destino, $alvo, $texto);
+    }
+
     public function nome(): string
     {
         return 'evolution';

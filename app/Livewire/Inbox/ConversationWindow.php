@@ -21,6 +21,10 @@ class ConversationWindow extends Component
 
     public string $textoNota = '';
 
+    public ?int $editandoMensagem = null;
+
+    public string $textoMensagem = '';
+
     /** Quantas mensagens por vez. Constante porque tres lugares precisam voltar a ela. */
     public const PAGINA = 30;
 
@@ -192,8 +196,9 @@ class ConversationWindow extends Component
 
         $podeApagar = $this->canalApaga();
         $podeReagir = $this->canalReage();
+        $podeEditar = $this->canalEdita();
 
-        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'pessoas', 'eventos', 'linha', 'notasPorMensagem', 'podeApagar', 'podeReagir', 'etiquetasDeConversa', 'procurado', 'paraEncaminhar'));
+        return view('livewire.inbox.conversation-window', compact('conversa', 'mensagens', 'equipes', 'pessoas', 'eventos', 'linha', 'notasPorMensagem', 'podeApagar', 'podeReagir', 'podeEditar', 'etiquetasDeConversa', 'procurado', 'paraEncaminhar'));
     }
 
     public function assumir(): void
@@ -471,6 +476,86 @@ class ConversationWindow extends Component
         \App\Jobs\DeleteMessage::dispatch($mensagem->id);
 
         $this->dispatch('conversa-atualizada');
+    }
+
+    public function iniciarEdicaoMensagem(int $messageId): void
+    {
+        $mensagem = $this->mensagemEditavel($messageId);
+
+        if (! $mensagem) {
+            $this->addError('editarMensagem', 'Esta mensagem não pode mais ser editada.');
+            return;
+        }
+
+        $this->editandoMensagem = $mensagem->id;
+        $this->textoMensagem = (string) $mensagem->corpo;
+    }
+
+    public function cancelarEdicaoMensagem(): void
+    {
+        $this->reset(['editandoMensagem', 'textoMensagem']);
+        $this->resetErrorBag('editarMensagem');
+    }
+
+    public function salvarEdicaoMensagem(): void
+    {
+        $mensagem = $this->mensagemEditavel((int) $this->editandoMensagem);
+
+        if (! $mensagem) {
+            $this->addError('editarMensagem', 'O prazo para editar terminou ou o canal não permite edição.');
+            return;
+        }
+
+        $this->validate(['textoMensagem' => 'required|string|max:4000']);
+        $novoTexto = trim($this->textoMensagem);
+
+        if ($novoTexto === $mensagem->corpo) {
+            $this->cancelarEdicaoMensagem();
+            return;
+        }
+
+        try {
+            $canal = $mensagem->conversation->channel;
+            $driver = app(\App\Services\Canais\Enviadores::class)->para($canal);
+            $driver->editar(
+                $canal,
+                $mensagem->conversation->contact->destinoWhatsApp(),
+                ['external_id' => (string) $mensagem->external_id, 'minha' => true],
+                $novoTexto,
+            );
+        } catch (\Throwable $e) {
+            report($e);
+            $this->addError('editarMensagem', 'O WhatsApp recusou a edição. Verifique o prazo e tente novamente.');
+            return;
+        }
+
+        // O histórico local só muda depois da confirmação do provedor.
+        $mensagem->update(['corpo' => $novoTexto]);
+        $this->cancelarEdicaoMensagem();
+        $this->dispatch('conversa-atualizada');
+    }
+
+    private function mensagemEditavel(int $messageId): ?\App\Models\Message
+    {
+        $mensagem = \App\Models\Message::with(['conversation.channel', 'conversation.contact'])->find($messageId);
+
+        if (! $mensagem || $mensagem->conversation_id !== $this->conversationId
+            || $mensagem->entrada() || $mensagem->apagada() || $mensagem->tipo !== 'text'
+            || ! $mensagem->external_id || ! $this->canalEdita()
+            || $mensagem->created_at?->lt(now()->subMinutes(15))) {
+            return null;
+        }
+
+        return $mensagem;
+    }
+
+    /** Edição enviada ao cliente existe hoje apenas no canal Evolution/Baileys. */
+    public function canalEdita(): bool
+    {
+        $canal = \App\Models\Conversation::find($this->conversationId)?->channel;
+
+        return $canal
+            && app(\App\Services\Canais\Enviadores::class)->para($canal)->nome() === 'evolution';
     }
 
     /** O canal desta conversa consegue apagar? A API oficial nao consegue. */

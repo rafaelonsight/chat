@@ -16,6 +16,20 @@ it('envia texto com a apikey no cabecalho', function () {
         && $req['text'] === 'ola');
 });
 
+it('edita mensagem com a chave completa', function () {
+    Http::fake(['*/chat/updateMessage/*' => Http::response(['status' => 'ok'])]);
+
+    (new EvolutionService('http://127.0.0.1:8081', 'k'))->updateMessage(
+        'instancia', '+5541999990000', ['external_id' => 'MSG1', 'minha' => true], 'corrigido',
+    );
+
+    Http::assertSent(fn ($req) => str_contains($req->url(), '/chat/updateMessage/instancia')
+        && $req['number'] === '+5541999990000'
+        && $req['key']['id'] === 'MSG1'
+        && $req['key']['remoteJid'] === '5541999990000@s.whatsapp.net'
+        && $req['text'] === 'corrigido');
+});
+
 it('envia mencoes de grupo como numeros aceitos pela Evolution', function () {
     Http::fake(['*/message/sendText/*' => Http::response(['key' => ['id' => 'MEN1']], 201)]);
 
