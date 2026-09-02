@@ -40,6 +40,7 @@ class User extends Authenticatable implements FilamentUser
     // === false.
     protected $attributes = [
         'operador' => false,
+        'super_admin' => false,
     ];
 
     /**
@@ -52,6 +53,7 @@ class User extends Authenticatable implements FilamentUser
         return [
             'email_verified_at' => 'datetime',
             'admin' => 'boolean',
+            'super_admin' => 'boolean',
             // 'operador' NAO entra no #[Fillable]: e a chave da casa. Fora do
             // preenchimento em massa, so o comando onchat:operador concede.
             'operador' => 'boolean',
@@ -91,9 +93,7 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Os canais que esta pessoa pode ver.
      *
-     * Sem nenhum vinculado, ela ve TODOS — ver o escopo Acesso. Vazio aqui quer dizer "nao foi
-     * restringida", e nao "nao pode nada": o contrario trancaria para fora todo usuario que
-     * existia antes desta tabela.
+     * Para quem nao e Super Admin, vazio significa nenhum canal liberado.
      */
     public function canais(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
@@ -127,12 +127,12 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Quem enxerga o sistema inteiro, sem restricao de canal nem de time.
      *
-     * Administrador configura canais e usuarios: restringir o que ele ve seria pedir que ele
-     * configure no escuro. Operador e o dono do produto, acima de tudo.
+     * Somente o Super Admin ignora a matriz de acesso. Admin e operador tambem precisam receber
+     * canais explicitamente: papel funcional nao e permissao para ler conversas.
      */
     public function veTudo(): bool
     {
-        return (bool) ($this->admin || $this->operador);
+        return (bool) $this->super_admin;
     }
 
     /**
@@ -153,7 +153,7 @@ class User extends Authenticatable implements FilamentUser
             return true;
         }
 
-        if (($canais = $this->canalIds()) !== [] && ! in_array($conversa->channel_id, $canais, true)) {
+        if (($canais = $this->canalIds()) === [] || ! in_array($conversa->channel_id, $canais, true)) {
             return false;
         }
 
@@ -190,6 +190,6 @@ class User extends Authenticatable implements FilamentUser
     /** Se ela foi restringida a algo — o que a tela precisa saber para explicar uma lista vazia. */
     public function temAcessoRestrito(): bool
     {
-        return ! $this->veTudo() && ($this->canalIds() !== [] || $this->equipeIds() !== []);
+        return ! $this->veTudo();
     }
 }

@@ -14,7 +14,7 @@ class UserForm
         return $schema->components([
             TextInput::make('name')
                 ->label('Nome')
-                ->required()
+                ->required(fn (?\App\Models\User $record): bool => ! $record?->super_admin)
                 ->maxLength(255),
 
             TextInput::make('email')
@@ -38,12 +38,10 @@ class UserForm
 
             Toggle::make('admin')
                 ->label('Administrador')
-                ->helperText('Administrador enxerga e altera Configuracoes (usuarios e canais) — e ve TODOS os canais e times, sem restricao.'),
+                ->helperText('Papel administrativo nao libera conversas. O acesso continua limitado aos canais selecionados abaixo.'),
 
             /*
-             * O ACESSO. Vazio quer dizer "sem restricao", e nao "sem permissao" — e o texto de
-             * ajuda diz isso, porque um campo vazio que significa "tudo" e exatamente o tipo de
-             * regra que se descobre errando.
+             * O ACESSO e sempre inclusivo: so entra o canal selecionado. Vazio bloqueia todos.
              */
             Select::make('canais')
                 ->label('Canais que pode atender')
@@ -51,7 +49,8 @@ class UserForm
                 ->multiple()
                 ->preload()
                 ->searchable()
-                ->helperText('Deixe vazio para liberar todos. Marcando algum, a pessoa passa a ver so as conversas desses canais.'),
+                ->required()
+                ->helperText('Selecione explicitamente cada canal permitido. Sem selecao, a pessoa nao ve nenhuma conversa.'),
 
             Select::make('teams')
                 ->label('Times')
@@ -59,7 +58,7 @@ class UserForm
                 ->multiple()
                 ->preload()
                 ->searchable()
-                ->helperText('Deixe vazio para liberar tudo. Marcando algum, a pessoa ve so as conversas direcionadas a esses times — e NAO ve as que ainda estao sem time. Quem precisa pegar a fila de entrada tem de estar no time Triagem.'),
+                ->helperText('Opcional: os times restringem ainda mais os canais selecionados. Quem precisa pegar a fila de entrada deve estar no time Triagem.'),
         ]);
     }
 }

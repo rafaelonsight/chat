@@ -33,10 +33,10 @@ class UserResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
-    // Quem nao e admin nao gerencia usuarios — nem enxerga o item no menu.
+    // A matriz de canais contem dados sensiveis. Somente o Super Admin gerencia usuarios.
     public static function canViewAny(): bool
     {
-        return (bool) auth()->user()?->admin;
+        return (bool) auth()->user()?->super_admin;
     }
 
     public static function form(Schema $schema): Schema

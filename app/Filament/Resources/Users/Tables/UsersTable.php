@@ -16,6 +16,7 @@ class UsersTable
                 TextColumn::make('name')->label('Nome')->searchable()->sortable(),
                 TextColumn::make('email')->label('E-mail')->searchable()->copyable(),
                 IconColumn::make('admin')->label('Admin')->boolean(),
+                IconColumn::make('super_admin')->label('Super Admin')->boolean(),
                 TextColumn::make('created_at')->label('Criado em')->dateTime('d/m/Y H:i')->sortable(),
             ])
             ->defaultSort('name')

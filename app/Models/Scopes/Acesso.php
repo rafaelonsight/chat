@@ -19,16 +19,14 @@ use Illuminate\Database\Eloquent\Scope;
  *
  * AS DUAS REGRAS, e elas nao sao simetricas de proposito:
  *
- *   CANAL sem vinculo  -> ve todos. E o padrao que nao tranca ninguem para fora quando isto
- *                         sobe, porque hoje ninguem tem canal vinculado.
+ *   CANAL sem vinculo  -> nao ve nenhum canal.
  *   CANAL com vinculo  -> ve so os vinculados.
  *   TIME  sem vinculo  -> ve tudo, inclusive conversa sem time.
  *   TIME  com vinculo  -> ve SO as conversas dos times dele, e NAO ve as sem time. Decisao do
  *                         Rafael: a triagem e feita pelo chatbot ou por quem esta na equipe
  *                         Triagem, entao a fila de entrada nao e de todo mundo.
  *
- * ADMINISTRADOR PASSA POR CIMA. Quem configura o sistema precisa ver o sistema inteiro, e
- * operador do produto tambem.
+ * SOMENTE SUPER ADMIN PASSA POR CIMA. Papel administrativo nao concede leitura de conversa.
  */
 class Acesso implements Scope
 {
@@ -49,9 +47,10 @@ class Acesso implements Scope
 
         $tabela = $model->getTable();
 
-        if (($canais = $usuario->canalIds()) !== []) {
-            $query->whereIn($tabela.'.'.$this->colunaDoCanal, $canais);
-        }
+        $canais = $usuario->canalIds();
+        $canais === []
+            ? $query->whereRaw('1 = 0')
+            : $query->whereIn($tabela.'.'.$this->colunaDoCanal, $canais);
 
         if ($this->colunaDoTime !== null && ($times = $usuario->equipeIds()) !== []) {
             $query->whereIn($tabela.'.'.$this->colunaDoTime, $times);
