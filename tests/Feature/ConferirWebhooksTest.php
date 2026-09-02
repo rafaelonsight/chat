@@ -49,6 +49,10 @@ afterEach(fn () => TenantContext::forget());
 function fingirEvolution(string $urlRegistrada): void
 {
     Http::fake(['*' => function ($pedido) use ($urlRegistrada) {
+        if (str_contains($pedido->url(), '/instance/connectionState/')) {
+            return Http::response(['instance' => ['state' => 'open']]);
+        }
+
         if (str_contains($pedido->url(), '/webhook/find/')) {
             return Http::response($urlRegistrada === '' ? [] : ['url' => $urlRegistrada, 'enabled' => true]);
         }
@@ -56,6 +60,16 @@ function fingirEvolution(string $urlRegistrada): void
         return Http::response(['url' => $pedido['webhook']['url'] ?? null], 200);
     }]);
 }
+
+it('sincroniza o estado local com o estado real da Evolution', function () {
+    $this->canal->forceFill(['status' => 'connecting'])->saveQuietly();
+    fingirEvolution($this->esperado);
+
+    $this->artisan('onchat:conferir-webhooks')->assertSuccessful();
+
+    expect($this->canal->refresh()->status)->toBe('open')
+        ->and($this->canal->conectado_em)->not->toBeNull();
+});
 
 it('reaponta o canal que avisa no dominio antigo', function () {
     fingirEvolution('https://chat.onsight.com.br/webhooks/evolution/'.$this->canal->id.'/segredinho');

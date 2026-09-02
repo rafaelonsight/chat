@@ -29,11 +29,13 @@ function cenarioAcesso(string $slug): array
         'tenant_id' => $t->id, 'name' => 'Chefe', 'email' => "ch@{$slug}.test",
         'password' => 'segredo123', 'admin' => true,
     ]);
+    $chefe->forceFill(['super_admin' => false])->saveQuietly();
 
     $ana = User::create([
         'tenant_id' => $t->id, 'name' => 'Ana', 'email' => "an@{$slug}.test",
         'password' => 'segredo123',
     ]);
+    $ana->forceFill(['super_admin' => false])->saveQuietly();
 
     $vendas = Channel::create(['nome' => 'Vendas']);
     $suporte = Channel::create(['nome' => 'Suporte']);
@@ -63,7 +65,7 @@ afterEach(fn () => TenantContext::forget());
 
 // ------------------------------------------------------------------ o padrao
 
-it('sem vinculo nenhum, ve todos os canais', function () {
+it('sem vinculo nenhum, nao ve canal algum', function () {
     /*
      * O teste que protege a subida: no dia em que isto foi para o ar, NENHUM usuario tinha
      * canal vinculado. Se vazio significasse "nada", a tela de todos os atendentes teria
@@ -76,9 +78,9 @@ it('sem vinculo nenhum, ve todos os canais', function () {
 
     $this->actingAs($ana);
 
-    expect(Conversation::count())->toBe(2)
-        ->and(Channel::count())->toBe(2)
-        ->and($ana->temAcessoRestrito())->toBeFalse();
+    expect(Conversation::count())->toBe(0)
+        ->and(Channel::count())->toBe(0)
+        ->and($ana->temAcessoRestrito())->toBeTrue();
 });
 
 // ------------------------------------------------------------------ por canal
@@ -140,6 +142,7 @@ it('com time vinculado, NAO ve a conversa sem time', function () {
     convAc($vendas, '551188@s.whatsapp.net');
 
     $ana->teams()->attach($financeiro->id);
+    $ana->canais()->attach($vendas->id);
 
     $this->actingAs($ana);
 
@@ -156,6 +159,7 @@ it('nao ve a conversa de um time que nao e dele', function () {
     convAc($vendas, '551177@s.whatsapp.net', $outro->id);
 
     $ana->teams()->attach($meu->id);
+    $ana->canais()->attach($vendas->id);
 
     $this->actingAs($ana);
 
@@ -182,10 +186,11 @@ it('canal e time se somam, nao se substituem', function () {
 
 // ---------------------------------------------------------------- quem ve tudo
 
-it('administrador passa por cima de qualquer restricao', function () {
+it('somente super admin passa por cima de qualquer restricao', function () {
     // Quem configura canais e usuarios precisa ver o sistema inteiro: restringir seria pedir
     // que ele configure no escuro.
     [$t, $chefe, $ana, $vendas, $suporte] = cenarioAcesso('ac8');
+    $chefe->forceFill(['super_admin' => true])->saveQuietly();
 
     $time = Team::create(['nome' => 'Financeiro']);
 

@@ -15,6 +15,7 @@ function usuario(string $slug, bool $admin): User
         'tenant_id' => $t->id, 'name' => 'U', 'email' => "u@{$slug}.test",
         'password' => 'segredo123', 'admin' => $admin,
     ]);
+    $u->forceFill(['super_admin' => $admin])->saveQuietly();
     TenantContext::forget();
 
     return $u;
@@ -56,7 +57,7 @@ it('a rota antiga do inbox continua funcionando por redirecionamento', function 
     $this->withSession(comSessao($u))->get('/inbox')->assertRedirect('/admin');
 });
 
-it('so admin ve Usuarios e Canais', function () {
+it('so super admin ve Usuarios e Canais', function () {
     $admin = usuario('org4', true);
     $atendente = usuario('org5', false);
 

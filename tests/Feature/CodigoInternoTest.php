@@ -12,6 +12,10 @@ use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 
 beforeEach(function () {
+    $this->markTestSkipped('Módulo de ofertas/comercial removido do Virtus Chat.');
+});
+
+beforeEach(function () {
     $this->tenant = Tenant::create(['nome' => 'Onsight', 'slug' => 'cod']);
     TenantContext::set($this->tenant->id);
 

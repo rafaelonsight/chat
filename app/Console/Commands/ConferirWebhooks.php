@@ -56,12 +56,36 @@ class ConferirWebhooks extends Command
         }
 
         $corrigidos = 0;
+        $estadosSincronizados = 0;
         $comErro = 0;
 
         foreach ($canais as $canal) {
             $esperado = $canal->webhookUrl();
 
             try {
+                $respostaDeEstado = $evolution->connectionState($canal->instance_name);
+                $estado = (string) (
+                    data_get($respostaDeEstado, 'instance.state')
+                    ?? data_get($respostaDeEstado, 'state')
+                    ?? ''
+                );
+
+                if ($estado !== '' && $canal->status !== $estado) {
+                    $estadoAnterior = $canal->status;
+                    $canal->forceFill([
+                        'status'       => $estado,
+                        'conectado_em' => $estado === 'open' ? now() : $canal->conectado_em,
+                    ])->saveQuietly();
+                    $estadosSincronizados++;
+
+                    Log::notice('Estado local do canal sincronizado com a Evolution', [
+                        'canal'    => $canal->id,
+                        'instance' => $canal->instance_name,
+                        'antes'    => $estadoAnterior,
+                        'agora'    => $estado,
+                    ]);
+                }
+
                 $atual = (string) (data_get($evolution->acharWebhook($canal->instance_name), 'url') ?? '');
 
                 if ($atual === $esperado) {
@@ -111,7 +135,7 @@ class ConferirWebhooks extends Command
         }
 
         $this->newLine();
-        $this->info("Conferidos: {$canais->count()} · reapontados: {$corrigidos} · com erro: {$comErro}");
+        $this->info("Conferidos: {$canais->count()} · estados sincronizados: {$estadosSincronizados} · reapontados: {$corrigidos} · com erro: {$comErro}");
 
         return $comErro === 0 ? self::SUCCESS : self::FAILURE;
     }

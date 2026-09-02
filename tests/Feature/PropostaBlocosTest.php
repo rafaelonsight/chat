@@ -1,5 +1,9 @@
 <?php
 
+beforeEach(function () {
+    $this->markTestSkipped('Módulo de propostas/comercial removido do Virtus Chat.');
+});
+
 use App\Models\Offering;
 use App\Models\Proposal;
 use App\Models\Tenant;

@@ -1,5 +1,9 @@
 <?php
 
+beforeEach(function () {
+    $this->markTestSkipped('Módulo de demandas/ERP removido do Virtus Chat.');
+});
+
 use App\Filament\Resources\Tickets\Pages\CreateTicket;
 use App\Models\ClientAccount;
 use App\Models\ClientProject;

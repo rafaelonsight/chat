@@ -93,7 +93,7 @@ it('no computador as tres colunas voltam, apesar do que o Alpine decidir', funct
     // seletores ate sobrar so a setinha sem texto, e nome de contato quebrava no meio.
     // O teste continua guardando a mesma coisa — que no computador a lista tem largura
     // FIXA, e nao fluida — so mudou qual e ela.
-    expect($html)->toContain('lg:flex lg:w-96')   // a lista volta a ter largura fixa
+    expect($html)->toContain('lg:flex lg:w-80 xl:w-[22.5rem]') // largura progressiva atual
         ->and($html)->toContain('lg:contents');   // e os detalhes voltam a ser coluna propria
 });
 

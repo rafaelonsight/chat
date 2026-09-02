@@ -1,5 +1,9 @@
 <?php
 
+beforeEach(function () {
+    $this->markTestSkipped('Wizard e onboarding de clientes removidos do Virtus Chat.');
+});
+
 use App\Models\ClientAccount;
 use App\Models\ClientOnboardingRequest;
 use App\Models\Tenant;

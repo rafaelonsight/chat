@@ -242,6 +242,8 @@ it('para quem e restrito, "todas" quer dizer todos os times DELE', function () {
      * nao e dela devolve VAZIO em vez de devolver a conversa do outro time.
      */
     [, , $ana, , $c] = cenarioEquipe('eqe');
+    $ana->forceFill(['super_admin' => false])->saveQuietly();
+    $ana->canais()->syncWithoutDetaching([$c->id]);
     $suporte = Team::create(['nome' => 'Suporte']);
     $financeiro = Team::create(['nome' => 'Financeiro']);
     $ana->teams()->attach($suporte->id);

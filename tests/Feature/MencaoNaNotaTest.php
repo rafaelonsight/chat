@@ -34,6 +34,11 @@ function cenarioMencao(string $slug): array
 
     $canal = Channel::create(['nome' => 'Vendas']);
 
+    foreach ([$ana, $celso] as $usuario) {
+        $usuario->forceFill(['super_admin' => false])->saveQuietly();
+        $usuario->canais()->attach($canal->refresh()->id);
+    }
+
     $contato = Contact::create([
         'jid' => "5511{$t->id}999@s.whatsapp.net", 'tipo' => Contact::PESSOA, 'nome' => 'Cliente Zé',
     ]);
@@ -129,7 +134,7 @@ it('NAO avisa quem nao pode abrir a conversa, nem se o nome for escrito', functi
     [$t, $ana, $celso, $canal, $conversa] = cenarioMencao('mn6');
 
     $outroCanal = Channel::create(['nome' => 'Suporte']);
-    $celso->canais()->attach($outroCanal->refresh()->id);
+    $celso->canais()->sync([$outroCanal->refresh()->id]);
 
     escreverNota($ana, $conversa, '@celso confere isso', [$celso->id]);
 
@@ -145,7 +150,7 @@ it('nao oferece na lista quem nao pode abrir a conversa', function () {
     [$t, $ana, $celso, $canal, $conversa] = cenarioMencao('mn7');
 
     $outro = Channel::create(['nome' => 'Suporte']);
-    $celso->canais()->attach($outro->refresh()->id);
+    $celso->canais()->sync([$outro->refresh()->id]);
 
     Livewire::actingAs($ana)
         ->test(MessageComposer::class, ['conversationId' => $conversa->id])
@@ -179,6 +184,8 @@ it('dois nomes iguais na equipe nao chamam ninguem pelo texto', function () {
         'tenant_id' => $t->id, 'name' => 'Ana Ribeiro', 'email' => 'ana2@mn9.test',
         'password' => 'segredo123',
     ]);
+    $outraAna->forceFill(['super_admin' => false])->saveQuietly();
+    $outraAna->canais()->attach($canal->id);
 
     escreverNota($celso, $conversa, '@ana pode ver isso?');
 
@@ -193,6 +200,8 @@ it('escolher na lista resolve a ambiguidade que o texto nao resolve', function (
         'tenant_id' => $t->id, 'name' => 'Ana Ribeiro', 'email' => 'ana2@mn10.test',
         'password' => 'segredo123',
     ]);
+    $outraAna->forceFill(['super_admin' => false])->saveQuietly();
+    $outraAna->canais()->attach($canal->id);
 
     escreverNota($celso, $conversa, '@ana pode ver isso?', [$outraAna->id]);
 
@@ -231,7 +240,7 @@ it('podeVer concorda com o escopo de acesso, caso a caso', function () {
         'channel_id' => $outroCanal->id, 'contact_id' => $conversa->contact_id, 'ultima_msg_em' => now(),
     ]);
 
-    $celso->canais()->attach($canal->id);
+    $celso->canais()->syncWithoutDetaching([$canal->id]);
     $celso->teams()->attach($time->id);
 
     foreach ([$ana, $celso] as $pessoa) {

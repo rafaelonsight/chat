@@ -12,6 +12,7 @@ beforeEach(function () {
     TenantContext::set($this->tenant->id);
     $this->actor = User::create(['tenant_id' => $this->tenant->id, 'name' => 'Admin', 'email' => 'admin@example.test', 'password' => 'password', 'admin' => true]);
     $this->colleague = User::create(['tenant_id' => $this->tenant->id, 'name' => 'Colleague', 'email' => 'colleague@example.test', 'password' => 'password']);
+    $this->colleague->forceFill(['super_admin' => false])->saveQuietly();
     $this->actingAs($this->actor);
     $this->board = Funnel::criarCom('Foundation');
     $this->item = BoardItem::create(['tenant_id' => $this->tenant->id, 'funnel_id' => $this->board->id,
@@ -49,6 +50,7 @@ it('removes assignees and clears the legacy primary atomically', function () {
 it('rejects foreign users without partial writes', function () {
     $other = Tenant::create(['nome' => 'Other', 'slug' => 'other']);
     $foreign = User::create(['tenant_id' => $other->id, 'name' => 'Foreign', 'email' => 'foreign@example.test', 'password' => 'password', 'admin' => true]);
+    $foreign->forceFill(['super_admin' => false])->saveQuietly();
     expect(fn () => $this->service->execute($this->actor, $this->item->id, [$this->colleague->id, $foreign->id]))->toThrow(ValidationException::class);
     expect(DB::table('board_item_assignees')->count())->toBe(0)
         ->and($this->access->canView($foreign, $this->board))->toBeFalse();

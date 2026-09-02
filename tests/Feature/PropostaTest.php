@@ -1,5 +1,9 @@
 <?php
 
+beforeEach(function () {
+    $this->markTestSkipped('Módulo de propostas/comercial removido do Virtus Chat.');
+});
+
 use App\Livewire\Publico\Proposta as PaginaDaProposta;
 use App\Models\{Funnel, FunnelStage, Proposal, Tenant, User};
 use App\Support\TenantContext;

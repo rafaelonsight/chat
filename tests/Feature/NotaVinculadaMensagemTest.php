@@ -12,6 +12,10 @@ function cenarioNotaVinculada(string $slug): array
     $autor = User::create(['tenant_id' => $tenant->id, 'name' => 'Rafael', 'email' => "r@{$slug}.test", 'password' => 'segredo123']);
     $colega = User::create(['tenant_id' => $tenant->id, 'name' => 'Celso', 'email' => "c@{$slug}.test", 'password' => 'segredo123']);
     $canal = Channel::create(['nome' => 'WhatsApp']);
+    foreach ([$autor, $colega] as $usuario) {
+        $usuario->forceFill(['super_admin' => false])->saveQuietly();
+        $usuario->canais()->attach($canal->refresh()->id);
+    }
     $contato = Contact::create(['nome' => 'Cliente', 'jid' => "5511{$tenant->id}999@s.whatsapp.net"]);
     $conversa = Conversation::create(['channel_id' => $canal->id, 'contact_id' => $contato->id, 'ultima_msg_em' => now()]);
     $mensagem = Message::create([

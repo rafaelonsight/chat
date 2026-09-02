@@ -12,6 +12,7 @@ beforeEach(function(){
     $this->tenant=Tenant::create(['nome'=>'Workspace','slug'=>'workspace']);TenantContext::set($this->tenant->id);
     $this->admin=User::create(['tenant_id'=>$this->tenant->id,'name'=>'Rafael Teste','email'=>'admin@workspace.test','password'=>'password','admin'=>true]);
     $this->celso=User::create(['tenant_id'=>$this->tenant->id,'name'=>'Celso Teste','email'=>'celso@workspace.test','password'=>'password']);
+    $this->celso->forceFill(['super_admin'=>false])->saveQuietly();
     $this->actingAs($this->admin);$this->board=Funnel::criarCom('Equipe');
     $this->item=BoardItem::create(['tenant_id'=>$this->tenant->id,'funnel_id'=>$this->board->id,'funnel_stage_id'=>$this->board->stages->first()->id,'titulo'=>'Tarefa inicial']);
 });

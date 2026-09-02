@@ -28,23 +28,12 @@ function sessaoMenu(User $u): array
 
 afterEach(fn () => TenantContext::forget());
 
-it('os itens ficam nos grupos certos', function () {
-    /*
-     * PESSOAS SAIU DO CRM E FOI PARA ERP > Cadastro, por pedido do Rafael — junto de Produtos e
-     * servicos, com Propostas no primeiro nivel do mesmo grupo.
-     *
-     * O item pai e o que faz o terceiro nivel do menu existir: sem 'Cadastro' como pai, Pessoas
-     * e Produtos voltariam a ser irmaos de Propostas e a arvore desmontaria em silencio — o menu
-     * continuaria funcionando, so nao seria mais o que ele desenhou.
-     */
-    expect(ContactResource::getNavigationGroup())->toBe('ERP')
-        ->and(ContactResource::getNavigationParentItem())->toBe('Cadastro')
-        ->and(ContactResource::getNavigationLabel())->toBe('Pessoas')
-        ->and(OfferingResource::getNavigationGroup())->toBe('ERP')
-        ->and(OfferingResource::getNavigationParentItem())->toBe('Cadastro')
-        ->and(ProposalResource::getNavigationGroup())->toBe('ERP')
-        // Propostas NAO tem pai: ela e irma de Cadastro, e nao filha dele.
-        ->and(ProposalResource::getNavigationParentItem())->toBeNull()
+it('o menu mantem CRM e esconde os recursos de ERP removidos', function () {
+    expect(ContactResource::getNavigationGroup())->toBe('CRM')
+        ->and(ContactResource::getNavigationParentItem())->toBeNull()
+        ->and(ContactResource::getNavigationLabel())->toBe('Contatos')
+        ->and(OfferingResource::canViewAny())->toBeFalse()
+        ->and(ProposalResource::canViewAny())->toBeFalse()
         ->and(Paineis::getNavigationGroup())->toBe('CRM')
         ->and(Relatorios::getNavigationGroup())->toBe('Relatórios')
         ->and(Relatorios::getNavigationLabel())->toBe('Visão geral');
