@@ -55,3 +55,15 @@ it('compositor comum usa textarea e reserva ctrl enter para nova linha', functio
         ->toContain('novaLinha($el)')
         ->not->toContain('x-on:keydown.ctrl.enter');
 });
+
+it('compositor aceita arrastar um anexo para o mesmo upload do botao', function () {
+    $fonte = file_get_contents(resource_path('views/livewire/inbox/message-composer.blade.php'));
+
+    expect($fonte)
+        ->toContain('x-on:dragenter.prevent=')
+        ->toContain('x-on:drop.prevent="receberArquivo($event)"')
+        ->toContain('data-anexo-atendimento')
+        ->toContain("input.dispatchEvent(new Event('change', { bubbles: true }))")
+        ->toContain('Arraste um arquivo por vez.')
+        ->toContain('Solte para anexar');
+});

@@ -1,5 +1,56 @@
-<div class="border-t border-slate-200 p-3 dark:border-white/10">
+<div class="relative border-t border-slate-200 p-3 dark:border-white/10"
+     x-data="{
+         arrastandoArquivo: false,
+         profundidadeDoArrasto: 0,
+         erroDoArrasto: '',
+
+         receberArquivo(evento) {
+             this.arrastandoArquivo = false;
+             this.profundidadeDoArrasto = 0;
+
+             const arquivos = evento.dataTransfer?.files;
+             if (! arquivos?.length) return;
+
+             const input = this.$root.querySelector('input[type=file][data-anexo-atendimento]');
+             if (! input) {
+                 this.erroDoArrasto = 'Volte ao modo de responder o cliente para anexar o arquivo.';
+                 return;
+             }
+
+             if (arquivos.length > 1) {
+                 this.erroDoArrasto = 'Arraste um arquivo por vez.';
+                 return;
+             }
+
+             const transferencia = new DataTransfer();
+             transferencia.items.add(arquivos[0]);
+             input.files = transferencia.files;
+             input.dispatchEvent(new Event('change', { bubbles: true }));
+             this.erroDoArrasto = '';
+         },
+     }"
+     x-on:dragenter.prevent="profundidadeDoArrasto++; arrastandoArquivo = true"
+     x-on:dragover.prevent="arrastandoArquivo = true"
+     x-on:dragleave.prevent="profundidadeDoArrasto = Math.max(0, profundidadeDoArrasto - 1); if (! profundidadeDoArrasto) arrastandoArquivo = false"
+     x-on:drop.prevent="receberArquivo($event)">
     @if ($conversationId)
+        <div x-show="arrastandoArquivo" x-cloak
+             class="pointer-events-none absolute inset-1 z-50 grid place-items-center rounded-xl border-2 border-dashed border-emerald-500 bg-emerald-50/95 backdrop-blur-sm dark:bg-emerald-950/95"
+             role="status" aria-live="polite">
+            <div class="flex items-center gap-3 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-emerald-700 shadow-lg dark:bg-gray-900 dark:text-emerald-300">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-6 w-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14.5v3.75A1.75 1.75 0 0 0 6.75 20h10.5A1.75 1.75 0 0 0 19 18.25V14.5" />
+                </svg>
+                Solte para anexar
+            </div>
+        </div>
+
+        <div x-show="erroDoArrasto" x-cloak
+             class="mb-2 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+             role="alert">
+            <span x-text="erroDoArrasto"></span>
+            <button type="button" x-on:click="erroDoArrasto = ''" class="font-semibold underline">Fechar</button>
+        </div>
         {{-- Janela de 24h. So aparece em canal que TEM janela: avisar de um limite
              onde ele nao vale ensina o atendente a ignorar o aviso, inclusive quando
              for verdade. --}}
@@ -217,7 +268,7 @@
                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m20.25 11.25-8.69 8.69a6 6 0 0 1-8.49-8.49l9.19-9.19a4.5 4.5 0 0 1 6.36 6.36l-9.19 9.19a3 3 0 0 1-4.24-4.24l8.69-8.69" />
                     </svg>
-                    <input type="file" wire:model="anexo" class="hidden"
+                    <input type="file" wire:model="anexo" data-anexo-atendimento class="hidden"
                            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip">
                 </label>
             @endunless

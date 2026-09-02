@@ -18,6 +18,7 @@ function cenarioMidia(string $slug): array
     $c = Channel::create(['nome' => 'C']);
     $c->refresh();
     $c->update(['status' => 'open']);
+    $u->canais()->attach($c);
     $ct = Contact::create(['telefone_e164' => '+5584996143373', 'nome' => 'Cliente']);
     $cv = Conversation::create(['channel_id' => $c->id, 'contact_id' => $ct->id]);
 
