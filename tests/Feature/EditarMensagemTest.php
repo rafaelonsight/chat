@@ -49,11 +49,23 @@ it('recusa mensagem fora dos quinze minutos', function () {
 it('compositor comum usa textarea e reserva ctrl enter para nova linha', function () {
     $fonte = file_get_contents(resource_path('views/livewire/inbox/message-composer.blade.php'));
     expect($fonte)
-        ->toContain('<textarea wire:model="corpo" rows="1"')
+        ->toContain('<textarea wire:model="corpo" rows="2"')
         ->toContain('x-on:keydown.enter.prevent.stop=')
         ->toContain('if ($event.ctrlKey || $event.metaKey || $event.shiftKey)')
         ->toContain('novaLinha($el)')
         ->not->toContain('x-on:keydown.ctrl.enter');
+});
+
+it('compositor cresce automaticamente e separa escrita das acoes', function () {
+    $fonte = file_get_contents(resource_path('views/livewire/inbox/message-composer.blade.php'));
+
+    expect($fonte)
+        ->toContain('flex flex-wrap items-center gap-2 rounded-2xl')
+        ->toContain('class="relative order-first w-full flex-none"')
+        ->toContain('min-h-[72px]')
+        ->toContain('ajustarAltura(el)')
+        ->toContain("Math.max(120, window.innerHeight * 0.4)")
+        ->toContain('Ctrl + Enter quebra a linha');
 });
 
 it('compositor aceita arrastar um anexo para o mesmo upload do botao', function () {

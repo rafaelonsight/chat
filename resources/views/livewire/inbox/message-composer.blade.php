@@ -260,7 +260,8 @@
              x-effect="$wire.corpo ? localStorage.setItem(chave, $wire.corpo) : localStorage.removeItem(chave)">
         </div>
 
-        <form wire:submit="enviar" class="flex items-end gap-2 {{ $nota ? 'rounded-lg bg-amber-50/60 p-1.5 ring-1 ring-amber-200 dark:bg-amber-500/10 dark:ring-amber-500/30' : '' }}">
+        <form wire:submit="enviar"
+              class="flex flex-wrap items-center gap-2 rounded-2xl border p-2 shadow-sm transition-colors duration-150 {{ $nota ? 'border-amber-300 bg-amber-50/70 ring-1 ring-amber-200 dark:border-amber-500/40 dark:bg-amber-500/10 dark:ring-amber-500/20' : 'border-slate-300 bg-white dark:border-white/15 dark:bg-white/[0.035]' }}">
             {{-- anexar: escondido em nota interna, o arquivo iria para o cliente --}}
             @unless ($nota)
                 <label class="grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm transition duration-150 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 focus-within:ring-2 focus-within:ring-emerald-500/40 dark:border-white/15 dark:bg-white/[0.03] dark:text-slate-300 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
@@ -449,7 +450,7 @@
                 Lendo do atributo na hora do uso, o valor e sempre o do ultimo desenho, porque
                 atributo o Livewire atualiza.
             --}}
-            <div wire:key="mencoes-compositor-{{ $conversationId }}" class="relative flex-1"
+            <div wire:key="mencoes-compositor-{{ $conversationId }}" class="relative order-first w-full flex-none"
                  data-mencionaveis="{{ json_encode($mencionaveis) }}"
                  data-pode-mencionar-grupo="{{ $podeMencionarGrupo ? '1' : '0' }}"
                  x-data="{
@@ -547,12 +548,20 @@
                         el.setRangeText('\n', inicio, fim, 'end');
                         el.dispatchEvent(new Event('input', { bubbles: true }));
                     },
+
+                    ajustarAltura(el) {
+                        const limite = Math.min(168, Math.max(120, window.innerHeight * 0.4));
+                        el.style.height = 'auto';
+                        el.style.height = Math.min(el.scrollHeight, limite) + 'px';
+                        el.style.overflowY = el.scrollHeight > limite ? 'auto' : 'hidden';
+                    },
                  }">
 
                 @if ($nota)
                     {{-- Enter salva; Ctrl/Cmd + Enter abre uma nova linha sem enviar. --}}
                     <textarea wire:model="corpo" rows="2" autocomplete="off" data-atalho="responder"
-                              x-on:input="aoDigitar($el)"
+                              x-init="$nextTick(() => ajustarAltura($el))"
+                              x-on:input="ajustarAltura($el); aoDigitar($el)"
                               x-on:keydown.arrow-down="if (aberto) { $event.preventDefault(); andar(1) }"
                               x-on:keydown.arrow-up="if (aberto) { $event.preventDefault(); andar(-1) }"
                               x-on:keydown.escape="aberto = false"
@@ -568,14 +577,15 @@
                                   }
                               "
                               placeholder="Nota interna, só a equipe vê — @ chama alguém"
-                              class="max-h-32 min-h-10 w-full resize-y rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/50 dark:bg-amber-500/10 dark:text-amber-100"></textarea>
+                              class="min-h-[72px] w-full resize-none rounded-xl border-0 bg-transparent px-3 py-2.5 text-[15px] leading-6 text-amber-950 outline-none placeholder:text-amber-700/60 focus:ring-2 focus:ring-amber-500/35 dark:text-amber-100 dark:placeholder:text-amber-200/45"></textarea>
                 @else
                     {{-- Enter envia; Ctrl/Cmd + Enter insere uma quebra de linha. Um input
                          comum nunca poderia cumprir esse atalho, por isso o compositor de
                          mensagem tambem precisa ser textarea. --}}
-                    <textarea wire:model="corpo" rows="1" autocomplete="off" data-atalho="responder"
+                    <textarea wire:model="corpo" rows="2" autocomplete="off" data-atalho="responder"
+                           x-init="$nextTick(() => ajustarAltura($el))"
                            x-on:input.throttle.3000ms="$wire.digitando(true)"
-                           x-on:input="aoDigitar($el)"
+                           x-on:input="ajustarAltura($el); aoDigitar($el)"
                            x-on:blur="$wire.digitando(false); setTimeout(() => aberto = false, 150)"
                            x-on:keydown.arrow-down="if (aberto) { $event.preventDefault(); andar(1) }"
                            x-on:keydown.arrow-up="if (aberto) { $event.preventDefault(); andar(-1) }"
@@ -592,7 +602,7 @@
                                }
                            "
                            placeholder="{{ $anexo ? 'Legenda (opcional)' : 'Escreva uma mensagem' }}"
-                           class="max-h-32 min-h-10 w-full resize-y rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/15 dark:bg-gray-800 dark:text-gray-100"></textarea>
+                           class="min-h-[72px] w-full resize-none rounded-xl border-0 bg-transparent px-3 py-2.5 text-[15px] leading-6 text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500/35 dark:text-gray-100 dark:placeholder:text-slate-500"></textarea>
                 @endif
 
                 {{-- Sobe em vez de descer: embaixo do campo ela cairia atras da barra de
@@ -613,6 +623,10 @@
                         </button>
                     </template>
                 </div>
+            </div>
+
+            <div class="hidden min-w-0 flex-1 items-center justify-end px-1 text-[11px] text-slate-400 dark:text-slate-500 sm:flex" aria-hidden="true">
+                Enter envia&nbsp;&nbsp;&middot;&nbsp;&nbsp;Ctrl + Enter quebra a linha
             </div>
 
             <button type="submit" wire:loading.attr="disabled" wire:target="enviar,anexo"
