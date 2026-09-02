@@ -11,6 +11,7 @@ beforeEach(function () {
     TenantContext::set($this->conta->id);
     $this->pessoa = User::create(['tenant_id' => $this->conta->id, 'name' => 'Rafael', 'email' => 'rafael@editar.test', 'password' => 'segredo123', 'admin' => true]);
     $this->canal = Channel::create(['tenant_id' => $this->conta->id, 'nome' => 'Evolution', 'tipo' => 'evolution', 'status' => 'open', 'instance_name' => 'editar']);
+    $this->pessoa->canais()->attach($this->canal);
     $this->contato = Contact::create(['tenant_id' => $this->conta->id, 'nome' => 'Cliente', 'telefone_e164' => '+5541999990000', 'jid' => '5541999990000@s.whatsapp.net']);
     $this->conversa = Conversation::create(['tenant_id' => $this->conta->id, 'channel_id' => $this->canal->id, 'contact_id' => $this->contato->id, 'status' => 'aberta']);
     $this->mensagem = Message::create(['tenant_id' => $this->conta->id, 'conversation_id' => $this->conversa->id, 'channel_id' => $this->canal->id, 'direcao' => 'out', 'tipo' => 'text', 'corpo' => 'texto errado', 'external_id' => 'MSG-EDIT', 'status' => Message::STATUS_SENT]);
@@ -47,5 +48,10 @@ it('recusa mensagem fora dos quinze minutos', function () {
 
 it('compositor comum usa textarea e reserva ctrl enter para nova linha', function () {
     $fonte = file_get_contents(resource_path('views/livewire/inbox/message-composer.blade.php'));
-    expect($fonte)->toContain('<textarea wire:model="corpo" rows="1"')->toContain('x-on:keydown.ctrl.enter.prevent.stop="aberto = false; novaLinha($el)"')->toContain('! $event.ctrlKey && ! $event.metaKey');
+    expect($fonte)
+        ->toContain('<textarea wire:model="corpo" rows="1"')
+        ->toContain('x-on:keydown.enter.prevent.stop=')
+        ->toContain('if ($event.ctrlKey || $event.metaKey || $event.shiftKey)')
+        ->toContain('novaLinha($el)')
+        ->not->toContain('x-on:keydown.ctrl.enter');
 });

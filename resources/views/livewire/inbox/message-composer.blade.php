@@ -505,14 +505,14 @@
                               x-on:keydown.arrow-down="if (aberto) { $event.preventDefault(); andar(1) }"
                               x-on:keydown.arrow-up="if (aberto) { $event.preventDefault(); andar(-1) }"
                               x-on:keydown.escape="aberto = false"
-                              x-on:keydown.ctrl.enter.prevent.stop="aberto = false; novaLinha($el)"
-                              x-on:keydown.meta.enter.prevent.stop="aberto = false; novaLinha($el)"
-                              x-on:keydown.enter="
-                                  if (aberto) {
+                              x-on:keydown.enter.prevent.stop="
+                                  if ($event.ctrlKey || $event.metaKey || $event.shiftKey) {
+                                      aberto = false;
+                                      novaLinha($el);
+                                  } else if (aberto) {
                                       $event.preventDefault();
                                       escolher(achados[indice], $el);
-                                  } else if (! $event.ctrlKey && ! $event.metaKey) {
-                                      $event.preventDefault();
+                                  } else {
                                       $el.form.requestSubmit();
                                   }
                               "
@@ -529,14 +529,14 @@
                            x-on:keydown.arrow-down="if (aberto) { $event.preventDefault(); andar(1) }"
                            x-on:keydown.arrow-up="if (aberto) { $event.preventDefault(); andar(-1) }"
                            x-on:keydown.escape="aberto = false"
-                           x-on:keydown.ctrl.enter.prevent.stop="aberto = false; novaLinha($el)"
-                           x-on:keydown.meta.enter.prevent.stop="aberto = false; novaLinha($el)"
-                           x-on:keydown.enter="
-                               if (aberto) {
+                           x-on:keydown.enter.prevent.stop="
+                               if ($event.ctrlKey || $event.metaKey || $event.shiftKey) {
+                                   aberto = false;
+                                   novaLinha($el);
+                               } else if (aberto) {
                                    $event.preventDefault();
                                    escolher(achados[indice], $el);
-                               } else if (! $event.ctrlKey && ! $event.metaKey) {
-                                   $event.preventDefault();
+                               } else {
                                    $el.form.requestSubmit();
                                }
                            "
