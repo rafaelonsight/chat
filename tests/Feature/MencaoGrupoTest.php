@@ -19,6 +19,7 @@ it('lista participantes e persiste somente mencoes validas do grupo', function (
     ]);
     $canal = Channel::create([
         'tipo' => Channel::EVOLUTION, 'nome' => 'WhatsApp', 'instance_name' => 'instancia',
+        'telefone_e164' => '+5541900000000',
     ]);
     $grupo = Contact::create([
         'tipo' => Contact::GRUPO, 'nome' => 'Grupo suporte', 'jid' => '120363000000000000@g.us',
@@ -28,8 +29,9 @@ it('lista participantes e persiste somente mencoes validas do grupo', function (
     ]);
 
     Http::fake(['*/group/participants/*' => Http::response([
-        ['id' => '5541984606033@s.whatsapp.net', 'name' => 'Celso'],
-        ['id' => '5541984919939@s.whatsapp.net', 'name' => 'Rafael'],
+        ['id' => '77688173768932@lid', 'phoneNumber' => '5541984606033@s.whatsapp.net', 'name' => 'Celso'],
+        ['id' => '41421453152333@lid', 'phoneNumber' => '5541984919939@s.whatsapp.net', 'name' => 'Rafael'],
+        ['id' => '90000000000000@lid', 'phoneNumber' => '5541900000000@s.whatsapp.net', 'name' => 'O próprio canal'],
     ])]);
     Queue::fake();
 
@@ -38,10 +40,16 @@ it('lista participantes e persiste somente mencoes validas do grupo', function (
 
     $tela->call('carregarParticipantesGrupo');
     Http::assertSent(fn ($req) => str_contains($req->url(), '/group/participants/instancia'));
+    expect(collect(app(App\Services\ParticipantesGrupoWhatsapp::class)->listar($conversa))->pluck('jid')->all())
+        ->toBe([
+            '5541984606033@s.whatsapp.net',
+            '5541984919939@s.whatsapp.net',
+        ]);
 
     $tela->set('corpo', '@Celso veja isto')
         ->set('mencionadosWhatsapp', [
             '5541984606033@s.whatsapp.net',
+            '77688173768932@lid',
             '9999999999999@s.whatsapp.net',
         ])->call('enviar');
 

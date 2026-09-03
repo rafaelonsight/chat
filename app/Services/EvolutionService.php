@@ -132,16 +132,18 @@ class EvolutionService
      * mensagem no lado errado e a reacao nao aparece em lugar nenhum — sem erro nenhum, o que
      * e o pior desfecho.
      *
-     * @param  array{external_id: string, minha: bool}  $alvo
+     * @param  array{external_id: string, minha: bool, participant?: ?string}  $alvo
      */
     public function sendReaction(string $instance, string $to, array $alvo, string $emoji): array
     {
         return $this->client()->post("/message/sendReaction/{$instance}", [
-            'key' => [
+            'key' => array_filter([
                 'id'        => $alvo['external_id'],
                 'fromMe'    => $alvo['minha'],
                 'remoteJid' => self::jid($to),
-            ],
+                // Em grupos a chave da mensagem recebida so e inequivoca com o autor.
+                'participant' => $alvo['participant'] ?? null,
+            ], fn ($v) => $v !== null && $v !== ''),
             'reaction' => $emoji,
         ])->throw()->json();
     }

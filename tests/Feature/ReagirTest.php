@@ -162,6 +162,45 @@ it('manda a reacao para a Evolution com a chave completa', function () {
     });
 });
 
+it('inclui o participante original ao reagir em grupo', function () {
+    $grupo = Contact::create([
+        'tenant_id' => $this->conta->id,
+        'nome' => 'Grupo suporte',
+        'tipo' => Contact::GRUPO,
+        'jid' => '120363000000000000@g.us',
+    ]);
+    $conversa = Conversation::create([
+        'tenant_id' => $this->conta->id,
+        'channel_id' => $this->canal->id,
+        'contact_id' => $grupo->id,
+        'status' => 'aberta',
+    ]);
+    $mensagem = Message::create([
+        'tenant_id' => $this->conta->id,
+        'conversation_id' => $conversa->id,
+        'channel_id' => $this->canal->id,
+        'direcao' => 'in',
+        'tipo' => 'text',
+        'corpo' => 'mensagem no grupo',
+        'external_id' => 'WAMID-GRUPO',
+        'remetente_jid' => '54833914581138@lid',
+        'status' => Message::STATUS_DELIVERED,
+    ]);
+
+    (new SendReaction($mensagem->id, "\u{1F44D}"))
+        ->handle(app(App\Services\Canais\Enviadores::class));
+
+    Http::assertSent(function ($r) {
+        $d = $r->data();
+
+        return str_contains($r->url(), 'sendReaction')
+            && $d['key']['remoteJid'] === '120363000000000000@g.us'
+            && $d['key']['id'] === 'WAMID-GRUPO'
+            && $d['key']['fromMe'] === false
+            && $d['key']['participant'] === '54833914581138@lid';
+    });
+});
+
 it('emoji vazio e como se tira a reacao', function () {
     (new SendReaction($this->doCliente->id, ''))
         ->handle(app(App\Services\Canais\Enviadores::class));

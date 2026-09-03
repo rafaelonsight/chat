@@ -11,7 +11,7 @@ class ParticipantesGrupoWhatsapp
 {
     public function __construct(private readonly EvolutionService $evolution) {}
 
-    /** @return array<int, array{jid:string,nome:string,telefone:string,foto:?string}> */
+    /** @return array<int, array{jid:string,participant_jid:string,nome:string,telefone:string,foto:?string}> */
     public function listar(Conversation $conversa): array
     {
         $conversa->loadMissing(['channel', 'contact']);
@@ -41,22 +41,28 @@ class ParticipantesGrupoWhatsapp
             ->where('conversation_id', $conversa->id)
             ->whereNotNull('remetente_jid')
             ->pluck('remetente_nome', 'remetente_jid');
+        $telefoneDoCanal = preg_replace('/\D+/', '', (string) $conversa->channel->telefone_e164);
 
-        return collect($lista)->map(function ($p) use ($nomesHistoricos) {
-            $jid = (string) data_get($p, 'id', data_get($p, 'jid', ''));
-            $telefone = preg_replace('/\D+/', '', explode('@', $jid)[0]);
+        return collect($lista)->map(function ($p) use ($nomesHistoricos, $telefoneDoCanal) {
+            $participantJid = (string) data_get($p, 'id', data_get($p, 'jid', ''));
+            $phoneJid = (string) data_get($p, 'phoneNumber', '');
+            $telefone = preg_replace('/\D+/', '', explode('@', $phoneJid)[0]);
 
-            if ($jid === '' || $telefone === '') {
+            // A Evolution 2.3 devolve `id` como LID. LID identifica o participante nas
+            // chaves de mensagens, mas NAO e um telefone mencionavel: sendText transformaria
+            // seus digitos em @s.whatsapp.net e o WhatsApp mostraria apenas texto sem avisar.
+            if ($participantJid === '' || $phoneJid === '' || $telefone === '' || $telefone === $telefoneDoCanal) {
                 return null;
             }
 
-            $nome = trim((string) (data_get($p, 'name') ?: $nomesHistoricos->get($jid) ?: $telefone));
+            $nome = trim((string) (data_get($p, 'name') ?: $nomesHistoricos->get($participantJid) ?: $telefone));
 
             return [
-                'jid'      => $jid,
-                'nome'     => $nome,
-                'telefone' => $telefone,
-                'foto'     => data_get($p, 'imgUrl'),
+                'jid'             => $phoneJid,
+                'participant_jid' => $participantJid,
+                'nome'            => $nome,
+                'telefone'        => $telefone,
+                'foto'            => data_get($p, 'imgUrl'),
             ];
         })->filter()->unique('jid')->values()->all();
     }

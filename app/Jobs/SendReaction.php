@@ -37,12 +37,23 @@ class SendReaction implements ShouldQueue
         TenantContext::runAs($mensagem->tenant_id, function () use ($mensagem, $enviadores) {
             $canal = $mensagem->conversation->channel;
             $destino = $mensagem->conversation->contact->destinoWhatsApp();
+            $grupo = $mensagem->conversation->contact->eGrupo();
 
             try {
+                if ($grupo && $mensagem->entrada() && ! $mensagem->remetente_jid) {
+                    throw new \LogicException('A mensagem do grupo não informa o participante original.');
+                }
+
                 $enviadores->para($canal)->reagir(
                     $canal,
                     $destino,
-                    ['external_id' => (string) $mensagem->external_id, 'minha' => ! $mensagem->entrada()],
+                    [
+                        'external_id' => (string) $mensagem->external_id,
+                        'minha' => ! $mensagem->entrada(),
+                        'participant' => $grupo && $mensagem->entrada()
+                            ? (string) $mensagem->remetente_jid
+                            : null,
+                    ],
                     $this->emoji,
                 );
             } catch (\Throwable $e) {
