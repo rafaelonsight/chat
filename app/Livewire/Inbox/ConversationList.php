@@ -7,6 +7,8 @@ use App\Models\Tag;
 use App\Models\Team;
 use App\Models\Conversation;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 
 // Separado da janela de proposito: mensagem em conversa fechada so precisa
@@ -244,6 +246,41 @@ class ConversationList extends Component
     public function marcarSelecionada(int $conversationId): void
     {
         $this->selecionada = $conversationId;
+    }
+
+    /**
+     * Apaga definitivamente um atendimento que ja foi arquivado.
+     *
+     * Arquivar continua sendo a acao cotidiana e reversivel. Excluir e excecao administrativa:
+     * somente o Super Admin, somente depois do arquivamento e sempre com confirmacao na tela.
+     */
+    public function excluirArquivada(int $conversationId): void
+    {
+        abort_unless(auth()->user()?->veTudo(), 403);
+
+        $conversa = Conversation::findOrFail($conversationId);
+        abort_unless($conversa->status === Conversation::ARQUIVADA, 409);
+
+        $midias = $conversa->messages()
+            ->whereNotNull('media_path')
+            ->pluck('media_path')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        DB::transaction(fn () => $conversa->delete());
+
+        // O banco remove mensagens, eventos e etiquetas por cascade. Os arquivos vivem fora
+        // dele e precisam ser limpos explicitamente para nao virarem lixo permanente no disco.
+        Storage::disk('local')->delete($midias);
+
+        if ($this->selecionada === $conversationId) {
+            $this->selecionada = null;
+            $this->dispatch('fechar-conversa');
+        }
+
+        $this->dispatch('conversa-atualizada');
     }
 
     private function doBalde(string $balde): Builder

@@ -264,9 +264,11 @@
     {{-- lista --}}
     <div class="flex-1 overflow-y-auto">
         @forelse ($conversas as $conversa)
-            <button type="button" wire:key="conv-{{ $conversa->id }}"
+            <div wire:key="conv-{{ $conversa->id }}" class="relative">
+            <button type="button"
                     wire:click="selecionar({{ $conversa->id }})"
                     class="block w-full border-b border-l-[3px] px-4 py-3 text-left transition-colors hover:bg-gray-50 dark:border-white/5 dark:hover:bg-white/5
+                           {{ $balde === 'arquivadas' && auth()->user()->veTudo() ? 'pr-12' : '' }}
                            {{ $selecionada === $conversa->id
                                 ? 'border-l-emerald-600 bg-emerald-50 dark:border-l-emerald-400 dark:bg-emerald-500/10'
                                 : 'border-l-transparent border-b-gray-100' }}">
@@ -413,6 +415,19 @@
                     @endif
                 </div>
             </button>
+            @if ($balde === 'arquivadas' && auth()->user()->veTudo())
+                <button type="button"
+                        wire:click.stop="excluirArquivada({{ $conversa->id }})"
+                        wire:confirm="Excluir definitivamente esta conversa arquivada? Todas as mensagens, notas e mídias deste atendimento serão apagadas. Esta ação não pode ser desfeita."
+                        title="Excluir conversa definitivamente"
+                        aria-label="Excluir conversa arquivada de {{ $conversa->contact->nomeExibicao() }}"
+                        class="absolute right-3 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-gray-400 transition hover:bg-red-50 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 dark:hover:bg-red-500/10 dark:hover:text-red-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673A2.25 2.25 0 0 1 15.916 21.75H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0V4.477c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                    </svg>
+                </button>
+            @endif
+            </div>
         @empty
             <p class="p-4 text-sm text-gray-500 dark:text-gray-400">
                 @if (trim($busca) !== '')

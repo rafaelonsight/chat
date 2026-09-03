@@ -3,6 +3,7 @@
 use App\Livewire\Inbox\ConversationList;
 use App\Models\{Channel, Contact, Conversation, Message, Tenant, User};
 use App\Support\TenantContext;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 
 function cenarioBalde(string $slug): array
@@ -114,6 +115,44 @@ it('Arquivadas traz tudo que foi encerrado, inclusive grupo', function () {
 
     lista($eu, 'arquivadas')->assertViewHas('conversas',
         fn ($cs) => ids($cs) === collect([$p->id, $g->id])->sort()->values()->all());
+});
+
+it('super admin exclui definitivamente conversa arquivada e suas midias', function () {
+    [, $eu, , $c] = cenarioBalde('bd-excluir');
+    $arquivada = conv($c, '5584911111199@s.whatsapp.net', ['status' => Conversation::ARQUIVADA]);
+    Storage::fake('local');
+    Storage::disk('local')->put('media/teste/conversa.txt', 'arquivo');
+    Message::create([
+        'conversation_id' => $arquivada->id,
+        'channel_id' => $c->id,
+        'direcao' => 'in',
+        'tipo' => 'document',
+        'media_path' => 'media/teste/conversa.txt',
+        'status' => Message::STATUS_DELIVERED,
+    ]);
+
+    lista($eu, 'arquivadas')->call('excluirArquivada', $arquivada->id)->assertHasNoErrors();
+
+    expect(Conversation::find($arquivada->id))->toBeNull()
+        ->and(Message::where('conversation_id', $arquivada->id)->exists())->toBeFalse();
+    Storage::disk('local')->assertMissing('media/teste/conversa.txt');
+});
+
+it('admin comum nao pode excluir conversa arquivada', function () {
+    [, $eu, , $c] = cenarioBalde('bd-sem-excluir');
+    $eu->forceFill(['super_admin' => false, 'admin' => true])->saveQuietly();
+    $arquivada = conv($c, '5584911111188@s.whatsapp.net', ['status' => Conversation::ARQUIVADA]);
+
+    lista($eu, 'arquivadas')->call('excluirArquivada', $arquivada->id)->assertForbidden();
+    expect(Conversation::withoutGlobalScopes()->find($arquivada->id))->not->toBeNull();
+});
+
+it('nem super admin pode excluir conversa ativa por esta acao', function () {
+    [, $eu, , $c] = cenarioBalde('bd-ativa');
+    $ativa = conv($c, '5584911111177@s.whatsapp.net');
+
+    lista($eu)->call('excluirArquivada', $ativa->id)->assertStatus(409);
+    expect(Conversation::find($ativa->id))->not->toBeNull();
 });
 
 // O teste que importa mais: se a particao deixar algo fora, alguem perde
