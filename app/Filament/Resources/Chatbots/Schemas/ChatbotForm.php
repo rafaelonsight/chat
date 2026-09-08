@@ -72,10 +72,10 @@ class ChatbotForm
 
                     TextInput::make('palavra_escape')
                         ->label('Palavra para falar com uma pessoa')
-                        ->required()
                         ->maxLength(30)
                         ->default('atendente')
-                        ->helperText('Funciona a qualquer momento, em qualquer nível do menu.'),
+                        ->dehydrateStateUsing(fn ($state) => trim((string) $state) === '' ? null : trim((string) $state))
+                        ->helperText('Opcional. Deixe vazio para desativar o comando e o aviso no menu. Os encaminhamentos por setor continuam funcionando.'),
                 ])
                 ->columns(2),
 

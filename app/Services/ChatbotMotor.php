@@ -109,7 +109,15 @@ class ChatbotMotor
     {
         $texto = trim((string) $mensagem->corpo);
 
-        return $texto !== '' && $this->normalizar($texto) === $this->normalizar($bot->palavra_escape);
+        return $this->correspondeAoEscape($bot, $texto);
+    }
+
+    private function correspondeAoEscape(Chatbot $bot, string $texto): bool
+    {
+        $escape = trim((string) $bot->palavra_escape);
+
+        return $escape !== '' && trim($texto) !== ''
+            && $this->normalizar($texto) === $this->normalizar($escape);
     }
 
     /**
@@ -339,8 +347,8 @@ class ChatbotMotor
             return false;
         }
 
-        // Escape a qualquer momento: o cliente nunca deve ficar preso no fluxo.
-        if ($texto !== '' && $this->normalizar($texto) === $this->normalizar($bot->palavra_escape)) {
+        // O escape e opcional por fluxo; as transferencias do grafo continuam independentes.
+        if ($this->correspondeAoEscape($bot, $texto)) {
             return $this->entregar($bot, $conversa, null, 'Cliente pediu atendente', self::ESCAPOU);
         }
 
@@ -746,7 +754,9 @@ class ChatbotMotor
             $partes[] = implode("\n", $linhas);
         }
 
-        $partes[] = 'Ou digite *'.$bot->palavra_escape.'* para falar com uma pessoa.';
+        if (trim((string) $bot->palavra_escape) !== '') {
+            $partes[] = 'Ou digite *'.$bot->palavra_escape.'* para falar com uma pessoa.';
+        }
 
         return implode("\n\n", $partes);
     }

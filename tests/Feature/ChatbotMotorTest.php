@@ -1419,3 +1419,65 @@ it('se um humano assumiu, o estouro nao fala', function () {
 
     expect(count(ditas()))->toBe($antes);
 });
+
+it('escape vazio remove aviso e humano segue como resposta invalida comum', function ($escape) {
+    $this->bot->update(['palavra_escape' => $escape]);
+    fluxoComMenu();
+    recebe('oi');
+    expect(ultimaDita())->not->toContain('Ou digite')->toContain('1 - Suporte', '2 - Financeiro');
+    recebe('humano');
+    expect($this->conversa->fresh()->chatbot_estado)->toBe(ChatbotMotor::ATIVO)
+        ->and(ultimaDita())->toContain('Não entendi.')->not->toContain('Ou digite');
+})->with([null, '', '   ']);
+
+it('escape vazio respeita tolerancia e nao transfere apos agrupamento', function () {
+    $this->bot->update(['palavra_escape' => null]);
+    comTolerancia();
+    menuEsperando();
+    semTemporizadores();
+    recebe('oi');
+    recebe('humano');
+    Queue::assertPushed(AgruparMensagens::class);
+    expect($this->conversa->fresh()->chatbot_estado)->toBe(ChatbotMotor::ATIVO);
+    app(ChatbotMotor::class)->atenderAgrupado($this->conversa->fresh(), (int) $this->conversa->fresh()->chatbot_marca);
+    expect($this->conversa->fresh()->chatbot_estado)->toBe(ChatbotMotor::ATIVO)
+        ->and(ultimaDita())->not->toContain('Ou digite');
+});
+
+it('escape desabilitado preserva transferencia de cada setor', function ($gatilho, $nome) {
+    $this->bot->update(['palavra_escape' => null]);
+    $menu = $this->fluxo->criarPasso($this->bot, 0, 0, 'Menu');
+    $this->fluxo->adicionarAcao($menu, ChatbotAction::MENU, [
+        'texto' => 'Como podemos ajudar?',
+        'opcoes' => [
+            ['gatilho' => '1', 'rotulo' => 'Financeiro'],
+            ['gatilho' => '2', 'rotulo' => 'Suporte técnico'],
+            ['gatilho' => '3', 'rotulo' => 'Comercial'],
+        ],
+    ]);
+    $this->fluxo->ligar($this->inicio, $menu);
+    $equipes = [];
+    foreach (['1' => 'Financeiro', '2' => 'Suporte técnico', '3' => 'Comercial'] as $g => $rotulo) {
+        $equipe = Team::create(['nome' => $rotulo]);
+        $equipes[$g] = $equipe->id;
+        $destino = $this->fluxo->criarPasso($this->bot, 300, 0, $rotulo);
+        $this->fluxo->adicionarAcao($destino, ChatbotAction::TRANSFERIR, ['team_id' => $equipe->id, 'aviso' => 'Encaminhando '.$rotulo]);
+        $this->fluxo->ligar($menu, $destino, ChatbotEdge::opcao((string) $g));
+    }
+    publicar();
+    recebe('oi');
+    expect(ultimaDita())->toContain('1 - Financeiro', '2 - Suporte técnico', '3 - Comercial')->not->toContain('Ou digite');
+    recebe($gatilho);
+    expect($this->conversa->fresh()->team_id)->toBe($equipes[$gatilho])
+        ->and($this->conversa->fresh()->chatbot_estado)->toBe(ChatbotMotor::CONCLUIDO)
+        ->and(ultimaDita())->toBe('Encaminhando '.$nome);
+})->with([['1', 'Financeiro'], ['2', 'Suporte técnico'], ['3', 'Comercial']]);
+
+it('escape configurado continua anunciado e ativo', function () {
+    $this->bot->update(['palavra_escape' => 'humano']);
+    fluxoComMenu();
+    recebe('oi');
+    expect(ultimaDita())->toContain('Ou digite *humano* para falar com uma pessoa.');
+    recebe('HUMANO');
+    expect($this->conversa->fresh()->chatbot_estado)->toBe(ChatbotMotor::ESCAPOU);
+});
