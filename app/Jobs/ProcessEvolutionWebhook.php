@@ -8,6 +8,7 @@ use App\Services\EvolutionService;
 use App\Services\BusinessHours;
 use App\Services\ChatbotMotor;
 use App\Services\MediaService;
+use App\Services\ParticipantesGrupoWhatsapp;
 use App\Support\{Jid, Marcadores, PhoneNumber, TenantContext};
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -96,7 +97,11 @@ class ProcessEvolutionWebhook implements ShouldQueue
         $citadoExternalId = $this->citado($data);
 
         // So faz sentido em grupo: em conversa de um para um, toda mensagem ja e para nos.
-        $mencionado = $origem['contato']->eGrupo() && $this->mencionaOCanal($data, $canal);
+        // A Evolution passou a mandar LIDs no mentionedJid. Eles nao sao telefones, portanto
+        // precisam ser resolvidos pela lista de participantes antes de gravar o balao.
+        [$conteudo, $mencionado] = $origem['contato']->eGrupo()
+            ? $this->resolverMencoesDoGrupo($data, $canal, $origem['contato'], $conteudo)
+            : [$conteudo, false];
 
         if (! $conteudo) {
             return; // tipo que ainda nao tratamos (localizacao, contato, enquete)
@@ -427,6 +432,67 @@ class ProcessEvolutionWebhook implements ShouldQueue
         }
 
         return false;
+    }
+
+    /**
+     * Traduz os LIDs de uma mensagem de grupo para nomes legiveis e tambem reconhece quando
+     * o LID pertence ao proprio canal. Se a Evolution estiver indisponivel, preserva o texto
+     * original e usa a deteccao por telefone que ja existia.
+     *
+     * @return array{0:?array,1:bool}
+     */
+    private function resolverMencoesDoGrupo(array $data, Channel $canal, Contact $grupo, ?array $conteudo): array
+    {
+        if (! $conteudo || $conteudo['tipo'] !== 'text') {
+            return [$conteudo, $this->mencionaOCanal($data, $canal)];
+        }
+
+        $mencionados = (array) (Arr::get($data, 'contextInfo.mentionedJid')
+            ?: Arr::get($data, 'message.extendedTextMessage.contextInfo.mentionedJid', []));
+
+        if ($mencionados === []) {
+            return [$conteudo, $this->mencionaOCanal($data, $canal)];
+        }
+
+        try {
+            $participantes = app(ParticipantesGrupoWhatsapp::class)->listarDoGrupo($canal, $grupo, true);
+        } catch (\Throwable) {
+            return [$conteudo, $this->mencionaOCanal($data, $canal)];
+        }
+
+        $porLid = collect($participantes)
+            ->filter(fn (array $p) => str_ends_with((string) $p['participant_jid'], '@lid'))
+            ->keyBy(fn (array $p) => $this->baseDoJid((string) $p['participant_jid']));
+        $meus = array_map(fn (string $n) => preg_replace('/\D+/', '', $n), PhoneNumber::variantes((string) $canal->telefone_e164));
+        $mencionado = $this->mencionaOCanal($data, $canal);
+
+        foreach ($mencionados as $jid) {
+            $lid = $this->baseDoJid((string) $jid);
+            $participante = $porLid->get($lid);
+
+            if (! $participante) {
+                continue;
+            }
+
+            $telefone = preg_replace('/\D+/', '', (string) $participante['telefone']);
+            $mencionado = $mencionado || in_array($telefone, $meus, true);
+            $nome = trim((string) $participante['nome']);
+
+            if ($nome !== '') {
+                $conteudo['corpo'] = preg_replace_callback(
+                    '/@'.preg_quote($lid, '/').'(?=\D|$)/',
+                    fn () => '@'.$nome,
+                    (string) $conteudo['corpo'],
+                );
+            }
+        }
+
+        return [$conteudo, $mencionado];
+    }
+
+    private function baseDoJid(string $jid): string
+    {
+        return explode(':', explode('@', $jid)[0])[0];
     }
 
     private function identificarConteudo(array $msg): ?array

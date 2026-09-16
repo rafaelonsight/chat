@@ -5,6 +5,7 @@ use App\Livewire\Inbox\ConversationList;
 use App\Models\{Channel, Contact, Conversation, Message, Tenant, User, WebhookEvent};
 use App\Support\TenantContext;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Livewire;
 
 /*
@@ -23,7 +24,13 @@ use Livewire\Livewire;
 beforeEach(function () {
     // Abrir a conversa avisa o WhatsApp que foi lida. Sem o fake, o teste bate na
     // Evolution de verdade e falha por uma instancia que so existe em producao.
-    Http::fake(['*' => Http::response(['ok' => true], 200)]);
+    Http::fake(function ($request) {
+        if (str_contains($request->url(), '/group/participants/') && isset($this->participantesDaEvolution)) {
+            return Http::response($this->participantesDaEvolution, 200);
+        }
+
+        return Http::response(['ok' => true], 200);
+    });
 
     $this->conta = Tenant::create(['nome' => 'Conta', 'slug' => 'mencao']);
     TenantContext::set($this->conta->id);
@@ -107,6 +114,25 @@ it('reconhece a mencao escrita no texto, quando o jid vem no formato novo', func
     ]));
 
     expect(Message::latest('id')->first()->mencao)->toBeTrue();
+});
+
+it('traduz LIDs para nomes e marca quando o LID e do proprio canal', function () {
+    $ctx = ['conta' => $this->conta, 'canal' => $this->canal, 'grupo' => $this->grupo];
+    Cache::forget("grupo-participantes:{$this->canal->id}:{$this->grupo->jid}:todos");
+
+    $this->participantesDaEvolution = [
+        ['id' => '228535880945688@lid', 'phoneNumber' => '5541984919939@s.whatsapp.net', 'name' => 'Atendente'],
+        ['id' => '58403082739830@lid', 'phoneNumber' => '5541999990000@s.whatsapp.net', 'name' => 'Marina Silva'],
+    ];
+
+    chegou($ctx, baseGrupo($ctx, '@58403082739830 chama @228535880945688', [
+        'contextInfo' => ['mentionedJid' => ['58403082739830@lid', '228535880945688@lid']],
+    ]));
+
+    $mensagem = Message::latest('id')->first();
+
+    expect($mensagem->corpo)->toBe('@Marina Silva chama @Atendente')
+        ->and($mensagem->mencao)->toBeTrue();
 });
 
 it('mensagem comum de grupo NAO vira mencao', function () {
