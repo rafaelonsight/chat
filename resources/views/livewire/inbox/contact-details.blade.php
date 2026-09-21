@@ -411,6 +411,52 @@
             </div>
         @endif
 
+        {{-- ================================================== INTEGRANTES ==== --}}
+        @if ($aba === 'integrantes')
+            <div class="space-y-3 p-4 text-sm">
+                @if (! $contato->eGrupo())
+                    <p class="text-xs text-gray-400">Integrantes estão disponíveis apenas em conversas de grupo.</p>
+                @else
+                    <div>
+                        <label for="busca-integrantes" class="sr-only">Buscar integrante</label>
+                        <input id="busca-integrantes" type="search" wire:model.live.debounce.250ms="buscaIntegrantes"
+                               placeholder="Buscar por nome ou número"
+                               class="w-full rounded border border-gray-300 px-2.5 py-2 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
+                    </div>
+
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        {{ $integrantes->count() }} integrante(s) encontrado(s)
+                    </p>
+
+                    <div class="space-y-1.5">
+                        @forelse ($integrantes as $integrante)
+                            <div wire:key="integrante-{{ $integrante['jid'] }}"
+                                 class="flex items-center gap-2.5 rounded border border-gray-200 p-2 dark:border-white/10">
+                                @if ($integrante['foto'])
+                                    <img src="{{ $integrante['foto'] }}" alt="" class="h-9 w-9 shrink-0 rounded-full object-cover">
+                                @else
+                                    <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+                                        {{ mb_strtoupper(mb_substr(trim($integrante['nome']), 0, 1)) }}
+                                    </span>
+                                @endif
+                                <div class="min-w-0 flex-1">
+                                    <p class="truncate text-sm font-medium text-gray-800 dark:text-gray-100">{{ $integrante['nome'] }}</p>
+                                    <p class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+                                        <span class="truncate">+{{ $integrante['telefone'] }}</span>
+                                        <x-inbox.copiar :valor="'+'.$integrante['telefone']" titulo="Copiar telefone" />
+                                    </p>
+                                </div>
+                            </div>
+                        @empty
+                            <p class="rounded border border-dashed border-gray-200 p-3 text-xs text-gray-400 dark:border-white/10">
+                                Nenhum integrante encontrado. Tente atualizar a busca em alguns instantes.
+                            </p>
+                        @endforelse
+                    </div>
+                @endif
+            </div>
+        @endif
+
         {{-- ===================================================== PAINEIS ==== --}}
         @if ($aba === 'paineis')
             <div class="p-4 text-sm">

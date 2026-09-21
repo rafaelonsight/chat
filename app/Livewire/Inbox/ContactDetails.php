@@ -21,10 +21,14 @@ class ContactDetails extends Component
      */
     public string $aba = 'detalhes';
 
+    /** Texto usado para filtrar integrantes sem esconder o telefone. */
+    public string $buscaIntegrantes = '';
+
     public const ABAS = [
         'detalhes'  => 'Detalhes',
         'arquivos'  => 'Arquivos',
         'conversas' => 'Conversas',
+        'integrantes' => 'Integrantes',
         'paineis'   => 'Painéis',
     ];
 
@@ -157,6 +161,7 @@ class ContactDetails extends Component
         $camposPreenchidos = [];
         $arquivos = collect();
         $conversas = collect();
+        $integrantes = collect();
 
         if ($conversa && $this->aba === 'detalhes') {
             // Todas as etiquetas da conta para o atendente escolher, as que este
@@ -208,9 +213,27 @@ class ContactDetails extends Component
                 ->get();
         }
 
+        // Grupo nao tem "telefone do contato": os numeros uteis sao os de cada
+        // integrante. A consulta e sob demanda, com cache curto na propria service,
+        // para nao transformar cada nova mensagem numa chamada para a Evolution.
+        if ($conversa && $this->aba === 'integrantes' && $conversa->contact->eGrupo()) {
+            $busca = mb_strtolower(trim($this->buscaIntegrantes));
+            $digitosBusca = preg_replace('/\D+/', '', $busca);
+
+            $integrantes = collect(app(\App\Services\ParticipantesGrupoWhatsapp::class)->listar($conversa))
+                ->filter(function (array $integrante) use ($busca, $digitosBusca) {
+                    if ($busca === '') {
+                        return true;
+                    }
+
+                    return str_contains(mb_strtolower((string) $integrante['nome']), $busca)
+                        || ($digitosBusca !== '' && str_contains((string) $integrante['telefone'], $digitosBusca));
+                })->values();
+        }
+
         return view('livewire.inbox.contact-details', compact(
             'conversa', 'resumo', 'outrasConversas', 'etiquetas', 'doContato', 'notas',
-            'camposPreenchidos', 'arquivos', 'conversas', 'origens',
+            'camposPreenchidos', 'arquivos', 'conversas', 'integrantes', 'origens',
         ));
     }
 

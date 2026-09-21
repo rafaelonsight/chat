@@ -4,6 +4,7 @@ use App\Livewire\Inbox\ContactDetails;
 use App\Livewire\Inbox\ConversationWindow;
 use App\Models\{Channel, Contact, Conversation, Message, Tenant, User};
 use App\Support\TenantContext;
+use Illuminate\Support\Facades\Http;
 use Livewire\Livewire;
 
 function cenarioDet(string $slug): array
@@ -153,7 +154,7 @@ it('mostra quantas conversas o contato tem', function () {
 
 // ============================================================ AS QUATRO ABAS ==
 
-it('mostra as quatro abas e comeca em Detalhes', function () {
+it('mostra as abas e comeca em Detalhes', function () {
     [, $u, , , $cv] = cenarioDet('ab1');
 
     Livewire::actingAs($u)
@@ -163,7 +164,42 @@ it('mostra as quatro abas e comeca em Detalhes', function () {
         ->assertSee('Detalhes')
         ->assertSee('Arquivos')
         ->assertSee('Conversas')
+        ->assertSee('Integrantes')
         ->assertSee('Painéis');
+});
+
+it('mostra e filtra os integrantes de um grupo com seus telefones', function () {
+    [$tenant, $u] = cenarioDet('ab-integrantes');
+    $canal = Channel::create([
+        'tenant_id' => $tenant->id, 'tipo' => Channel::EVOLUTION, 'nome' => 'WhatsApp Grupo',
+        'instance_name' => 'grupo-detalhes', 'telefone_e164' => '+5541900000000', 'status' => 'open',
+    ]);
+    $grupo = Contact::create([
+        'tenant_id' => $tenant->id, 'tipo' => Contact::GRUPO, 'nome' => 'Equipe externa',
+        'jid' => '120363000000000000@g.us',
+    ]);
+    $conversa = Conversation::create([
+        'tenant_id' => $tenant->id, 'channel_id' => $canal->id, 'contact_id' => $grupo->id,
+    ]);
+
+    Http::fake(fn () => Http::response([
+        ['id' => '111@lid', 'phoneNumber' => '5541988881111@s.whatsapp.net', 'name' => 'Ana Costa'],
+        ['id' => '222@lid', 'phoneNumber' => '5541988882222@s.whatsapp.net', 'name' => 'Bruno Lima'],
+        ['id' => '333@lid', 'phoneNumber' => '5541900000000@s.whatsapp.net', 'name' => 'Canal'],
+    ]));
+
+    Livewire::actingAs($u)
+        ->test(ContactDetails::class, ['conversationId' => $conversa->id])
+        ->call('alternar')
+        ->call('irPara', 'integrantes')
+        ->assertSee('Integrantes')
+        ->assertSee('Ana Costa')
+        ->assertSee('+5541988881111')
+        ->assertDontSee('Canal')
+        ->set('buscaIntegrantes', 'Bruno')
+        ->assertSee('Bruno Lima')
+        ->assertViewHas('integrantes', fn ($lista) => $lista->count() === 1
+            && $lista->first()['nome'] === 'Bruno Lima');
 });
 
 it('ignora aba inventada em vez de deixar o painel em branco', function () {
