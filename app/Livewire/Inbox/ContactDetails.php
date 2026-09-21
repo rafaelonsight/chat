@@ -24,6 +24,9 @@ class ContactDetails extends Component
     /** Texto usado para filtrar integrantes sem esconder o telefone. */
     public string $buscaIntegrantes = '';
 
+    /** @var array{jid:string,nome:string,telefone:string,foto:?string}|null */
+    public ?array $integranteSelecionado = null;
+
     public const ABAS = [
         'detalhes'  => 'Detalhes',
         'arquivos'  => 'Arquivos',
@@ -81,6 +84,65 @@ class ContactDetails extends Component
     public function fechar(): void
     {
         $this->aberto = false;
+    }
+
+    public function verIntegrante(string $jid): void
+    {
+        $integrante = $this->integrantesDaConversa()->firstWhere('jid', $jid);
+
+        if (! $integrante) {
+            return;
+        }
+
+        $this->integranteSelecionado = [
+            'jid' => (string) $integrante['jid'],
+            'nome' => (string) $integrante['nome'],
+            'telefone' => (string) $integrante['telefone'],
+            'foto' => $integrante['foto'],
+        ];
+    }
+
+    public function fecharPerfilIntegrante(): void
+    {
+        $this->integranteSelecionado = null;
+    }
+
+    /** Abre o privado no mesmo canal do grupo, sem enfileirar mensagem alguma. */
+    public function abrirConversaComIntegrante(): void
+    {
+        $selecionado = $this->integranteSelecionado;
+        $conversaDoGrupo = $this->conversa();
+
+        if (! $selecionado || ! $conversaDoGrupo) {
+            return;
+        }
+
+        // Nunca confia no array que voltou do navegador: confirma que o JID ainda
+        // pertence a ESTE grupo antes de criar contato ou conversa.
+        $integrante = $this->integrantesDaConversa()->firstWhere('jid', $selecionado['jid']);
+        $telefone = $integrante ? \App\Support\PhoneNumber::toE164((string) $integrante['telefone']) : null;
+
+        if (! $integrante || ! $telefone) {
+            $this->integranteSelecionado = null;
+
+            return;
+        }
+
+        $nome = trim((string) $integrante['nome']);
+        $contato = \App\Models\Contact::acharOuCriarPorTelefone(
+            $telefone,
+            $nome !== '' && $nome !== (string) $integrante['telefone'] ? ['nome' => $nome] : [],
+            (string) $integrante['jid'],
+        );
+        $conversa = \App\Models\Conversation::abertaOuNova(
+            $conversaDoGrupo->channel_id,
+            $contato->id,
+            $conversaDoGrupo->tenant_id,
+        );
+
+        $conversa->update(['ultima_msg_em' => now()]);
+        $this->integranteSelecionado = null;
+        $this->dispatch('abrir-conversa', conversationId: $conversa->id);
     }
 
     private function carregar(): void
@@ -220,7 +282,7 @@ class ContactDetails extends Component
             $busca = mb_strtolower(trim($this->buscaIntegrantes));
             $digitosBusca = preg_replace('/\D+/', '', $busca);
 
-            $integrantes = collect(app(\App\Services\ParticipantesGrupoWhatsapp::class)->listar($conversa))
+            $integrantes = $this->integrantesDaConversa()
                 ->filter(function (array $integrante) use ($busca, $digitosBusca) {
                     if ($busca === '') {
                         return true;
@@ -272,6 +334,18 @@ class ContactDetails extends Component
         }
 
         return $saida;
+    }
+
+    /** @return \Illuminate\Support\Collection<int, array{jid:string,nome:string,telefone:string,foto:?string}> */
+    private function integrantesDaConversa(): \Illuminate\Support\Collection
+    {
+        $conversa = $this->conversa();
+
+        if (! $conversa?->contact?->eGrupo()) {
+            return collect();
+        }
+
+        return collect(app(\App\Services\ParticipantesGrupoWhatsapp::class)->listar($conversa));
     }
 
     /**

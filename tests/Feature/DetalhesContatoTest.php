@@ -188,7 +188,7 @@ it('mostra e filtra os integrantes de um grupo com seus telefones', function () 
         ['id' => '333@lid', 'phoneNumber' => '5541900000000@s.whatsapp.net', 'name' => 'Canal'],
     ]));
 
-    Livewire::actingAs($u)
+    $tela = Livewire::actingAs($u)
         ->test(ContactDetails::class, ['conversationId' => $conversa->id])
         ->call('alternar')
         ->call('irPara', 'integrantes')
@@ -200,6 +200,16 @@ it('mostra e filtra os integrantes de um grupo com seus telefones', function () 
         ->assertSee('Bruno Lima')
         ->assertViewHas('integrantes', fn ($lista) => $lista->count() === 1
             && $lista->first()['nome'] === 'Bruno Lima');
+
+    $tela->call('verIntegrante', '5541988882222@s.whatsapp.net')
+        ->assertSet('integranteSelecionado.nome', 'Bruno Lima')
+        ->assertSee('Abrir conversa privada')
+        ->call('abrirConversaComIntegrante')
+        ->assertDispatched('abrir-conversa');
+
+    $privado = Contact::where('telefone_e164', '+5541988882222')->firstOrFail();
+    expect(Conversation::where('channel_id', $canal->id)->where('contact_id', $privado->id)->exists())->toBeTrue()
+        ->and(Message::where('conversation_id', '!=', $conversa->id)->count())->toBe(0);
 });
 
 it('ignora aba inventada em vez de deixar o painel em branco', function () {

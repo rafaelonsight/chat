@@ -431,21 +431,23 @@
                     <div class="space-y-1.5">
                         @forelse ($integrantes as $integrante)
                             <div wire:key="integrante-{{ $integrante['jid'] }}"
-                                 class="flex items-center gap-2.5 rounded border border-gray-200 p-2 dark:border-white/10">
-                                @if ($integrante['foto'])
-                                    <img src="{{ $integrante['foto'] }}" alt="" class="h-9 w-9 shrink-0 rounded-full object-cover">
-                                @else
-                                    <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
-                                        {{ mb_strtoupper(mb_substr(trim($integrante['nome']), 0, 1)) }}
+                                 class="flex items-center gap-1 rounded border border-gray-200 p-1 dark:border-white/10">
+                                <button type="button" wire:click="verIntegrante('{{ $integrante['jid'] }}')"
+                                        class="flex min-w-0 flex-1 items-center gap-2.5 rounded p-1 text-left hover:bg-gray-50 dark:hover:bg-white/5"
+                                        title="Ver perfil de {{ $integrante['nome'] }}">
+                                    @if ($integrante['foto'])
+                                        <img src="{{ $integrante['foto'] }}" alt="" class="h-9 w-9 shrink-0 rounded-full object-cover">
+                                    @else
+                                        <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-emerald-100 text-xs font-semibold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+                                            {{ mb_strtoupper(mb_substr(trim($integrante['nome']), 0, 1)) }}
+                                        </span>
+                                    @endif
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block truncate text-sm font-medium text-gray-800 dark:text-gray-100">{{ $integrante['nome'] }}</span>
+                                        <span class="block truncate text-xs text-gray-500 dark:text-gray-400">+{{ $integrante['telefone'] }}</span>
                                     </span>
-                                @endif
-                                <div class="min-w-0 flex-1">
-                                    <p class="truncate text-sm font-medium text-gray-800 dark:text-gray-100">{{ $integrante['nome'] }}</p>
-                                    <p class="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
-                                        <span class="truncate">+{{ $integrante['telefone'] }}</span>
-                                        <x-inbox.copiar :valor="'+'.$integrante['telefone']" titulo="Copiar telefone" />
-                                    </p>
-                                </div>
+                                </button>
+                                <x-inbox.copiar :valor="'+'.$integrante['telefone']" titulo="Copiar telefone" />
                             </div>
                         @empty
                             <p class="rounded border border-dashed border-gray-200 p-3 text-xs text-gray-400 dark:border-white/10">
@@ -454,6 +456,46 @@
                         @endforelse
                     </div>
                 @endif
+            </div>
+        @endif
+
+        @if ($integranteSelecionado)
+            {{-- Perfil curto de proposito: o atendente veio do grupo, quer confirmar quem e
+                 e decidir se abre o privado. Cadastro completo so faria essa decisao demorar. --}}
+            <div class="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4" wire:click.self="fecharPerfilIntegrante">
+                <section role="dialog" aria-modal="true" aria-label="Perfil do integrante"
+                         class="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl dark:bg-gray-900">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex min-w-0 items-center gap-3">
+                            @if ($integranteSelecionado['foto'])
+                                <img src="{{ $integranteSelecionado['foto'] }}" alt="" class="h-12 w-12 shrink-0 rounded-full object-cover">
+                            @else
+                                <span class="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-emerald-100 text-base font-semibold text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300">
+                                    {{ mb_strtoupper(mb_substr(trim($integranteSelecionado['nome']), 0, 1)) }}
+                                </span>
+                            @endif
+                            <div class="min-w-0">
+                                <h3 class="truncate font-semibold text-gray-900 dark:text-gray-100">{{ $integranteSelecionado['nome'] }}</h3>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">Integrante deste grupo</p>
+                            </div>
+                        </div>
+                        <button type="button" wire:click="fecharPerfilIntegrante" class="rounded p-1 text-xl leading-none text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" aria-label="Fechar perfil">&times;</button>
+                    </div>
+
+                    <div class="mt-5 rounded border border-gray-200 px-3 py-2.5 dark:border-white/10">
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Telefone</p>
+                        <div class="mt-1 flex items-center gap-1.5">
+                            <span class="min-w-0 flex-1 truncate text-sm text-gray-800 dark:text-gray-100">+{{ $integranteSelecionado['telefone'] }}</span>
+                            <x-inbox.copiar :valor="'+'.$integranteSelecionado['telefone']" titulo="Copiar telefone" />
+                        </div>
+                    </div>
+
+                    <button type="button" wire:click="abrirConversaComIntegrante" wire:loading.attr="disabled"
+                            class="mt-4 w-full rounded bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60">
+                        Abrir conversa privada
+                    </button>
+                    <p class="mt-2 text-center text-[11px] text-gray-500 dark:text-gray-400">Nenhuma mensagem será enviada automaticamente.</p>
+                </section>
             </div>
         @endif
 
