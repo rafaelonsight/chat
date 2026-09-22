@@ -114,6 +114,24 @@ class ConversationWindow extends Component
                 ->orderByDesc('id')->limit($this->limite)->get()->reverse()->values()
             : collect();
 
+        // Antes de existir user_id, a autoria manual ia para a primeira linha do texto
+        // como "*Rafael*". Reconhecemos somente esse formato exato, sem mexer no historico,
+        // para que a nova identidade visual tambem explique as mensagens ja enviadas.
+        if ($conversa && $mensagens->isNotEmpty()) {
+            $porPrimeiroNome = \App\Models\User::where('tenant_id', $conversa->tenant_id)
+                ->get()->keyBy(fn (\App\Models\User $u) => mb_strtolower($u->primeiroNome()));
+
+            $mensagens->each(function (\App\Models\Message $mensagem) use ($porPrimeiroNome) {
+                if ($mensagem->entrada() || $mensagem->autor || ! preg_match('/^\\*([^*\\r\\n]+)\\*/u', (string) ($mensagem->corpo ?: $mensagem->legenda), $match)) {
+                    return;
+                }
+
+                if ($autor = $porPrimeiroNome->get(mb_strtolower(trim($match[1])))) {
+                    $mensagem->setRelation('autor', $autor);
+                }
+            });
+        }
+
         $equipes = \App\Models\Team::ativas()->orderBy('nome')->get();
 
         // Quem pode receber a conversa. O escopo global ja limita a conta; tirar quem ja e o

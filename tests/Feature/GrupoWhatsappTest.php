@@ -181,6 +181,21 @@ it('identifica visualmente o autor interno pela cor configurada', function () {
         ->assertSee('!bg-blue-600', escape: false);
 });
 
+it('aplica a cor ao historico antigo que ja tinha assinatura', function () {
+    [, $u, $c] = cenarioGrupo('gp-cor-legado');
+    $u->update(['name' => 'Rafael', 'cor_chat' => 'azul']);
+    $grupo = Contact::create(['tipo' => Contact::GRUPO, 'nome' => 'Grupo', 'jid' => '120363000000000002@g.us']);
+    $conversa = Conversation::create(['channel_id' => $c->id, 'contact_id' => $grupo->id]);
+    Message::create([
+        'conversation_id' => $conversa->id, 'channel_id' => $c->id,
+        'direcao' => 'out', 'tipo' => 'text', 'corpo' => "*Rafael*\nMensagem antiga", 'status' => Message::STATUS_SENT,
+    ]);
+
+    \Livewire\Livewire::actingAs($u)
+        ->test(ConversationWindow::class, ['conversationId' => $conversa->id])
+        ->assertSee('!bg-blue-600', escape: false);
+});
+
 it('envio para pessoa continua usando o telefone', function () {
     Http::fake(['*/message/sendText/*' => Http::response(['key' => ['id' => 'OUT2']], 201)]);
 
