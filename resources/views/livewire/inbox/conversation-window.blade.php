@@ -426,11 +426,12 @@
                 @php
                     $m = $item;
                     $entrada = $m->entrada();
+                    $autor = ! $entrada ? $m->autor : null;
                     $notasDaMensagem = $notasPorMensagem->get($m->id, collect());
                     $anterior = $linha->get($loop->index - 1);
                     $proxima = $linha->get($loop->index + 1);
                     $chaveAutor = fn ($msg) => $msg instanceof \App\Models\Message
-                        ? ($msg->entrada() ? 'entrada:'.($msg->remetente_jid ?: 'cliente') : 'saida')
+                        ? ($msg->entrada() ? 'entrada:'.($msg->remetente_jid ?: 'cliente') : 'saida:'.($msg->user_id ?: 'externa'))
                         : null;
                     $perto = fn ($a, $b) => $a instanceof \App\Models\Message
                         && $b instanceof \App\Models\Message
@@ -615,7 +616,7 @@
                         ? ($m->mencao
                             ? 'vc-note border-2'
                             : 'vc-message-in')
-                        : 'vc-message-out' }}
+                        : ($autor ? $autor->classesChat() : 'vc-message-out') }}
                                 {{ $entrada
                                     ? ($continuaAnterior ? 'rounded-tl-md' : 'rounded-tl-2xl') .' '. ($continuaDepois ? 'rounded-bl-md' : 'rounded-bl-2xl') .' rounded-r-2xl'
                                     : ($continuaAnterior ? 'rounded-tr-md' : 'rounded-tr-2xl') .' '. ($continuaDepois ? 'rounded-br-md' : 'rounded-br-2xl') .' rounded-l-2xl' }}">
@@ -624,6 +625,11 @@
                         @if ($m->mencao)
                             <div class="mb-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
                                 mencionaram você
+                            </div>
+                        @endif
+                        @if ($autor && ! $continuaAnterior)
+                            <div class="mb-1 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold {{ $autor->classeEtiquetaChat() }}">
+                                {{ $autor->primeiroNome() }}
                             </div>
                         @endif
                         {{-- A mensagem citada, do jeito que o WhatsApp mostra: faixa curta

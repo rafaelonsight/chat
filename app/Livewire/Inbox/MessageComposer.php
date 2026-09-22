@@ -346,6 +346,7 @@ class MessageComposer extends Component
         $mensagem = Message::create([
             'conversation_id' => $conversa->id,
             'channel_id'      => $conversa->channel_id,
+            'user_id'         => auth()->id(),
             'direcao'         => 'out',
             'tipo'            => 'text',
             'responde_a_id'            => $this->respondendoA,
@@ -415,6 +416,7 @@ class MessageComposer extends Component
         $mensagem = Message::create([
             'conversation_id' => $conversa->id,
             'channel_id'      => $conversa->channel_id,
+            'user_id'         => auth()->id(),
             'direcao'         => 'out',
             'tipo'            => $meta['tipo'],
             'responde_a_id'   => $this->respondendoA,

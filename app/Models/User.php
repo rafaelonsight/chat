@@ -13,10 +13,46 @@ use Filament\Panel;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['tenant_id', 'admin', 'name', 'email', 'password'])]
+#[Fillable(['tenant_id', 'admin', 'name', 'email', 'password', 'cor_chat'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements FilamentUser
 {
+    public const CORES_CHAT = [
+        'amarelo' => 'Amarelo',
+        'azul'    => 'Azul',
+        'cinza'   => 'Cinza',
+        'roxo'    => 'Roxo',
+        'rosa'    => 'Rosa',
+        'laranja' => 'Laranja',
+        'verde'   => 'Verde',
+    ];
+
+    /** Classes seguras no tema escuro para identificar autoria nas mensagens de saída. */
+    public function classesChat(): string
+    {
+        return match ($this->cor_chat) {
+            'amarelo' => '!bg-amber-400 !text-gray-950',
+            'azul'    => '!bg-blue-600 !text-white',
+            'cinza'   => '!bg-slate-600 !text-white',
+            'roxo'    => '!bg-violet-600 !text-white',
+            'rosa'    => '!bg-pink-600 !text-white',
+            'laranja' => '!bg-orange-600 !text-white',
+            default   => 'vc-message-out',
+        };
+    }
+
+    public function classeEtiquetaChat(): string
+    {
+        return match ($this->cor_chat) {
+            'amarelo' => 'bg-amber-300 text-gray-950',
+            'azul'    => 'bg-blue-700 text-white',
+            'cinza'   => 'bg-slate-700 text-white',
+            'roxo'    => 'bg-violet-700 text-white',
+            'rosa'    => 'bg-pink-700 text-white',
+            'laranja' => 'bg-orange-700 text-white',
+            default   => 'bg-emerald-700 text-white',
+        };
+    }
     /**
      * So o primeiro nome.
      *

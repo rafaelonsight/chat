@@ -24,6 +24,12 @@ class UserForm
                 ->unique(ignoreRecord: true)
                 ->maxLength(255),
 
+            Select::make('cor_chat')
+                ->label('Cor no chat')
+                ->options(\App\Models\User::CORES_CHAT)
+                ->placeholder('Verde padrão')
+                ->helperText('Identifica as mensagens enviadas por esta pessoa no atendimento.'),
+
             // Na edicao fica em branco: preencher so quando for trocar a senha.
             TextInput::make('password')
                 ->label('Senha')

@@ -1,6 +1,7 @@
 <?php
 
 use App\Jobs\SendTextMessage;
+use App\Livewire\Inbox\ConversationWindow;
 use App\Models\{Channel, Contact, Conversation, Message, Tenant, User};
 use App\Services\EvolutionService;
 use App\Support\Jid;
@@ -161,6 +162,23 @@ it('envio para grupo usa o JID do grupo, nao telefone', function () {
         && $r['number'] === '120363012345678901@g.us');
 
     expect($m->refresh()->status)->toBe(Message::STATUS_SENT);
+});
+
+it('identifica visualmente o autor interno pela cor configurada', function () {
+    [, $u, $c] = cenarioGrupo('gp-cor-autor');
+    $u->update(['name' => 'Rafael', 'cor_chat' => 'azul']);
+    $grupo = Contact::create(['tipo' => Contact::GRUPO, 'nome' => 'Grupo', 'jid' => '120363000000000001@g.us']);
+    $conversa = Conversation::create(['channel_id' => $c->id, 'contact_id' => $grupo->id]);
+
+    Message::create([
+        'conversation_id' => $conversa->id, 'channel_id' => $c->id, 'user_id' => $u->id,
+        'direcao' => 'out', 'tipo' => 'text', 'corpo' => 'Mensagem da equipe', 'status' => Message::STATUS_SENT,
+    ]);
+
+    \Livewire\Livewire::actingAs($u)
+        ->test(ConversationWindow::class, ['conversationId' => $conversa->id])
+        ->assertSee('Rafael')
+        ->assertSee('!bg-blue-600', escape: false);
 });
 
 it('envio para pessoa continua usando o telefone', function () {

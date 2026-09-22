@@ -17,7 +17,7 @@ class Message extends Model
     public const STATUS_FAILED    = 'failed';
 
     protected $fillable = [
-        'tenant_id', 'conversation_id', 'channel_id', 'direcao',
+        'tenant_id', 'conversation_id', 'channel_id', 'user_id', 'direcao',
         'tipo', 'corpo', 'external_id', 'responde_a_id', 'status', 'erro', 'enviada_em',
         'remetente_nome', 'remetente_jid', 'automatica', 'por_fora',
         'transcricao', 'transcricao_status',
@@ -58,6 +58,12 @@ class Message extends Model
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);
+    }
+
+    /** Usuario da equipe que redigiu a mensagem enviada pelo painel. */
+    public function autor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 
     /** A mensagem que esta foi responder, quando houve uma. */

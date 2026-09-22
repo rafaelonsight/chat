@@ -99,6 +99,7 @@ class ConversationWindow extends Component
 
         $mensagens = $conversa
             ? $conversa->messages()
+                ->with('autor')
                 ->when($procurado !== '', function ($q) use ($procurado) {
                     // Procura tambem na legenda e na transcricao: audio transcrito e documento
                     // com legenda sao conteudo que o cliente mandou, e nao achar neles faria a
