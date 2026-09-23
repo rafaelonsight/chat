@@ -84,6 +84,13 @@ Route::get('/saude', function () {
  * do painel, senao mostraria por tras justamente o que ela existe para esconder.
  */
 Route::middleware('auth')->group(function () {
+    Route::post('/suporte/sair', function (\Illuminate\Http\Request $pedido) {
+        abort_unless($pedido->user()?->operador && $pedido->user()?->super_admin, 403);
+        $pedido->session()->forget(\App\Support\TenantContext::CHAVE_SESSAO_SUPORTE);
+
+        return redirect('/admin/suporte/contas');
+    })->name('suporte.sair');
+
     // Cadastro Incorporado (Embedded Signup): o popup da Meta devolve code + ids por
     // JS, e e o JS quem chama esta rota para trocar isso por um canal pronto.
     Route::post('/canais/meta/conectar-incorporado', [App\Http\Controllers\MetaEmbeddedSignupController::class, 'conectar'])

@@ -5,6 +5,7 @@ namespace App\Providers\Filament;
 use App\Filament\Pages\Atendimento;
 use App\Filament\Pages\Auth\Perfil;
 use App\Http\Middleware\LicencaValida;
+use App\Http\Middleware\ContextoDeSuporte;
 use App\Http\Middleware\MonitorarTrial;
 use App\Http\Middleware\SessaoBloqueada;
 use Filament\Http\Middleware\Authenticate;
@@ -56,7 +57,7 @@ class AdminPanelProvider extends PanelProvider
             // diferenca e telefonar.
             ->renderHook(
                 PanelsRenderHook::CONTENT_START,
-                fn (): string => view('filament.aviso-sem-canal')->render(),
+                fn (): string => view('filament.modo-suporte')->render().view('filament.aviso-sem-canal')->render(),
             )
             /*
              * O SINO DO PAINEL.
@@ -206,6 +207,9 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                // Antes de qualquer consulta do painel: o operador global precisa usar o
+                // tenant escolhido para que os escopos continuem isolando dados corretamente.
+                ContextoDeSuporte::class,
                 // Depois do StartSession e do Authenticate: a trava e por sessao, e
                 // precisa da sessao carregada e do usuario conhecido.
                 SessaoBloqueada::class,

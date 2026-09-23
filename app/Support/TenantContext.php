@@ -8,6 +8,9 @@ class TenantContext
 {
     private const KEY = 'onchat.tenant_id';
 
+    /** Tenant selecionado por um operador global para atendimento. */
+    public const CHAVE_SESSAO_SUPORTE = 'onchat.suporte.tenant_id';
+
     // Trava de reentrancia. Sem ela: o guard resolve o usuario consultando a
     // tabela users, essa consulta dispara o escopo global de tenant, o escopo
     // chama get(), get() chama auth()->user(), o guard ainda nao resolveu e
