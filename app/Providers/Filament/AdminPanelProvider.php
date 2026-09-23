@@ -5,6 +5,7 @@ namespace App\Providers\Filament;
 use App\Filament\Pages\Atendimento;
 use App\Filament\Pages\Auth\Perfil;
 use App\Http\Middleware\LicencaValida;
+use App\Http\Middleware\MonitorarTrial;
 use App\Http\Middleware\SessaoBloqueada;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -212,6 +213,10 @@ class AdminPanelProvider extends PanelProvider
                 // duas cortinas diferentes, e quem esta so com a sessao bloqueada nao
                 // precisa saber nada sobre a licenca da conta.
                 LicencaValida::class,
+                // Depois da licenca: so acompanha uma sessao autenticada e com acesso valido.
+                // O middleware nao examina navegador; registra apenas comportamento de rede
+                // inequivocamente anormal em trials marcados para monitoramento.
+                MonitorarTrial::class,
             ])
             ->authMiddleware([
                 Authenticate::class,

@@ -77,6 +77,7 @@ class Tenant extends Model
         'resposta_automatica_ativa', 'resposta_automatica_texto',
         'assinatura_ativa',
         'pesquisa_ativa', 'pesquisa_texto',
+        'trial_monitorado',
     ];
 
     // data_abertura fica sem cast de proposito: a tela le e escreve o texto
@@ -94,6 +95,7 @@ class Tenant extends Model
         'resposta_automatica_ativa' => 'boolean',
         'assinatura_ativa'          => 'boolean',
         'pesquisa_ativa'            => 'boolean',
+        'trial_monitorado'           => 'boolean',
         'cnpj_consultado_em'        => 'datetime',
     ];
 
