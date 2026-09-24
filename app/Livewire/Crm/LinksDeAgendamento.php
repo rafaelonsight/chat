@@ -6,6 +6,7 @@ use App\Models\BookingPage;
 use App\Models\Channel;
 use App\Models\User;
 use App\Support\DataPtBr;
+use App\Support\TenantContext;
 use Illuminate\Support\Str;
 use Livewire\Component;
 
@@ -160,7 +161,7 @@ class LinksDeAgendamento extends Component
             $pagina->update($dados);
         } else {
             BookingPage::create($dados + [
-                'tenant_id' => auth()->user()->tenant_id,
+                'tenant_id' => TenantContext::get() ?: auth()->user()->tenant_id,
                 'slug'      => BookingPage::slugLivre($this->slugPublico ?: $this->titulo),
             ]);
         }

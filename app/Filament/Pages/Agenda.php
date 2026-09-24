@@ -5,8 +5,10 @@ namespace App\Filament\Pages;
 use App\Models\Appointment;
 use App\Models\Channel;
 use App\Models\Contact;
+use App\Models\BookingPage;
 use App\Models\User;
 use App\Support\DataPtBr;
+use App\Support\TenantContext;
 use BackedEnum;
 use Filament\Pages\Page;
 use Filament\Support\Enums\Width;
@@ -193,6 +195,22 @@ class Agenda extends Page
         $this->verComo('dia');
     }
 
+    /** Clique no mini calendário: muda o foco sem trocar a visão que a pessoa escolheu. */
+    public function irParaDia(string $dia): void
+    {
+        $this->cursor = Carbon::parse($dia)->toDateString();
+    }
+
+    public function miniAnterior(): void
+    {
+        $this->cursor = Carbon::parse($this->cursor)->subMonthNoOverflow()->toDateString();
+    }
+
+    public function miniProximo(): void
+    {
+        $this->cursor = Carbon::parse($this->cursor)->addMonthNoOverflow()->toDateString();
+    }
+
     public function anterior(): void
     {
         $this->andar(-1);
@@ -307,7 +325,9 @@ class Agenda extends Page
             $compromisso->update($dados);
         } else {
             $compromisso = Appointment::create($dados + [
-                'tenant_id'  => auth()->user()->tenant_id,
+                // No suporte global, o tenant vem da conta que esta aberta, nao do
+                // endereco original do operador. Fora desse modo os dois sao iguais.
+                'tenant_id'  => TenantContext::get() ?: auth()->user()->tenant_id,
                 'criado_por' => auth()->id(),
             ]);
         }
@@ -746,6 +766,8 @@ class Agenda extends Page
         // A aba do link nao e calendario: nao ha periodo para varrer, e varrer assim mesmo
         // seria uma consulta por nada em cada clique dentro dela.
         if ($this->visao === 'link') {
+            $cursor = Carbon::parse($this->cursor);
+
             return [
                 'rotulo' => $this->rotulo(),
                 'semanas' => [], 'colunas' => [], 'grupos' => [],
@@ -755,6 +777,9 @@ class Agenda extends Page
                 'paraConvidar' => collect(),
                 'contatosDoAviso' => collect(),
                 'canais' => collect(),
+                'miniSemanas' => $this->semanasMiniCalendario(),
+                'mesMini' => self::MESES[$cursor->month].' de '.$cursor->year,
+                'paginasReserva' => BookingPage::with('user')->orderBy('titulo')->get(),
             ];
         }
 
@@ -778,6 +803,9 @@ class Agenda extends Page
             'paraConvidar'    => $this->paraConvidar(),
             'contatosDoAviso' => $this->contatosDoAviso(),
             'canais'          => Channel::orderBy('nome')->get(),
+            'miniSemanas'      => $this->semanasMiniCalendario(),
+            'mesMini'          => self::MESES[Carbon::parse($this->cursor)->month].' de '.Carbon::parse($this->cursor)->year,
+            'paginasReserva'   => BookingPage::with('user')->orderBy('titulo')->get(),
         ];
     }
 
@@ -880,6 +908,33 @@ class Agenda extends Page
         return $de->month === $ate->month
             ? $de->day.' a '.$ate->day.' de '.self::MESES[$de->month].' de '.$de->year
             : $de->day.' de '.self::MESES[$de->month].' a '.$ate->day.' de '.self::MESES[$ate->month];
+    }
+
+    /** @return array<int, array<int, array{data:string,numero:int,noMes:bool,hoje:bool,selecionado:bool}>> */
+    private function semanasMiniCalendario(): array
+    {
+        $cursor = Carbon::parse($this->cursor);
+        $inicio = $cursor->copy()->startOfMonth()->startOfWeek(Carbon::SUNDAY);
+        $fim = $cursor->copy()->endOfMonth()->endOfWeek(Carbon::SATURDAY);
+        $semanas = [];
+        $linha = [];
+
+        for ($dia = $inicio; $dia <= $fim; $dia->addDay()) {
+            $linha[] = [
+                'data'        => $dia->toDateString(),
+                'numero'      => $dia->day,
+                'noMes'       => $dia->month === $cursor->month,
+                'hoje'        => $dia->isToday(),
+                'selecionado' => $dia->isSameDay($cursor),
+            ];
+
+            if (count($linha) === 7) {
+                $semanas[] = $linha;
+                $linha = [];
+            }
+        }
+
+        return $semanas;
     }
 
     /** As folhas do mes: linhas de sete dias, cada dia com o que tem marcado. */

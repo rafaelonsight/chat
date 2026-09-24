@@ -59,6 +59,75 @@
         @pointerup.window="soltar($event)"
         class="space-y-4"
     >
+        <div class="flex items-start gap-5">
+            {{-- Lateral inspirada no Google Agenda: a pessoa navega no tempo e enxerga as
+                 paginas publicas sem abandonar a grade onde esta trabalhando. --}}
+            <aside class="hidden w-56 shrink-0 space-y-5 lg:block">
+                <section class="rounded-xl border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-gray-900">
+                    <div class="mb-2 flex items-center justify-between">
+                        <button type="button" wire:click="miniAnterior" aria-label="Mês anterior"
+                                class="grid h-7 w-7 place-items-center rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10">&lsaquo;</button>
+                        <span class="text-xs font-semibold text-gray-800 dark:text-gray-100">{{ $mesMini }}</span>
+                        <button type="button" wire:click="miniProximo" aria-label="Próximo mês"
+                                class="grid h-7 w-7 place-items-center rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10">&rsaquo;</button>
+                    </div>
+
+                    <div class="grid grid-cols-7 text-center text-[10px] text-gray-400">
+                        @foreach (['D', 'S', 'T', 'Q', 'Q', 'S', 'S'] as $dia)
+                            <span class="py-1">{{ $dia }}</span>
+                        @endforeach
+
+                        @foreach ($miniSemanas as $semana)
+                            @foreach ($semana as $dia)
+                                <button type="button" wire:click="irParaDia('{{ $dia['data'] }}')"
+                                        @class([
+                                            'mx-auto grid h-7 w-7 place-items-center rounded-full text-[11px] transition',
+                                            'bg-primary-600 font-semibold text-white' => $dia['selecionado'],
+                                            'font-semibold text-primary-700 dark:text-primary-300' => $dia['hoje'] && ! $dia['selecionado'],
+                                            'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-white/10' => $dia['noMes'] && ! $dia['selecionado'] && ! $dia['hoje'],
+                                            'text-gray-300 dark:text-gray-600' => ! $dia['noMes'] && ! $dia['selecionado'],
+                                        ])>
+                                    {{ $dia['numero'] }}
+                                </button>
+                            @endforeach
+                        @endforeach
+                    </div>
+                </section>
+
+                <section class="border-t border-gray-200 pt-4 dark:border-white/10">
+                    <div class="mb-2 flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Páginas de reserva</h3>
+                            <p class="text-[11px] text-gray-500">Links que seus clientes usam</p>
+                        </div>
+                        <button type="button" wire:click="verComo('link')" title="Nova página de reserva"
+                                class="grid h-7 w-7 place-items-center rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10">+</button>
+                    </div>
+
+                    <div class="space-y-1">
+                        @forelse ($paginasReserva as $pagina)
+                            <button type="button" wire:click="verComo('link')"
+                                    class="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-gray-100 dark:hover:bg-white/5">
+                                <span @class(['h-2 w-2 shrink-0 rounded-full', 'bg-emerald-500' => $pagina->ativa, 'bg-gray-400' => ! $pagina->ativa])></span>
+                                <span class="min-w-0 flex-1">
+                                    <span class="block truncate text-xs font-medium text-gray-700 dark:text-gray-200">{{ $pagina->titulo }}</span>
+                                    <span class="block truncate text-[10px] text-gray-500">{{ $pagina->user?->primeiroNome() }} · {{ $pagina->duracao_min }} min</span>
+                                </span>
+                            </button>
+                        @empty
+                            <button type="button" wire:click="verComo('link')" class="w-full rounded-lg border border-dashed border-gray-300 px-3 py-3 text-left text-xs text-gray-500 hover:bg-gray-50 dark:border-white/15 dark:hover:bg-white/5">
+                                Criar primeira página de reserva
+                            </button>
+                        @endforelse
+                    </div>
+
+                    @if ($paginasReserva->isNotEmpty())
+                        <button type="button" wire:click="verComo('link')" class="mt-2 text-xs font-medium text-primary-600 hover:underline dark:text-primary-400">Gerenciar páginas</button>
+                    @endif
+                </section>
+            </aside>
+
+            <div class="min-w-0 flex-1 space-y-4">
         {{-- ------------------------------------------------------------ barra --}}
         <div class="flex flex-wrap items-center gap-2">
             @unless ($this->visao === 'link')
@@ -141,5 +210,7 @@
                 <span class="inline-block h-2 w-2 rounded-sm bg-amber-400 align-middle"></span> lembrete, só você vê
             </p>
         @endunless
+            </div>
+        </div>
     </div>
 </x-filament-panels::page>
