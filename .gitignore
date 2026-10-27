@@ -39,3 +39,6 @@ _*.php
 .env.bak*
 .env.*.bak
 .env.backup*
+
+# Senha do papel de teste do banco: fica so no servidor.
+.env.testing

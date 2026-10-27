@@ -5,8 +5,9 @@
          colors="true"
 >
     <testsuites>
+        <testsuite name="Unit"><directory>tests/Unit</directory></testsuite>
+        <testsuite name="Feature"><directory>tests/Feature</directory></testsuite>
         <testsuite name="Agenda"><directory>tests/Agenda</directory></testsuite>
-        <testsuite name="Core"><file>tests/Feature/TenancyTest.php</file><file>tests/Feature/TenantRecursaoTest.php</file><file>tests/Feature/AcessoPorCanalTest.php</file><file>tests/Feature/CredencialPorCanalTest.php</file></testsuite>
     </testsuites>
     <source>
         <include>
@@ -14,10 +15,10 @@
         </include>
     </source>
     <php>
-        <env force="true" name="DB_USERNAME" value="virtus_agenda_test"/>
+        <env force="true" name="DB_USERNAME" value="virtus_final_test"/>
         <env force="true" name="APP_ENV" value="testing"/>
         <!-- Nunca reutilizar o config.php de produção: ele contém fila e banco reais. -->
-        <env force="true" name="APP_CONFIG_CACHE" value="/opt/virtus-agenda/app/storage/framework/testing-config.php"/>
+        <env force="true" name="APP_CONFIG_CACHE" value="storage/framework/testing-config.php"/>
 
         <!--
             O MESMO FUSO DA PRODUCAO.
@@ -27,6 +28,9 @@
             Regra de horario passava as 20h no teste e falhava as 20h no ar.
         -->
         <env force="true" name="APP_TIMEZONE" value="America/Sao_Paulo"/>
+        <!-- O produto fala portugues: os testes conferem os textos da tela em pt_BR. -->
+        <env force="true" name="APP_LOCALE" value="pt_BR"/>
+        <env force="true" name="APP_FAKER_LOCALE" value="pt_BR"/>
 
         <!--
             Vídeo desligado no teste, sempre.
@@ -36,7 +40,7 @@
             num teste de diagnostico que conta problemas. Quem precisa de video no teste liga
             explicitamente, como o VideoTest faz.
         -->
-        <env force="true" name="TRANSCRICAO_ATIVA" value="false"/>
+        <env force="true" name="TRANSCRICAO_ATIVA" value="true"/>
         <env force="true" name="LIVEKIT_URL" value=""/>
         <env force="true" name="LIVEKIT_API_URL" value=""/>
         <env force="true" name="LIVEKIT_API_KEY" value=""/>
@@ -44,9 +48,21 @@
         <env force="true" name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env force="true" name="BCRYPT_ROUNDS" value="4"/>
         <env force="true" name="BROADCAST_CONNECTION" value="null"/>
+        <!-- Credenciais FALSAS: teste nunca le token de verdade do .env, e todo HTTP e fake. -->
+        <env force="true" name="REVERB_APP_ID" value="teste"/>
+        <env force="true" name="REVERB_APP_KEY" value="chave-teste"/>
+        <env force="true" name="REVERB_APP_SECRET" value="segredo-teste"/>
+        <env force="true" name="META_APP_ID" value="app-teste"/>
+        <env force="true" name="META_APP_SECRET" value="segredo-meta-teste"/>
+        <env force="true" name="META_TOKEN" value="token-meta-teste"/>
+        <env force="true" name="META_PHONE_NUMBER_ID" value="123456789"/>
+        <env force="true" name="META_WABA_ID" value="987654321"/>
+        <env force="true" name="META_VERIFY_TOKEN" value="verificacao-teste"/>
+        <env force="true" name="REVENDA_DOMAIN" value="admin.virtus.chat"/>
+        <env force="true" name="APP_URL" value="https://app.virtus.chat"/>
         <env force="true" name="CACHE_STORE" value="array"/>
         <env force="true" name="DB_CONNECTION" value="pgsql"/>
-        <env force="true" name="DB_DATABASE" value="virtus_agenda_test"/>
+        <env force="true" name="DB_DATABASE" value="virtus_final_test"/>
         <env force="true" name="DB_URL" value=""/>
         <env force="true" name="MAIL_MAILER" value="array"/>
         <env force="true" name="QUEUE_CONNECTION" value="sync"/>
@@ -54,6 +70,6 @@
         <env force="true" name="PULSE_ENABLED" value="false"/>
         <env force="true" name="TELESCOPE_ENABLED" value="false"/>
         <env force="true" name="NIGHTWATCH_ENABLED" value="false"/>
-        <env force="true" name="REDIS_PREFIX" value="virtus_agenda_test_"/>
+        <env force="true" name="REDIS_PREFIX" value="virtus_final_test_"/>
     </php>
 </phpunit>
