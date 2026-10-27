@@ -16,7 +16,7 @@ class ContasParaSuporte extends Page
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingOffice;
     protected static string|UnitEnum|null $navigationGroup = 'Configurações';
-    protected static ?string $navigationParentItem = null;
+    protected static ?string $navigationParentItem = 'Conta';
     protected static ?string $navigationLabel = 'Contas para suporte';
     protected static ?string $title = 'Contas para suporte';
     protected static ?int $navigationSort = 1;

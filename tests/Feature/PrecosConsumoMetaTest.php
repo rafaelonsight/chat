@@ -44,7 +44,10 @@ it('admin nao consulta canal de outra conta',function(){
  $t=Tenant::create(['nome'=>'T','slug'=>'precos-a']);$o=Tenant::create(['nome'=>'O','slug'=>'precos-o']);
  TenantContext::set($o->id);$c=Channel::create(['nome'=>'Outra','tipo'=>Channel::META_CLOUD,'meta_waba_id'=>'outro']);
  TenantContext::set($t->id);$u=User::create(['tenant_id'=>$t->id,'password'=>'test-password','name'=>'U','email'=>'admin@precos.test','admin'=>true]);
- expect(fn()=>Livewire::actingAs($u)->test(PrecosConsumoMeta::class)->set('channelId',$c->id)->call('consultarConsumo'))->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+ Livewire::actingAs($u)->test(PrecosConsumoMeta::class)->set('channelId',$c->id)->call('consultarConsumo')
+        // Livewire 4.4: o findOrFail sob o escopo do tenant vira 404 no teste, em vez de
+        // exceção. O que importa continua igual: o registro de outra conta não é carregado.
+        ->assertStatus(404);
  Http::assertNothingSent();
 });
 

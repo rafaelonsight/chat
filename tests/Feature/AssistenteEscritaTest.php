@@ -8,7 +8,7 @@ use App\Services\AssistenteEscrita;
 use App\Livewire\Inbox\MessageComposer;
 beforeEach(function(){
  $this->tenant=Tenant::create(['nome'=>'IA','slug'=>'ia']);TenantContext::set($this->tenant->id);
- $this->tenant->forceFill(['ia_config'=>['ativa'=>true,'provedor'=>'gateway','modelo'=>'claude-sonnet-5','chave'=>'segredo-api']])->save();
+ $this->tenant->forceFill(['ia_config'=>['ativa'=>true,'provedor'=>'gateway','modelo'=>'claude-sonnet-5','chave'=>'segredo-api']])->save(); \App\Services\GatewayVirtus::salvar(['ativa'=>true,'provedor'=>'gateway','modelo'=>'claude-sonnet-5','chave'=>'segredo-api']); /* a IA usa o gateway global desde 09/10 */
  $this->user=User::factory()->create(['tenant_id'=>$this->tenant->id,'perfil'=>'admin']);
  $this->user->forceFill(['admin'=>true,'super_admin'=>false])->saveQuietly();
  $this->channel=Channel::create(['nome'=>'Teste']);$this->user->canais()->attach($this->channel);
@@ -43,7 +43,7 @@ it('rejeita auditor nota interna e falta de canal sem enviar texto à IA',functi
  $this->user->canais()->detach();$this->actingAs($this->user->fresh());Livewire::test(MessageComposer::class,['conversationId'=>$this->conversation->id])->set('corpo','SEGREDO')->call('sugerirEscrita')->assertForbidden();Http::assertNothingSent();
 });
 it('suporta Anthropic e OpenAI com a configuração da conta',function(){
- foreach(['anthropic','openai'] as $p){$this->tenant->forceFill(['ia_config'=>['ativa'=>true,'provedor'=>$p,'modelo'=>'modelo-teste','chave'=>'segredo']])->save();Http::fake([($p==='anthropic'?'api.anthropic.com/*':'api.openai.com/*')=>Http::response($p==='anthropic'?['content'=>[['text'=>'{"texto":"Olá!"}']]]:['choices'=>[['message'=>['content'=>'{"texto":"Olá!"}']]]])]);expect(app(AssistenteEscrita::class)->sugerir($this->conversation->fresh(),$this->user,'ola','corrigir'))->toBe('Olá!');}
+ foreach(['anthropic','openai'] as $p){$this->tenant->forceFill(['ia_config'=>['ativa'=>true,'provedor'=>$p,'modelo'=>'modelo-teste','chave'=>'segredo']])->save(); \App\Services\GatewayVirtus::salvar(['ativa'=>true,'provedor'=>$p,'modelo'=>'modelo-teste','chave'=>'segredo']); /* a IA usa o gateway global desde 09/10 */Http::fake([($p==='anthropic'?'api.anthropic.com/*':'api.openai.com/*')=>Http::response($p==='anthropic'?['content'=>[['text'=>'{"texto":"Olá!"}']]]:['choices'=>[['message'=>['content'=>'{"texto":"Olá!"}']]]])]);expect(app(AssistenteEscrita::class)->sugerir($this->conversation->fresh(),$this->user,'ola','corrigir'))->toBe('Olá!');}
 });
 it('recusa ação inválida ou texto excessivo',function(){
  expect(fn()=>app(AssistenteEscrita::class)->sugerir($this->conversation,$this->user,'ola','inventar'))->toThrow(RuntimeException::class);

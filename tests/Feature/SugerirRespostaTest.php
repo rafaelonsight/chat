@@ -8,7 +8,7 @@ use App\Services\AssistenteEscrita;
 use App\Livewire\Inbox\MessageComposer;
 beforeEach(function(){
  $this->tenant=Tenant::create(['nome'=>'IA','slug'=>'ia']);TenantContext::set($this->tenant->id);
- $this->tenant->forceFill(['ia_config'=>['ativa'=>true,'provedor'=>'gateway','modelo'=>'claude-sonnet-5','chave'=>'segredo-api']])->save();
+ $this->tenant->forceFill(['ia_config'=>['ativa'=>true,'provedor'=>'gateway','modelo'=>'claude-sonnet-5','chave'=>'segredo-api']])->save(); \App\Services\GatewayVirtus::salvar(['ativa'=>true,'provedor'=>'gateway','modelo'=>'claude-sonnet-5','chave'=>'segredo-api']); /* a IA usa o gateway global desde 09/10 */
  $this->user=User::factory()->create(['tenant_id'=>$this->tenant->id,'perfil'=>'admin']);
  $this->user->forceFill(['admin'=>true,'super_admin'=>false])->saveQuietly();
  $this->channel=Channel::create(['nome'=>'Teste']);$this->user->canais()->attach($this->channel);

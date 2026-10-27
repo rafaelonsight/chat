@@ -63,7 +63,7 @@ it('cria move e altera card do contato mantendo o id em variavel',function(){
  $a->update(['tipo'=>'alterar_card','config'=>['card_chave'=>'card_id','descricao'=>'Atualizada']]);app(BlocosChatbot::class)->executar($a,$c);expect($item->fresh()->descricao)->toBe('Atualizada')->and($item->fresh()->titulo)->toBe('Suporte de Cliente');
 });
 it('IA valida resposta estruturada e nao recebe notas internas',function(){
- $this->tenant->forceFill(['ia_config'=>['ativa'=>true,'chave'=>'teste','modelo'=>'teste','provedor'=>'openai']])->save();
+ $this->tenant->forceFill(['ia_config'=>['ativa'=>true,'chave'=>'teste','modelo'=>'teste','provedor'=>'openai']])->save(); \App\Services\GatewayVirtus::salvar(['ativa'=>true,'chave'=>'teste','modelo'=>'teste','provedor'=>'openai']); /* a IA usa o gateway global desde 09/10 */
  \Illuminate\Support\Facades\Http::fake(['https://api.openai.com/*'=>\Illuminate\Support\Facades\Http::response(['choices'=>[['message'=>['content'=>'{"texto":"Como posso ajudar?","transferir":false}']]]],200)]);
  $contact=Contact::create(['nome'=>'Cliente','jid'=>'5511999990004@s.whatsapp.net']);$canal=\App\Models\Channel::create(['tipo'=>'evolution','nome'=>'Teste']);$c=Conversation::create(['contact_id'=>$contact->id,'channel_id'=>$canal->id,'status'=>'novo']);
  \App\Models\ConversationEvent::create(['conversation_id'=>$c->id,'tipo'=>'nota','descricao'=>'SEGREDO_INTERNO']);

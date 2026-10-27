@@ -28,7 +28,7 @@ it('recusa idioma desconhecido e exige autenticacao',function(){
 });
 it('IA continua em ingles com interface em portugues',function(){
  $this->usuario->forceFill(['idioma_interface'=>'pt_BR'])->save();app()->setLocale('pt_BR');
- $this->conta->forceFill(['ia_config'=>['ativa'=>true,'provedor'=>'openai','chave'=>'test-key','modelo'=>'test-model']])->save();
+ $this->conta->forceFill(['ia_config'=>['ativa'=>true,'provedor'=>'openai','chave'=>'test-key','modelo'=>'test-model']])->save(); \App\Services\GatewayVirtus::salvar(['ativa'=>true,'provedor'=>'openai','chave'=>'test-key','modelo'=>'test-model']); /* a IA usa o gateway global desde 09/10 */
  Http::preventStrayRequests();Http::fake(['api.openai.com/*'=>Http::response(['choices'=>[['message'=>['content'=>'British English response']]]])]);
  expect(app(ResumoIA::class)->responder($this->conta,'Review a draft','text'))->toBe('British English response');
  Http::assertSent(fn($r)=>str_contains($r['messages'][0]['content'],'exclusively in British English (UK)'));

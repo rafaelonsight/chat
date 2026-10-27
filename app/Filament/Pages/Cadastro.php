@@ -20,7 +20,7 @@ class Cadastro extends Page
 
     protected static string|UnitEnum|null $navigationGroup = 'Configurações';
 
-    protected static ?string $navigationParentItem = null;
+    protected static ?string $navigationParentItem = 'Conta';
 
     /*
      * "Dados da conta" e nao "Cadastro": com o ERP tendo o seu proprio Cadastro, dois itens com o

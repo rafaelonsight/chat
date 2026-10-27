@@ -20,7 +20,9 @@ it('creates only the Agenda instance when it does not exist',function(){
  Livewire::test(AgendaWhatsAppQr::class)->assertSet('qr',$this->qr);expect($this->created)->toBeTrue();
 });
 it('only marks connected after provider confirms open and removes the QR',function(){
- Http::fake(['*'=>Http::response(['instance'=>['state'=>'open']])]);Livewire::test(AgendaWhatsAppQr::class)->assertSet('state','open')->assertSet('qr',null);expect(Connection::firstOrFail()->status)->toBe('conectado');Http::assertSentCount(1);
+ Http::fake(['*'=>Http::response(['instance'=>['state'=>'open']])]);Livewire::test(AgendaWhatsAppQr::class)->assertSet('state','open')->assertSet('qr',null);expect(Connection::firstOrFail()->status)->toBe('conectado');
+ // Conectado, aponta o webhook da Evolution para a inbox (ponte de 13/10): estado + webhook, nada mais.
+ Http::assertSentCount(2);Http::assertSent(fn($r)=>$r->method()==='POST' && str_contains($r->url(),'/webhook/set/agenda-'));
 });
 it('refuses another tenant or professional and blocks arbitrary Evolution URLs',function(){
  $c=app(AgendaEvolution::class)->channel($this->admin);$t=Tenant::create(['nome'=>'Outro','slug'=>'qr-other']);$u=User::create(['tenant_id'=>$t->id,'name'=>'Other','email'=>'qr-other@example.test','password'=>'TestPassword123!','perfil'=>'admin']);$this->actingAs($u);Http::fake();

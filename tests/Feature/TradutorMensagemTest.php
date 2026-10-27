@@ -5,7 +5,7 @@ use App\Services\{TradutorMensagem,AssistenteEscrita};
 use Illuminate\Support\Facades\{Http,Queue};
 beforeEach(function(){
  $this->t=Tenant::create(['nome'=>'LA','slug'=>'traducao','idioma_comunicacoes'=>'en_GB','ia_config'=>['provedor'=>'gateway','modelo'=>'claude-sonnet-5','ativa'=>true,'chave'=>'fake']]);
- $this->t->forceFill(['idioma_comunicacoes'=>'en_GB','ia_config'=>['provedor'=>'gateway','modelo'=>'claude-sonnet-5','ativa'=>true,'chave'=>'fake']])->save();
+ $this->t->forceFill(['idioma_comunicacoes'=>'en_GB','ia_config'=>['provedor'=>'gateway','modelo'=>'claude-sonnet-5','ativa'=>true,'chave'=>'fake']])->save(); \App\Services\GatewayVirtus::salvar(['provedor'=>'gateway','modelo'=>'claude-sonnet-5','ativa'=>true,'chave'=>'fake']); /* a IA usa o gateway global desde 09/10 */
  TenantContext::set($this->t->id);
  $this->u=User::create(['tenant_id'=>$this->t->id,'name'=>'R','email'=>'r@traducao.test','password'=>'test-password','admin'=>true]);
  $this->c=Channel::create(['nome'=>'C','tipo'=>Channel::EVOLUTION]);

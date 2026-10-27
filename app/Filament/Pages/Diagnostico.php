@@ -26,7 +26,7 @@ class Diagnostico extends Page
 
     protected static string|UnitEnum|null $navigationGroup = 'Configurações';
 
-    protected static ?string $navigationParentItem = null;
+    protected static ?string $navigationParentItem = 'Conta';
 
     protected static ?string $navigationLabel = 'Diagnóstico';
 

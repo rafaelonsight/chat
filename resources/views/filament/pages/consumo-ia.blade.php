@@ -14,10 +14,10 @@
  <x-filament::section><x-slot name="heading">{{ __('Comprar mais créditos') }}</x-slot>
  <p class="mb-4 text-sm text-gray-500">{{ __('Escolha um pacote extra. A compra será registrada como solicitação; pagamento e liberação automática ainda não estão disponíveis.') }}</p>
  <div class="grid gap-4 md:grid-cols-3">
- @foreach($pacotes as $créditos=>$centavos)
- <div class="rounded-xl border border-gray-200 p-4"><p class="text-lg font-semibold">{{ number_format($créditos,0,',','.') }} créditos</p><p class="mt-2 text-2xl font-semibold">R$ {{ number_format($centavos/100,2,',','.') }}</p>
+ @foreach($pacotes as $creditos=>$centavos)
+ <div class="rounded-xl border border-gray-200 p-4"><p class="text-lg font-semibold">{{ number_format($creditos,0,',','.') }} créditos</p><p class="mt-2 text-2xl font-semibold">R$ {{ number_format($centavos/100,2,',','.') }}</p>
  @if(auth()->user()?->admin)
- <x-filament::button type="button" class="mt-4 w-full" wire:click="solicitarCompra({{ $créditos }})" wire:loading.attr="disabled" wire:target="solicitarCompra">{{ __('Solicitar compra') }}</x-filament::button>
+ <x-filament::button type="button" class="mt-4 w-full" wire:click="solicitarCompra({{ $creditos }})" wire:loading.attr="disabled" wire:target="solicitarCompra">{{ __('Solicitar compra') }}</x-filament::button>
  @else
  <p class="mt-3 text-xs text-gray-500">{{ __('Peça ao administrador da conta para comprar.') }}</p>
  @endif
@@ -27,7 +27,7 @@
  @if($compras->isNotEmpty())
  <h3 class="mt-5 text-sm font-semibold">{{ __('Solicitações de compra') }}</h3>
  @foreach($compras as $compra)
- <div class="mt-2 flex flex-wrap justify-between gap-2 border-t py-2 text-sm"><span>#{{ $compra->id }} · {{ number_format($compra->créditos,0,',','.') }} créditos · R$ {{ number_format($compra->valor_centavos/100,2,',','.') }}</span><span>{{ __('Aguardando pagamento') }}</span></div>
+ <div class="mt-2 flex flex-wrap justify-between gap-2 border-t py-2 text-sm"><span>#{{ $compra->id }} · {{ number_format($compra->tokens,0,',','.') }} créditos · R$ {{ number_format($compra->valor_centavos/100,2,',','.') }}</span><span>{{ __('Aguardando pagamento') }}</span></div>
  @endforeach
  @endif
  </x-filament::section>

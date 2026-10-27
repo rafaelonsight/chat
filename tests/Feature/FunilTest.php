@@ -196,9 +196,11 @@ it('nao move para etapa de OUTRA conta', function () {
 
     $conversa = conversaFunil($this, 'Maria');
 
-    expect(fn () => Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->call('mover', $conversa->id, $alheia->id))
-        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+    Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('mover', $conversa->id, $alheia->id)
+        // Livewire 4.4: o findOrFail sob o escopo do tenant vira 404 no teste, em vez de
+        // exceção. O que importa continua igual: o registro de outra conta não é carregado.
+        ->assertStatus(404);
 
     expect($conversa->fresh()->funnel_stage_id)->toBeNull();
 });

@@ -54,7 +54,10 @@ it('renderiza relatorio e abre conversa vinculada',function(){
 it('impede acessar campanha de outra conta por id',function(){
  $t=Tenant::create(['nome'=>'Outra','slug'=>'outra-campaign']);$ch=Channel::withoutGlobalScopes()->create(['tenant_id'=>$t->id,'nome'=>'Outro','tipo'=>'evolution','instance_name'=>'outro-campaign']);
  $c=Campaign::withoutGlobalScopes()->create(['tenant_id'=>$t->id,'channel_id'=>$ch->id,'nome'=>'Privado','publico'=>'todos']);
- expect(fn()=>Livewire::test(Campanhas::class)->call('abrir',$c->id))->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+ Livewire::test(Campanhas::class)->call('abrir',$c->id)
+        // Livewire 4.4: o findOrFail sob o escopo do tenant vira 404 no teste, em vez de
+        // exceção. O que importa continua igual: o registro de outra conta não é carregado.
+        ->assertStatus(404);
 });
 it('guia criacao valida e salva rascunho sem disparar',function(){
  Queue::fake();Livewire::test(Campanhas::class)->call('novaCampanha')->set('nome','Nova QA')->set('publico','todos')->call('avancar')->assertSet('etapa',2)->set('corpo','Teste')->call('avancar')->assertSet('etapa',3)->call('avancar')->assertSet('etapa',4)->call('salvar')->assertHasNoErrors();

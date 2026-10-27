@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\{Http,DB};
 use Livewire\Livewire;
 beforeEach(function(){
  $this->tenant=Tenant::create(['nome'=>'IA','slug'=>'ia']);TenantContext::set($this->tenant->id);
- $this->tenant->forceFill(['ia_config'=>['ativa'=>true,'provedor'=>'gateway','modelo'=>'claude-sonnet-5','chave'=>'segredo-api']])->save();
+ $this->tenant->forceFill(['ia_config'=>['ativa'=>true,'provedor'=>'gateway','modelo'=>'claude-sonnet-5','chave'=>'segredo-api']])->save(); \App\Services\GatewayVirtus::salvar(['ativa'=>true,'provedor'=>'gateway','modelo'=>'claude-sonnet-5','chave'=>'segredo-api']); /* a IA usa o gateway global desde 09/10 */
  $this->user=User::factory()->create(['tenant_id'=>$this->tenant->id,'perfil'=>'admin']);
  $this->user->forceFill(['admin'=>true,'super_admin'=>false])->saveQuietly();
  $this->channel=Channel::create(['nome'=>'Teste']);$this->user->canais()->attach($this->channel);
@@ -51,6 +51,8 @@ it('empresa recebe no endereço dedicado com deduplicação',function(){
  expect(DB::table('emails_encerramento')->where('destinatario_tipo','cliente')->value('estado'))->toBe('sem_email');
 });
 it('configuração não devolve chave salva ao navegador',function(){
+ // A configuracao da IA virou global (gateway da Virtus): so Super Admin abre a tela.
+ $this->user->forceFill(['super_admin'=>true])->saveQuietly();
  \Filament\Facades\Filament::setCurrentPanel(\Filament\Facades\Filament::getPanel('admin'));
  Livewire::actingAs($this->user)->test(\App\Filament\Pages\InteligenciaArtificial::class)->assertSet('chave','')->assertSet('temChave',true)->assertDontSee('segredo-api');
 });
