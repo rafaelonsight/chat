@@ -61,12 +61,19 @@ class CriarCliente
             // licenca nenhuma, e o middleware que confere acesso trataria "sem licenca"
             // como bloqueado — o cadastro pareceria ter dado certo e a pessoa nao
             // conseguiria entrar.
-            License::updateOrCreate([
-                'tenant_id'  => $cliente->id,
-                'status'     => License::TRIAL,
-                'inicia_em'  => now(),
-                'vence_em'   => now()->addDays(self::DIAS_DE_TRIAL),
-            ]);
+            //
+            // Procura SO por tenant_id e sem o escopo global: o Tenant::created ja criou uma
+            // licenca para esta conta, e o contexto aqui ainda e o do operador. Buscar pelos
+            // quatro campos (com now() incluso) nunca achava a existente e tentava inserir
+            // uma segunda, batendo no unique de tenant_id.
+            License::withoutGlobalScope('tenant')->updateOrCreate(
+                ['tenant_id' => $cliente->id],
+                [
+                    'status'    => License::TRIAL,
+                    'inicia_em' => now(),
+                    'vence_em'  => now()->addDays(self::DIAS_DE_TRIAL),
+                ],
+            );
 
             return [$cliente, $responsavel];
         });

@@ -239,7 +239,9 @@ it('o desenho nao vaza fluxo de outro tenant', function () {
     TenantContext::set($this->tenant->id);
 
     // findOrFail sob o escopo global: fluxo de outra conta simplesmente nao existe.
-    expect(fn () => Livewire::actingAs($this->admin)
-        ->test(EditarFluxo::class, ['record' => $botAlheio->getKey()]))
-        ->toThrow(Illuminate\Database\Eloquent\ModelNotFoundException::class);
+    Livewire::actingAs($this->admin)
+        ->test(EditarFluxo::class, ['record' => $botAlheio->getKey()])
+        // Livewire 4.4: o findOrFail sob o escopo do tenant vira 404 no teste, em vez de
+        // exceção. O que importa continua igual: o registro de outra conta não é carregado.
+        ->assertStatus(404);
 });

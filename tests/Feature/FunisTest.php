@@ -279,10 +279,12 @@ it('item so se move entre colunas do proprio painel', function () {
     ]);
     $version = $item->fresh()->version;
 
-    expect(fn () => Livewire::actingAs($this->admin)->test(Paineis::class)
+    Livewire::actingAs($this->admin)->test(Paineis::class)
         ->call('abrirFunil', $comercial->id)
-        ->call('moverItem', $item->id, $suporte->stages()->first()->id, $version))
-        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        ->call('moverItem', $item->id, $suporte->stages()->first()->id, $version)
+        // Livewire 4.4: o findOrFail sob o escopo do tenant vira 404 no teste, em vez de
+        // exceção. O que importa continua igual: o registro de outra conta não é carregado.
+        ->assertStatus(404);
 
     expect($item->fresh()->funnel_stage_id)->toBe($origem->id)
         ->and($item->fresh()->version)->toBe($version);
@@ -368,15 +370,19 @@ it('funil de outra conta nao abre nem se apaga', function () {
         'tenant_id' => $outra->id, 'nome' => 'Alheio', 'ordem' => 0,
     ]);
 
-    expect(fn () => Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->call('abrirFunil', $alheio->id))
-        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+    Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->call('abrirFunil', $alheio->id)
+        // Livewire 4.4: o findOrFail sob o escopo do tenant vira 404 no teste, em vez de
+        // exceção. O que importa continua igual: o registro de outra conta não é carregado.
+        ->assertStatus(404);
 
     expect(Funnel::withoutGlobalScope('tenant')->whereKey($alheio->id)->exists())->toBeTrue();
 
-    expect(fn()=>Livewire::actingAs($this->admin)->test(Paineis::class)
-        ->set('funilId',$alheio->id)->call('arquivarPainel'))
-        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+    Livewire::actingAs($this->admin)->test(Paineis::class)
+        ->set('funilId',$alheio->id)->call('arquivarPainel')
+        // Livewire 4.4: o findOrFail sob o escopo do tenant vira 404 no teste, em vez de
+        // exceção. O que importa continua igual: o registro de outra conta não é carregado.
+        ->assertStatus(404);
 
     expect(Funnel::withoutGlobalScope('tenant')->whereKey($alheio->id)->exists())->toBeTrue()
         ->and(Funnel::count())->toBe(1)
