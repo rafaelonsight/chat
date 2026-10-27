@@ -1,7 +1,10 @@
 <?php
 
 return [
-    'edition' => true,
+    // Liga a "edicao Agenda", que troca as rotas e o comportamento do app inteiro. Na versao
+    // final a Agenda vira modulo por conta (Fase 2 do blueprint); ate la, desligado por padrao
+    // o produto e o Virtus Chat completo.
+    'edition' => (bool) env('AGENDA_EDITION', false),
     // Polling is the supported mode until an independent Reverb is homologated.
     'realtime_enabled' => false,
     'currency' => env('AGENDA_CURRENCY', 'BRL'),
