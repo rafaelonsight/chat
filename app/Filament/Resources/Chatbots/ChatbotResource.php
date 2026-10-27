@@ -18,6 +18,10 @@ use UnitEnum;
 
 class ChatbotResource extends Resource
 {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'automacao';
+
     use \App\Filament\TraduzirResource;
 
     protected static ?string $model = Chatbot::class;

@@ -9,6 +9,10 @@ use Illuminate\Support\Carbon;
 use Livewire\WithPagination;
 use Livewire\Attributes\Locked;
 class QualidadeAtendimento extends Page {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'qualidade';
+
     use \App\Filament\TraduzirNavegacao;
 
  use WithPagination;
@@ -21,7 +25,7 @@ class QualidadeAtendimento extends Page {
  public string $responsavelRevisao='';public string $prazo='';
  #[Locked] public ?int $selecionado=null;
  public static function getNavigationBadge(): ?string {$u=auth()->user()?->fresh();$id=TenantContext::get();if(!$u || !$id || !app(\App\Services\AlertasQualidade::class)->gerente($u))return null;$n=app(\App\Services\AlertasQualidade::class)->pendentes($u,$id)->count();return $n?(string)$n:null;}
- public static function canAccess(): bool {return (bool)auth()->user()?->consultaRelatorios();}
+ public static function acessoSemModulo(): bool {return (bool)auth()->user()?->consultaRelatorios();}
  public function podeEditar(): bool {$u=auth()->user()?->fresh();return $u && !$u->ehAuditor() && ($u->admin || in_array($u->perfil,['admin','supervisor'],true));}
  public function mount(): void {$tz=Tenant::find(TenantContext::get())?->fuso_horario ?: 'America/Sao_Paulo';$this->inicio=now()->timezone($tz)->subDays(29)->format('Y-m-d');$this->fim=now()->timezone($tz)->format('Y-m-d');if(request()->boolean('pendencias'))$this->verPendencias();if($id=(int)request()->query('revisao'))$this->revisar($id);}
  public function aplicar(): void {$this->validate(['inicio'=>'required|date_format:Y-m-d','fim'=>'required|date_format:Y-m-d|after_or_equal:inicio','etiqueta'=>'nullable|integer','canal'=>'nullable|integer','equipe'=>'nullable|integer','atendente'=>'nullable|integer','avaliacao'=>'in:,baixas,sem,positivas','situacao'=>'in:,pendente,acompanhamento,concluida,abertas']);$this->selecionado=null;$this->resetPage();}

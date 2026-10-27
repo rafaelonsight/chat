@@ -15,6 +15,10 @@ use Livewire\WithPagination;
 
 class Paineis extends Page
 {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'vendas';
+
     use \App\Filament\TraduzirNavegacao;
 
     use WithFileUploads, WithPagination;

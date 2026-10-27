@@ -19,9 +19,19 @@ class LicenseForm
                 ->options(fn () => \App\Support\Idiomas::opcoes(License::STATUS))
                 ->required(),
 
-            TextInput::make('plano')
+            Select::make('plano')
                 ->label(__('ui_eac9e53a1678'))
-                ->maxLength(60),
+                ->options(fn () => collect(config('modulos.planos'))->map(fn ($p) => $p['nome'])->all())
+                ->placeholder(config('modulos.planos.'.config('modulos.plano_padrao').'.nome').' (padrão)')
+                ->live(),
+
+            \Filament\Forms\Components\CheckboxList::make('modulos')
+                ->label('Módulos a mais')
+                ->helperText('Somados ao que o plano já inclui.')
+                ->options(fn ($get) => collect(config('modulos.catalogo'))
+                    ->except(config('modulos.planos.'.($get('plano') ?: config('modulos.plano_padrao')).'.modulos', []))
+                    ->all())
+                ->columns(2),
 
             DateTimePicker::make('vence_em')
                 ->label(__('ui_39e35d115789'))

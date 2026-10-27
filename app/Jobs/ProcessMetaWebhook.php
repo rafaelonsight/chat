@@ -380,6 +380,10 @@ class ProcessMetaWebhook implements ShouldQueue
      */
     private function talvezSequencias(Message $mensagem): void
     {
+        if (! \App\Support\Modulos::ativo('automacao', $mensagem->tenant_id)) {
+            return;
+        }
+
         $contato = $mensagem->conversation?->contact;
 
         if (! $contato) {

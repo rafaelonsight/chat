@@ -27,6 +27,10 @@ use UnitEnum;
 
 class ClientAccountResource extends Resource
 {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'demandas';
+
     use \App\Filament\TraduzirResource;
 
     protected static bool $shouldRegisterNavigation = false;

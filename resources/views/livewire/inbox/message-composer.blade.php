@@ -259,7 +259,7 @@
              x-effect="$wire.corpo ? localStorage.setItem(chave, $wire.corpo) : localStorage.removeItem(chave)">
         </div>
 
-        @if(!$nota && !config('agenda.edition'))
+        @if(!$nota && !config('agenda.edition') && \App\Support\Modulos::ativo('ia'))
         <section class="mb-2 rounded-xl border border-violet-200 bg-violet-50 p-3" aria-label="{{ __('ui_6852e59c65cf') }}">
             <label class="mb-2 block text-xs font-medium">{{ __('Idioma da sugestão e tradução') }}
                 <select wire:model.live="idiomaEscrita" class="ml-2 rounded-lg border bg-white px-3 py-1.5 text-sm">

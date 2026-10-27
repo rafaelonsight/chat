@@ -9,6 +9,10 @@ use Filament\Forms\Components\{TextInput,Textarea,Select,Toggle};
 use Filament\Tables\Columns\{TextColumn,IconColumn};
 use Illuminate\Database\Eloquent\{Model,Builder};
 class AiAgentResource extends Resource {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'ia';
+
     use \App\Filament\TraduzirResource;
 
  protected static ?string $model=AiAgent::class;

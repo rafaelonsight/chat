@@ -58,10 +58,12 @@ class Reservar extends Component
 
     public function pagina(): BookingPage
     {
-        return once(fn () => BookingPage::withoutGlobalScope('tenant')
+        return once(fn () => tap(BookingPage::withoutGlobalScope('tenant')
             ->with('user')
             ->where('slug', $this->slug)
-            ->firstOr(fn () => abort(404)));
+            ->firstOr(fn () => abort(404)),
+            // Link publico de conta sem o modulo Agenda some como link inexistente.
+            fn (BookingPage $p) => abort_unless(\App\Support\Modulos::ativo('agenda', $p->tenant_id), 404)));
     }
 
     public function escolherDia(string $dia): void

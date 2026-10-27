@@ -46,6 +46,10 @@ class DispararCampanha implements ShouldQueue
             return; // pausada, cancelada ou apagada entre um tique e outro
         }
 
+        if (! \App\Support\Modulos::ativo('campanhas', $campanha->tenant_id)) {
+            return; // plano sem campanhas: nada sai, e a campanha fica como esta
+        }
+
         TenantContext::runAs($campanha->tenant_id, function () use ($campanha, $disparador) {
             $agora = now();
             if ($campanha->agendada_para && $campanha->agendada_para->gt($agora)) {

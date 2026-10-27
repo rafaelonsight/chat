@@ -9,6 +9,10 @@ use Filament\Forms\Components\{TextInput,Textarea,Select,Toggle,FileUpload};
 use Filament\Tables\Columns\{TextColumn,IconColumn};
 use Illuminate\Database\Eloquent\{Model,Builder};
 class KnowledgeDocumentResource extends Resource {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'ia';
+
  use \App\Filament\TraduzirResource;
  protected static ?string $model=KnowledgeDocument::class;
  protected static string|\BackedEnum|null $navigationIcon='heroicon-o-book-open';

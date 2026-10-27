@@ -32,7 +32,7 @@ class Proposta extends Component
     {
         $proposta = Proposal::withoutGlobalScope('tenant')->where('token', $token)->first();
 
-        if (! $proposta || $proposta->status === Proposal::RASCUNHO) {
+        if (! $proposta || $proposta->status === Proposal::RASCUNHO || ! \App\Support\Modulos::ativo('vendas', $proposta->tenant_id)) {
             abort(404);
         }
 

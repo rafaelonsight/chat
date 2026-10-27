@@ -78,10 +78,11 @@ class Sala extends Component
 
     public function reuniao(): Meeting
     {
-        return once(fn () => Meeting::withoutGlobalScope('tenant')
+        return once(fn () => tap(Meeting::withoutGlobalScope('tenant')
             ->with('contact')
             ->where('token_convidado', $this->token)
-            ->firstOr(fn () => abort(404)));
+            ->firstOr(fn () => abort(404)),
+            fn (Meeting $m) => abort_unless(\App\Support\Modulos::ativo('video', $m->tenant_id), 404)));
     }
 
     /** Sessao aberta na mesma conta da reuniao. */

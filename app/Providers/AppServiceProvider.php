@@ -11,6 +11,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->scoped(\App\Support\Modulos::class);
         $this->app->singleton(\App\Services\TranscriptionService::class, fn () => new \App\Services\TranscriptionService(
             (bool) config('services.transcricao.ativa'),
             (string) config('services.transcricao.url'),
@@ -89,6 +90,7 @@ class AppServiceProvider extends ServiceProvider
             });
         }
         \Livewire\Livewire::componentHook(\App\Support\PerfilSomenteLeitura::class);
+        \Livewire\Livewire::componentHook(\App\Support\MetodoDoModulo::class);
         \Illuminate\Support\Facades\Gate::before(function($usuario,$ability){
             if ($usuario->ehAuditor() && in_array($ability,['create','update','delete','deleteAny','forceDelete','forceDeleteAny','restore','restoreAny','replicate','reorder'],true)) return false;
             return null;

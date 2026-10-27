@@ -11,11 +11,15 @@ use UnitEnum;
 
 class CentralDemandas extends Page
 {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'demandas';
+
     use \App\Filament\TraduzirNavegacao;
 
     protected static bool $shouldRegisterNavigation = false;
 
-    public static function canAccess(): bool
+    public static function acessoSemModulo(): bool
     {
         return false;
     }

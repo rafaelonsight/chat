@@ -2,6 +2,10 @@
 namespace App\Filament\Pages;
 use App\Models\{Tenant,User};use App\Support\TenantContext;use Illuminate\Support\Facades\DB;use Illuminate\Support\Carbon;use Filament\Pages\Page;use BackedEnum;use UnitEnum;
 class ConsumoIA extends Page {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'ia';
+
  use \App\Filament\TraduzirNavegacao;
  protected static string|BackedEnum|null $navigationIcon='heroicon-o-cpu-chip';
  protected static string|UnitEnum|null $navigationGroup='Relatórios';
@@ -10,7 +14,7 @@ class ConsumoIA extends Page {
  public const PACOTES=[500000=>1990,1000000=>2990,3000000=>6990];
  public function solicitarCompra(int $tokens):void {abort_unless(static::canAccess() && auth()->user()?->admin,403);abort_unless(isset(self::PACOTES[$tokens]),422);$id=TenantContext::get();abort_unless($id,404);DB::transaction(function()use($id,$tokens){Tenant::whereKey($id)->lockForUpdate()->firstOrFail();if(!DB::table('compras_tokens_ia')->where('tenant_id',$id)->where('tokens',$tokens)->where('status','solicitada')->exists())DB::table('compras_tokens_ia')->insert(['tenant_id'=>$id,'user_id'=>auth()->id(),'tokens'=>$tokens,'valor_centavos'=>self::PACOTES[$tokens],'status'=>'solicitada','created_at'=>now(),'updated_at'=>now()]);});\Filament\Notifications\Notification::make()->success()->title(__('Solicitação de compra registrada'))->body(__('Aguarde as instruções de pagamento. Os tokens ainda não foram adicionados ao saldo.'))->send();}
  public string $inicio='';public string $fim='';public string $atendente='';public string $recurso='';
- public static function canAccess():bool {return (bool)auth()->user()?->consultaRelatorios();}
+ public static function acessoSemModulo(): bool {return (bool)auth()->user()?->consultaRelatorios();}
  public function mount():void {$tz=Tenant::find(TenantContext::get())?->fuso_horario ?: 'America/Sao_Paulo';$this->inicio=now()->timezone($tz)->startOfMonth()->toDateString();$this->fim=now()->timezone($tz)->toDateString();}
  public function aplicar():void {$this->validar();}
  private function validar():void {$this->validate(['inicio'=>'required|date_format:Y-m-d','fim'=>'required|date_format:Y-m-d|after_or_equal:inicio','atendente'=>'nullable|integer','recurso'=>'nullable|max:80']);}

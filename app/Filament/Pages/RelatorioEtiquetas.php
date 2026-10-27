@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 use Livewire\WithPagination;
 class RelatorioEtiquetas extends Page {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'qualidade';
+
     use \App\Filament\TraduzirNavegacao;
 
  use WithPagination;
@@ -20,7 +24,7 @@ class RelatorioEtiquetas extends Page {
  protected string $view='filament.pages.relatorio-etiquetas';
  public string $inicio='';public string $fim='';public string $canal='';public string $equipe='';public string $atendente='';
  public string $etiqueta='';public string $contexto='conversa';
- public static function canAccess(): bool {return (bool)auth()->user()?->consultaRelatorios();}
+ public static function acessoSemModulo(): bool {return (bool)auth()->user()?->consultaRelatorios();}
  public function mount(): void {$tz=Tenant::find(TenantContext::get())?->fuso_horario ?: 'America/Sao_Paulo';$this->inicio=now()->timezone($tz)->subDays(29)->format('Y-m-d');$this->fim=now()->timezone($tz)->format('Y-m-d');}
  public function updatedContexto(): void {$this->etiqueta="";$this->resetPage();}
  public function aplicar(): void {$this->validar();$this->resetPage();}

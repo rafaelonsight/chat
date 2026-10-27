@@ -216,7 +216,7 @@
                      Some quando o servidor nao tem video configurado, em vez de aparecer e dar
                      erro: botao que so serve para avisar que nao funciona e ruido na barra que
                      o atendente usa o dia inteiro. --}}
-                @if (!config('agenda.edition') && app(\App\Services\Video\Livekit::class)->configurado())
+                @if (!config('agenda.edition') && \App\Support\Modulos::ativo('video') && app(\App\Services\Video\Livekit::class)->configurado())
                     <button type="button" wire:click="chamarPorVideo"
                             x-data
                             x-on:abrir-sala.window="window.open($event.detail.url, '_blank', 'noopener')"
@@ -423,7 +423,7 @@
                     @foreach (\Illuminate\Support\Facades\DB::table('emails_encerramento')->where('encerramento_id',$fimResumo->id)->get() as $entrega)
                         <p>{{ ucfirst($entrega->destinatario_tipo) }}: {{ ['aguardando_resumo'=>'Aguardando resumo','pendente'=>'Aguardando envio','sem_email'=>'Não enviado: e-mail não cadastrado','nao_solicitado'=>'Não enviado: opção não selecionada','enviado'=>'Enviado','falhou'=>'Falha após tentativas'][$entrega->estado] ?? $entrega->estado }}</p>
                     @endforeach
-                    @if(!config('agenda.edition') && auth()->user()?->consultaRelatorios() && !auth()->user()?->ehAuditor())<button type="button" wire:click="reenviarResumo" @disabled(auth()->user()?->ehAuditor())>{{ __('ui_e94f09acbd5f') }}</button>@endif
+                    @if(!config('agenda.edition') && \App\Support\Modulos::ativo('ia') && auth()->user()?->consultaRelatorios() && !auth()->user()?->ehAuditor())<button type="button" wire:click="reenviarResumo" @disabled(auth()->user()?->ehAuditor())>{{ __('ui_e94f09acbd5f') }}</button>@endif
                 </details>
             @endif
         @endif
@@ -812,7 +812,7 @@
                             @endif
                         @endif
 
-                        @if (!config('agenda.edition') && $entrada && !$m->apagada() && (($m->tipo === 'text' && trim((string)$m->corpo)) || ($m->tipo === 'audio' && auth()->user()?->consultaAnexos() && trim((string)$m->transcricao))))
+                        @if (!config('agenda.edition') && \App\Support\Modulos::ativo('ia') && $entrada && !$m->apagada() && (($m->tipo === 'text' && trim((string)$m->corpo)) || ($m->tipo === 'audio' && auth()->user()?->consultaAnexos() && trim((string)$m->transcricao))))
                             <div class="mt-2 border-t border-slate-100 pt-2 dark:border-white/10">
                                 @if (isset($traducoes[$m->id]))
                                     <div class="mb-1 flex items-center justify-between gap-3 text-[10px] text-violet-600">

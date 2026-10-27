@@ -9,6 +9,10 @@ use UnitEnum;
 
 class FuncionariosDigitais extends Page
 {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'automacao';
+
     use \App\Filament\TraduzirNavegacao;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCpuChip;
@@ -25,7 +29,7 @@ class FuncionariosDigitais extends Page
 
     protected string $view = 'filament.pages.funcionarios-digitais';
 
-    public static function canAccess(): bool
+    public static function acessoSemModulo(): bool
     {
         return (bool) auth()->user()?->admin;
     }

@@ -4,6 +4,10 @@ use App\Models\ChatbotIntegration;use App\Support\TenantContext;
 use Filament\Resources\Resource;use Filament\Schemas\Schema;use Filament\Tables\Table;
 use Filament\Forms\Components\{TextInput,Select,Toggle};use Filament\Tables\Columns\{TextColumn,IconColumn};use Illuminate\Database\Eloquent\{Model,Builder};
 class ChatbotIntegrationResource extends Resource {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'automacao';
+
     use \App\Filament\TraduzirResource;
 
  protected static ?string $model=ChatbotIntegration::class;

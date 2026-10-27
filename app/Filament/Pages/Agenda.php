@@ -34,6 +34,10 @@ use UnitEnum;
  */
 class Agenda extends Page
 {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'agenda';
+
     use \App\Filament\TraduzirNavegacao;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;

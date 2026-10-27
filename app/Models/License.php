@@ -34,13 +34,20 @@ class License extends Model
     ];
 
     protected $fillable = [
-        'tenant_id', 'status', 'plano', 'inicia_em', 'vence_em', 'motivo', 'alterada_por',
+        'tenant_id', 'status', 'plano', 'modulos', 'inicia_em', 'vence_em', 'motivo', 'alterada_por',
     ];
 
     protected $casts = [
         'inicia_em' => 'datetime',
         'vence_em'  => 'datetime',
+        'modulos'   => 'array',
     ];
+
+    protected static function booted(): void
+    {
+        // Plano ou excecao mudou: a resposta de Modulos desta requisicao/job ja nao vale.
+        static::saved(fn () => app(\App\Support\Modulos::class)->esquecer());
+    }
 
     protected $attributes = [
         'status' => self::TRIAL,

@@ -34,6 +34,8 @@ class ResumoIA {
   return array_intersect_key($dados,array_flip(['assunto','resumo','solucao','pendencias']));
  }
  public function responder(Tenant $conta,string $sistema,string $texto,int $maxTokens=2200,int $timeout=55, ?string $idiomaSaida=null,string $recurso='resumo',?int $usuarioId=null): string {
+  // Toda chamada de IA passa aqui: resumo, traducao, sugestao, agente, bloco de chatbot.
+  if(!\App\Support\Modulos::ativo('ia',$conta->id)) throw new RuntimeException('A inteligência artificial não faz parte do plano desta conta.');
   $reserva=strlen($sistema)+strlen($texto)+1024+$maxTokens;
   $resultado=SaldoIA::executar($conta,$reserva,fn()=>$this->chamarProvedor($conta,$sistema,$texto,$maxTokens,$timeout,$idiomaSaida,$recurso,$usuarioId));
   if($resultado['erro'])throw $resultado['erro'];return $resultado['retorno'];

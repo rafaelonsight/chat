@@ -14,6 +14,10 @@ use UnitEnum;
 
 class Sequencias extends Page
 {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'automacao';
+
     use \App\Filament\TraduzirNavegacao;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowPathRoundedSquare;
@@ -51,7 +55,7 @@ class Sequencias extends Page
     /** @var array<int, array{atraso_horas: int, corpo: string}> */
     public array $passos = [];
 
-    public static function canAccess(): bool
+    public static function acessoSemModulo(): bool
     {
         return (bool) auth()->user()?->admin;
     }

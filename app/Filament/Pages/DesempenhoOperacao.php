@@ -4,6 +4,9 @@ use App\Models\{Conversation,Tenant};
 use App\Support\TenantContext;
 use Illuminate\Support\Carbon;
 class DesempenhoOperacao extends RelatorioAtendentes {
+    // Modulo e regra de acesso vem de RelatorioAtendentes: repetir o trait aqui fazia
+    // acessoSemModulo -> parent::canAccess -> acessoSemModulo, sem fim.
+
  protected static ?string $navigationLabel='Desempenho da operação';
  protected static ?string $title='Desempenho da operação';
  protected static ?string $slug='desempenho-operacao';

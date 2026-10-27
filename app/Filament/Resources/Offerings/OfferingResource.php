@@ -23,6 +23,10 @@ use UnitEnum;
 
 class OfferingResource extends Resource
 {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'vendas';
+
     use \App\Filament\TraduzirResource;
 
     protected static bool $shouldRegisterNavigation = false;

@@ -56,6 +56,9 @@ class ChatbotMotor
         $conversa = $mensagem->conversation;
         if (app(RelatorioCampanha::class)->prepararResposta($mensagem)==='equipe') return false;
 
+        // Sem o modulo, a conversa segue para a equipe como se nao houvesse chatbot.
+        if (! \App\Support\Modulos::ativo('automacao', $canal->tenant_id)) return false;
+
         if (! $conversa || ! $this->podeAtender($conversa, $mensagem)) {
             return false;
         }

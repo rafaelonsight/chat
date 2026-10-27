@@ -50,6 +50,15 @@ class AvancarSequencias implements ShouldQueue
 
     private function avancar(SequenceEnrollment $inscricao, Cadenciador $cadenciador): void
     {
+        // Conta sem o modulo: adia em vez de parar (volta a andar se o modulo voltar) e sai da
+        // frente do lote, senao as vencidas dela ocupariam o LOTE de todo minuto.
+        // A conta vem pela sequencia: a inscricao nao guarda tenant_id.
+        if ($inscricao->sequence && ! \App\Support\Modulos::ativo('automacao', $inscricao->sequence->tenant_id)) {
+            $inscricao->forceFill(['proximo_em' => now()->addHour()])->save();
+
+            return;
+        }
+
         $sequencia = $inscricao->sequence;
         $contato = $inscricao->contact;
 

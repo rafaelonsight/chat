@@ -13,6 +13,10 @@ use Illuminate\Validation\Rule;
 use Livewire\WithPagination;
 use Livewire\WithFileUploads;
 class Campanhas extends Page {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'campanhas';
+
  use \App\Filament\TraduzirNavegacao, WithPagination, WithFileUploads;
  protected static string|BackedEnum|null $navigationIcon=Heroicon::OutlinedMegaphone;
  protected static string|UnitEnum|null $navigationGroup='Aplicações';
@@ -39,7 +43,7 @@ class Campanhas extends Page {
   $t?SendTemplateMessage::dispatch($m->id,$t->id,array_values($this->template_valores)):SendTextMessage::dispatch($m->id);
   Notification::make()->title(__('Teste colocado na fila. Acompanhe o resultado na conversa.'))->success()->send();
  }
- public static function canAccess(): bool {return (bool)auth()->user()?->admin;}
+ public static function acessoSemModulo(): bool {return (bool)auth()->user()?->admin;}
  private function autorizar(): void {abort_unless(static::canAccess(),403);}
  private function conta(): int {return (int)(\App\Support\TenantContext::get()?:auth()->user()->tenant_id);}
  private function campanha(int $id): Campaign {$this->autorizar();return Campaign::where('tenant_id',$this->conta())->findOrFail($id);}

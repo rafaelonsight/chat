@@ -25,6 +25,10 @@ use UnitEnum;
  */
 class Reunioes extends Page
 {
+    use \App\Filament\Concerns\PertenceAoModulo;
+
+    protected static string $modulo = 'video';
+
     use \App\Filament\TraduzirNavegacao;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedVideoCamera;
