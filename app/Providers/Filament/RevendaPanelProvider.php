@@ -34,7 +34,7 @@ class RevendaPanelProvider extends PanelProvider
             ->id('revenda')
             ->viteTheme('resources/css/filament/admin/theme.css')
             ->font('Archivo', url: '/fontes/archivo.css', provider: \Filament\FontProviders\LocalFontProvider::class)
-            ->domain('agenda.virtus.chat')
+            ->domain(config('app.revenda_domain'))
             ->path('gestao')
             ->sidebarCollapsibleOnDesktop()
             ->collapsedSidebarWidth('70px')

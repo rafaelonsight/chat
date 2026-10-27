@@ -1,6 +1,9 @@
 <?php
 namespace App\Filament\Pages;
 class AgendaBancos extends AgendaFinanceOptions {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
  protected static string $optionKind='bank';protected static ?string $slug='financeiro/bancos';protected static ?string $title='Bancos e contas';protected static ?int $navigationSort=3;
  protected static string|\BackedEnum|null $navigationIcon='heroicon-o-building-library';
  protected string $view='filament.pages.agenda-bancos';

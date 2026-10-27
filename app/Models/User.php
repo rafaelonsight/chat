@@ -288,4 +288,5 @@ class User extends Authenticatable implements \Illuminate\Contracts\Translation\
     {
         return ! $this->veTudo();
     }
+    public function limparCacheCanais(): void { $this->canaisMemo = null; }
 }

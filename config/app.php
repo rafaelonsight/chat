@@ -15,6 +15,9 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    // Painel de revenda (licencas e clientes) responde so neste dominio.
+    'revenda_domain' => env('REVENDA_DOMAIN', 'admin.virtus.chat'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

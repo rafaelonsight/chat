@@ -4,6 +4,9 @@ use Filament\Notifications\Notification;
 use Illuminate\Support\Str;
 class RequestPasswordReset extends \Filament\Auth\Pages\PasswordReset\RequestPasswordReset
 {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
  public function request(): void {
   try {$this->rateLimit(2);}catch(\DanHarrin\LivewireRateLimiting\Exceptions\TooManyRequestsException $e){$this->getRateLimitedNotification($e)?->send();return;}
   $data=$this->form->getState();

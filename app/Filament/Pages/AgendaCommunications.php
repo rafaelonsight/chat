@@ -5,6 +5,9 @@ use Filament\Notifications\Notification;
 use App\Models\{Channel,Contact};
 use App\Services\{AgendaCalendar,AgendaOutreach};
 abstract class AgendaCommunications extends Page {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
  protected static string|\UnitEnum|null $navigationGroup='Automações';
  protected string $view='filament.pages.agenda-communications';
  #[\Livewire\Attributes\Locked] public string $kind='campaign';#[\Livewire\Attributes\Locked] public ?int $editing=null;public array $form=[];public array $contacts=[];public string $search='';#[\Livewire\Attributes\Locked] public ?int $report=null;public string $scheduled='';

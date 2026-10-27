@@ -28,7 +28,7 @@ class Perfil extends EditProfile
 {
     protected function afterSave(): void
     {
-        if(auth()->user()->wasChanged('password'))app(\App\Services\AgendaAccess::class)->selfPasswordChanged(auth()->user());
+        if(config('agenda.edition') && auth()->user()->wasChanged('password'))app(\App\Services\AgendaAccess::class)->selfPasswordChanged(auth()->user());
     }
     // /admin/perfil e nao /admin/profile: o resto do produto e /admin/cadastro,
     // /admin/clientes, /admin/primeiros-passos. Uma URL em ingles no meio nao quebra nada,
@@ -46,9 +46,12 @@ class Perfil extends EditProfile
             \Filament\Schemas\Components\Text::make(new \Illuminate\Support\HtmlString('<a href="/meu-perfil" class="underline">Atualizar foto e apresentação</a>')),
 
 
-            $this->getPasswordFormComponent(),
-            $this->getPasswordConfirmationFormComponent(),
-            $this->getCurrentPasswordFormComponent(),
+            // Senha so existe na edicao Agenda; o chat entra por codigo enviado por e-mail.
+            ...(config('agenda.edition') ? [
+                $this->getPasswordFormComponent(),
+                $this->getPasswordConfirmationFormComponent(),
+                $this->getCurrentPasswordFormComponent(),
+            ] : []),
 
             TextInput::make('email')
                 ->label(__('ui_0d01e2e86669'))

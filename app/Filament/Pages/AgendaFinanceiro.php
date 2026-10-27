@@ -5,6 +5,9 @@ use Filament\Pages\Page;
 use Livewire\Attributes\Locked;
 use Livewire\WithPagination;
 class AgendaFinanceiro extends Page {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
  use WithPagination;
  protected static ?string $slug='financeiro';protected static ?string $title='Lançamentos';
  protected static string|\UnitEnum|null $navigationGroup='Financeiro';

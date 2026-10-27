@@ -102,7 +102,7 @@ class MonitoramentoDeTrial
 
         $destinatarios = User::withoutGlobalScope('tenant')
             ->where(function ($query): void {
-                $query->where('email', 'owner@example.test')->orWhere('operador', true);
+                $query->where('email', 'rafael@onsight.com.br')->orWhere('operador', true);
             })
             ->get();
 

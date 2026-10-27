@@ -6,6 +6,9 @@ use Illuminate\Support\Str;
 
 class Login extends \Filament\Auth\Pages\Login
 {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
     protected function getCredentialsFromFormData(array $data): array
     {
         return [

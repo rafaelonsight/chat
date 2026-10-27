@@ -89,7 +89,7 @@ it('nega o acesso direto pela URL a quem nao e operador', function () {
     // A tela mora no painel 'revenda' (admin.virtus.chat), dominio proprio — e nao mais
     // em /admin/clientes.
     $this->actingAs($this->adminDeCliente)
-        ->get('https://agenda.virtus.chat/gestao/clientes')
+        ->get('https://'.config('app.revenda_domain').'/gestao/clientes')
         ->assertForbidden();
 });
 

@@ -45,7 +45,7 @@ function fakesDoInstagramSignup(): void
 {
     Http::fake([
         'api.instagram.com/oauth/access_token'   => Http::response(['access_token' => 'TOKEN-CURTO', 'user_id' => 'ig-999']),
-        'graph.instagram.com/*/access_token*'     => Http::response(['access_token' => 'TOKEN-LONGO']),
+        'graph.instagram.com/access_token*'     => Http::response(['access_token' => 'TOKEN-LONGO']),
         'graph.instagram.com/*/subscribed_apps*'  => Http::response(['success' => true]),
         'graph.instagram.com/*/ig-999*'           => Http::response(['username' => 'minhaloja']),
     ]);
@@ -227,7 +227,7 @@ it('mostra erro claro quando falta o code', function () {
 it('não cria canal quando a inscrição do webhook falha', function () {
     Http::fake([
         'api.instagram.com/oauth/access_token'  => Http::response(['access_token' => 'TOKEN-CURTO', 'user_id' => 'ig-999']),
-        'graph.instagram.com/*/access_token*'    => Http::response(['access_token' => 'TOKEN-LONGO']),
+        'graph.instagram.com/access_token*'    => Http::response(['access_token' => 'TOKEN-LONGO']),
         'graph.instagram.com/*/subscribed_apps*' => Http::response(['error' => ['message' => 'recusado']], 400),
     ]);
     guardaPendenteDoInstagram('estado-abc', $this->tenant->id);
@@ -262,4 +262,20 @@ it('recusa quem não é admin', function () {
 
     $resposta->assertForbidden();
     expect(Channel::count())->toBe(0);
+});
+
+
+it('usa o endpoint sem versao e aceita a resposta documentada em data', function () {
+    Http::preventStrayRequests();
+    Http::fake([
+        'api.instagram.com/oauth/access_token' => Http::response(['data' => [['access_token' => 'CURTO', 'user_id' => 'ig-999']]]),
+        'graph.instagram.com/access_token*' => Http::response(['access_token' => 'LONGO']),
+        'graph.instagram.com/v23.0/ig-999/subscribed_apps' => Http::response(['success' => true]),
+        'graph.instagram.com/v23.0/ig-999*' => Http::response(['username' => 'loja']),
+    ]);
+    $signup = new MetaInstagramSignup('app', 'secret', 'v23.0', 20);
+    expect($signup->conectar('codigo', 'https://app.test/callback')['ok'])->toBeTrue();
+    Http::assertSent(fn ($r) => $r->method() === 'GET'
+        && strtok($r->url(), '?') === 'https://graph.instagram.com/access_token'
+        && $r['grant_type'] === 'ig_exchange_token');
 });

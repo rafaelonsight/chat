@@ -7,6 +7,9 @@ use Filament\Notifications\Notification;
 use Illuminate\Validation\ValidationException;
 
 class AgendaConfiguracoes extends Page {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
  protected static ?string $slug='configuracoes-agenda';
  protected static ?string $title='Configurações da agenda';
  protected static string|\UnitEnum|null $navigationGroup='Seu estabelecimento';

@@ -4,6 +4,9 @@ use App\Services\AgendaBusiness;
 use Filament\Pages\Page;
 use Livewire\WithPagination;
 class AgendaFinanceReports extends Page {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
  use WithPagination;
  protected static ?string $slug='financeiro/relatorios';protected static ?string $title='Relatórios';protected static string|\UnitEnum|null $navigationGroup='Financeiro';protected static ?int $navigationSort=5;
  protected static string|\BackedEnum|null $navigationIcon='heroicon-o-chart-bar';protected string $view='filament.pages.agenda-finance-reports';

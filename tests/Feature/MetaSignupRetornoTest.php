@@ -6,13 +6,13 @@ use App\Models\{Tenant,User};
 use App\Support\TenantContext;
 
 beforeEach(function () {
- config(['app.url'=>'https://agenda.virtus.chat','services.meta.verify_token'=>'test-verification']);
+ config(['app.url'=>'https://app.virtus.chat','services.meta.verify_token'=>'test-verification']);
  $this->appId='app123';
  $this->debug=['is_valid'=>true,'app_id'=>'app123','granular_scopes'=>[['scope'=>'whatsapp_business_management','target_ids'=>['123']]]];
  $this->numbers=['data'=>[['id'=>'456','display_phone_number'=>'+44 1234 567890','verified_name'=>'LA Group']]];
  $this->calls=[];
  $this->subscriptionSuccess=true;
- $this->subscriptionApps=[['whatsapp_business_api_data'=>['id'=>'app123'],'override_callback_uri'=>'https://agenda.virtus.chat/webhooks/meta/whatsapp']];
+ $this->subscriptionApps=[['whatsapp_business_api_data'=>['id'=>'app123'],'override_callback_uri'=>'https://app.virtus.chat/webhooks/meta/whatsapp']];
  Http::preventStrayRequests();
  Http::fake(function ($request) {
   $this->calls[]=$request->url();
@@ -85,7 +85,7 @@ it('direciona webhook da conta para esta instalacao sem alterar callback global'
  expect($this->signup->autorizar('code')['ok'])->toBeTrue();
  Http::assertSent(fn($req)=>$req->method()==='POST'
   && str_contains($req->url(),'/123/subscribed_apps')
-  && ($req['override_callback_uri'] ?? null)==='https://agenda.virtus.chat/webhooks/meta/whatsapp'
+  && ($req['override_callback_uri'] ?? null)==='https://app.virtus.chat/webhooks/meta/whatsapp'
   && $req['verify_token']==='test-verification');
 });
 it('nao confirma autorizacao quando webhook permanece no sistema antigo', function () {

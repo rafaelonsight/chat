@@ -3,6 +3,9 @@ namespace App\Filament\Pages;
 use Filament\Pages\Page;
 use Filament\Support\Enums\Width;
 class AgendaAtendimento extends Page {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
  protected static ?string $slug='atendimento';
  protected static ?string $title='Atendimento';
  protected static ?string $navigationLabel='Atendimento';

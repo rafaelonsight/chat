@@ -3,6 +3,9 @@ namespace App\Filament\Pages;
 use Filament\Pages\Page;
 class AgendaOperations extends Page
 {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
     protected static ?string $slug='saude-backup';
     protected static ?string $title='Saúde e backup';
     protected static string|\UnitEnum|null $navigationGroup='Configurações';

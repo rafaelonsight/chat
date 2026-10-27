@@ -13,7 +13,12 @@ return new class extends Migration
             $table->boolean('super_admin')->default(false)->index();
         });
 
-        // Agenda starts empty: privileges are never granted to a source-installation user.
+        // Rafael e o proprietario informado para a instalacao atual. Ninguem mais e promovido
+        // implicitamente: admin continua sendo papel funcional, nao acesso global.
+        DB::table('users')
+            ->where('tenant_id', 1452)
+            ->where('email', 'rafael@onsight.com.br')
+            ->update(['super_admin' => true]);
     }
 
     public function down(): void

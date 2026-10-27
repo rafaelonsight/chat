@@ -110,6 +110,14 @@ class Channel extends Model
         });
 
         static::created(function (Channel $c) {
+            // Quem conecta um canal social precisa conseguir abrir o canal criado.
+            // O vínculo é restrito ao criador administrador da mesma conta.
+            $creator = auth()->user();
+            if (in_array($c->tipo, [self::MESSENGER, self::INSTAGRAM], true)
+                && $creator?->admin && (int) $creator->tenant_id === (int) $c->tenant_id) {
+                $creator->canais()->syncWithoutDetaching([$c->id]);
+                $creator->limparCacheCanais();
+            }
             if (! $c->instance_name) {
                 $c->forceFill(['instance_name' => "t{$c->tenant_id}-c{$c->id}"])->saveQuietly();
             }

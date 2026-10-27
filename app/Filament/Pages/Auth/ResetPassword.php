@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\{DB,Password};
 
 class ResetPassword extends \Filament\Auth\Pages\PasswordReset\ResetPassword
 {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
  public function resetPassword(): ?PasswordResetResponse {
   try {$this->rateLimit(2);}catch(TooManyRequestsException $e){$this->getRateLimitedNotification($e)?->send();return null;}
   if($this->isResetPasswordRateLimited($this->email))return null;

@@ -98,11 +98,17 @@ class CriarCliente
      */
     public function convidar(User $usuario): array
     {
-        $token = \Illuminate\Support\Facades\Password::broker()->createToken($usuario);
-        $link = Filament::getPanel('admin')->getResetPasswordUrl($token, $usuario);
+        // Chat: o convite leva a tela de entrada, onde a pessoa pede o codigo. Edicao Agenda:
+        // leva a definicao de senha.
+        if (! config('agenda.edition')) {
+            $link = Filament::getPanel('admin')->getLoginUrl();
+        } else {
+            $token = \Illuminate\Support\Facades\Password::broker()->createToken($usuario);
+            $link = Filament::getPanel('admin')->getResetPasswordUrl($token, $usuario);
 
-        if (in_array(config('mail.default'), ['log', 'array'], true)) {
-            return ['link' => $link, 'enviado' => false, 'falha' => 'SMTP não configurado nesta instalação.'];
+            if (in_array(config('mail.default'), ['log', 'array'], true)) {
+                return ['link' => $link, 'enviado' => false, 'falha' => 'SMTP não configurado nesta instalação.'];
+            }
         }
         try {
             $usuario->notify(new ConviteDeAcesso($link));

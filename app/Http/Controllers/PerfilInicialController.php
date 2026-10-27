@@ -22,7 +22,7 @@ class PerfilInicialController {
   } catch(\Throwable $e){if($foto) Storage::disk('local')->delete($foto);throw $e;}
   if($foto && $anterior && str_starts_with($anterior,'perfis/'.$u->id.'/')) Storage::disk('local')->delete($anterior);
   $destino=$request->session()->pull('perfil.destino','/admin');
-  return redirect($destino==='/gestao' && $u->operador?'/gestao':'/admin')->with('status','Perfil atualizado. Bem-vindo ao Virtus Agenda!');
+  return redirect($destino==='/gestao' && $u->operador?'/gestao':'/admin')->with('status','Perfil atualizado. Bem-vindo ao '.config('app.name').'!');
  }
  public function foto(Request $request,int $usuario){
   $u=\App\Models\User::withoutGlobalScopes()->findOrFail($usuario);$ator=$request->user();

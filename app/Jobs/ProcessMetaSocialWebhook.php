@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 /**
  * Transforma o evento de Messenger/Instagram em conversa e mensagem.
@@ -112,12 +113,18 @@ class ProcessMetaSocialWebhook implements ShouldQueue
         }
 
         $jid = $this->jidDoContato($canal, $de);
+        $existente = Contact::where('jid', $jid)->first();
+        $nome = $existente?->nome ?: $this->nomeDoPerfil($canal, $de);
 
-        $mensagem = DB::transaction(function () use ($canal, $jid, $mid, $texto) {
+        $mensagem = DB::transaction(function () use ($canal, $jid, $mid, $texto, $nome) {
             $contato = Contact::firstOrCreate(
                 ['jid' => $jid],
-                ['tenant_id' => $canal->tenant_id, 'tipo' => Contact::PESSOA, 'nome' => null],
+                ['tenant_id' => $canal->tenant_id, 'tipo' => Contact::PESSOA, 'nome' => $nome],
             );
+
+            if (! $contato->nome && $nome) {
+                $contato->update(['nome' => $nome]);
+            }
 
             $conversa = Conversation::abertaOuNova($canal->id, $contato->id, $canal->tenant_id);
 
@@ -128,6 +135,7 @@ class ProcessMetaSocialWebhook implements ShouldQueue
                     'conversation_id' => $conversa->id,
                     'direcao'         => 'in',
                     'remetente_jid'   => $contato->jid,
+                    'remetente_nome'  => $contato->nome,
                     'tipo'            => 'text',
                     'corpo'           => (string) $texto,
                     'status'          => Message::STATUS_DELIVERED,
@@ -209,6 +217,22 @@ class ProcessMetaSocialWebhook implements ShouldQueue
 
             broadcast(new MessageStored($mensagem->refresh()));
         });
+    }
+
+    private function nomeDoPerfil(Channel $canal, string $id): ?string
+    {
+        try {
+            $instagram = $canal->tipo === Channel::INSTAGRAM;
+            $host = $instagram ? 'graph.instagram.com' : 'graph.facebook.com';
+            $r = Http::withToken($canal->meta_token)->timeout(8)
+                ->get("https://{$host}/".config('services.meta.versao')."/{$id}", [
+                    'fields' => $instagram ? 'name,username' : 'first_name,last_name,name',
+                ])->throw()->json();
+            $nome = trim((string) ($r['name'] ?? ($instagram ? ($r['username'] ?? '') : trim(($r['first_name'] ?? '').' '.($r['last_name'] ?? '')))));
+            return $nome !== '' ? mb_substr($nome, 0, 255) : null;
+        } catch (\Throwable) {
+            return null; // Falha de perfil nao deve impedir a mensagem.
+        }
     }
 
     /**

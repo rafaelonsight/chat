@@ -80,16 +80,16 @@ it('operador acessa a gestão e cliente continua impedido', function () {
     $this->usuario->forceFill(['operador'=>true])->save();
     $id = inserirCodigoTeste($this->usuario, 'sessao-gestao', '123456', 'revenda');
     expect(app(CodigoDeAcesso::class)->consumir($id, '123456', 'sessao-gestao')?->id)->toBe($this->usuario->id);
-    $this->actingAs($this->usuario)->get('https://agenda.virtus.chat/gestao/clientes')->assertOk();
+    $this->actingAs($this->usuario)->get('https://'.config('app.revenda_domain').'/gestao/clientes')->assertOk();
 });
 
 it('mostra somente o token depois de solicitar e permite trocar email', function () {
     $this->withSession(['acesso.solicitado'=>true,'acesso.painel'=>'revenda','acesso.email'=>'acesso@example.test'])
-        ->get('https://agenda.virtus.chat/gestao/login')->assertOk()
+        ->get('https://'.config('app.revenda_domain').'/gestao/login')->assertOk()
         ->assertSee('Token de acesso')->assertSee('aria-label="Número 6 do token"', false)
         ->assertDontSee('type="email"', false)->assertSee('dez minutos');
     $this->post('/acesso/trocar-email',['painel'=>'revenda'])->assertRedirect('/gestao/login');
-    $this->get('https://agenda.virtus.chat/gestao/login')->assertSee('type="email"', false)->assertDontSee('id="codigo"', false);
+    $this->get('https://'.config('app.revenda_domain').'/gestao/login')->assertSee('type="email"', false)->assertDontSee('id="codigo"', false);
 });
 
 

@@ -5,6 +5,9 @@ use Filament\Pages\Page;
 use Livewire\Attributes\Locked;
 use Livewire\WithPagination;
 class AgendaProdutos extends Page {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
  use WithPagination;
  use \Livewire\WithFileUploads;
  public $photo=null;public bool $removePhoto=false;

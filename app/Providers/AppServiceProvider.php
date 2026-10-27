@@ -63,7 +63,7 @@ class AppServiceProvider extends ServiceProvider
             (int) config('services.cep.timeout'),
             (int) config('services.cep.cache_horas'),
         ));
-        $this->app->bind(\Filament\Auth\Notifications\ResetPassword::class, \App\Notifications\AgendaResetPassword::class);
+        if (config('agenda.edition')) $this->app->bind(\Filament\Auth\Notifications\ResetPassword::class, \App\Notifications\AgendaResetPassword::class);
     }
 
     /**
@@ -75,12 +75,12 @@ class AppServiceProvider extends ServiceProvider
             config(['queue.connections.redis.queue'=>'agenda-inbox']);
             $this->app->singleton(\App\Services\EvolutionService::class,fn()=>new \App\Services\EvolutionService((string)config('agenda.evolution_url'),(string)config('agenda.evolution_key')));
         }
-        \Livewire\Livewire::addPersistentMiddleware([\App\Http\Middleware\RequireAgendaTenant::class,\App\Http\Middleware\RequireAgendaAccess::class]);
+        if (config('agenda.edition')) \Livewire\Livewire::addPersistentMiddleware([\App\Http\Middleware\RequireAgendaTenant::class,\App\Http\Middleware\RequireAgendaAccess::class]);
         \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Login::class,function($event){
             if(config('agenda.edition') && request()->hasSession())request()->session()->put('agenda.access_version',(int)$event->user->agenda_access_version);
         });
         \Illuminate\Validation\Rules\Password::defaults(fn () => \Illuminate\Validation\Rules\Password::min(8));
-        if (!config('agenda.integrations_enabled') && !$this->app->runningUnitTests()) {
+        if (config('agenda.edition') && !config('agenda.integrations_enabled') && !$this->app->runningUnitTests()) {
             \Illuminate\Support\Facades\Http::globalRequestMiddleware(function ($request) {
                 $uri=$request->getUri();
                 if(config('agenda.evolution_enabled') && rtrim((string)config('agenda.evolution_url'),'/')==='http://127.0.0.1:8085' && $uri->getScheme()==='http' && $uri->getHost()==='127.0.0.1' && $uri->getPort()===8085)return $request;

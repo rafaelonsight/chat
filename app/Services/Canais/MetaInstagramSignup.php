@@ -75,6 +75,8 @@ class MetaInstagramSignup
             return ['ok' => false, 'erro' => 'Nao foi possivel gerar o token de longa duracao: '.mb_substr($e->getMessage(), 0, 300)];
         }
 
+        $username = $this->usernameDaConta($contaId, $tokenLongo);
+
         try {
             $this->inscreverWebhook($contaId, $tokenLongo);
         } catch (\Throwable $e) {
@@ -85,7 +87,7 @@ class MetaInstagramSignup
             'ok'             => true,
             'token'          => $tokenLongo,
             'ig_account_id'  => $contaId,
-            'username'       => $this->usernameDaConta($contaId, $tokenLongo),
+            'username'       => $username,
         ];
     }
 
@@ -108,8 +110,8 @@ class MetaInstagramSignup
             ->throw()
             ->json();
 
-        $token = (string) data_get($r, 'access_token');
-        $contaId = (string) data_get($r, 'user_id');
+        $token = (string) (data_get($r, 'access_token') ?? data_get($r, 'data.0.access_token'));
+        $contaId = (string) (data_get($r, 'user_id') ?? data_get($r, 'data.0.user_id'));
 
         if ($token === '' || $contaId === '') {
             throw new \RuntimeException(__('ui_4abf7d6c6344'));
@@ -121,7 +123,14 @@ class MetaInstagramSignup
     private function trocarPorTokenDeLongaDuracao(string $tokenCurto): string
     {
         $r = Http::timeout($this->timeout)
-            ->get("https://graph.instagram.com/{$this->versao}/access_token", [
+            ->withOptions(['on_stats' => function (\GuzzleHttp\TransferStats $stats) {
+                $uri = $stats->getEffectiveUri();
+                \Illuminate\Support\Facades\Log::info('instagram token exchange endpoint', [
+                    'host' => $uri->getHost(), 'path' => $uri->getPath(),
+                    'status' => $stats->getResponse()?->getStatusCode(),
+                ]);
+            }])
+            ->get('https://graph.instagram.com/access_token', [
                 'grant_type'    => 'ig_exchange_token',
                 'client_secret' => $this->appSecret,
                 'access_token'  => $tokenCurto,
@@ -150,14 +159,16 @@ class MetaInstagramSignup
     }
 
     /** Cosmetico: sem @usuario o canal nasce com um nome generico, e nao vale abortar por isto. */
-    private function usernameDaConta(string $contaId, string $token): ?string
+    private function usernameDaConta(string &$contaId, string $token): ?string
     {
         try {
             $r = Http::withToken($token)
                 ->timeout($this->timeout)
-                ->get("https://graph.instagram.com/{$this->versao}/{$contaId}", ['fields' => 'username'])
+                ->get("https://graph.instagram.com/{$this->versao}/{$contaId}", ['fields' => 'user_id,username'])
                 ->throw()
                 ->json();
+
+            $contaId = (string) (data_get($r, 'user_id') ?: $contaId);
 
             return data_get($r, 'username') ?: null;
         } catch (\Throwable) {

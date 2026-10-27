@@ -4,6 +4,9 @@ use Filament\Pages\Page;
 use App\Services\AgendaEvolution;
 use Illuminate\Validation\ValidationException;
 class AgendaWhatsAppQr extends Page {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
  protected static ?string $slug='canais/whatsapp-qr';
  protected static ?string $title='Conectar WhatsApp por QR Code';
  protected static bool $shouldRegisterNavigation=false;

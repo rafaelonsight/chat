@@ -6,6 +6,9 @@ use Filament\Pages\Page;
 
 class AgendaInicio extends Page
 {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
     protected static ?string $title = 'Agenda';
     protected static ?string $slug = '/';
     protected static string|\BackedEnum|null $navigationIcon = \Filament\Support\Icons\Heroicon::OutlinedCalendarDays;

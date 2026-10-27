@@ -41,7 +41,7 @@ class ResumoIA {
  private function chamarProvedor(Tenant $conta,string $sistema,string $texto,int $maxTokens=2200,int $timeout=55, ?string $idiomaSaida=null,string $recurso='resumo',?int $usuarioId=null): string {
   $c=GatewayVirtus::configuracao();
   if(empty($c['ativa']) || empty($c['chave']) || empty($c['modelo'])) throw new RuntimeException(__('ui_10d75742d387'));
-  if(config('agenda.gateway_only') && ($c['provedor']??'')!=='gateway')throw new RuntimeException('O Virtus Agenda utiliza exclusivamente o gateway de IA.');
+  if(config('agenda.edition') && config('agenda.gateway_only') && ($c['provedor']??'')!=='gateway')throw new RuntimeException('O Virtus Agenda utiliza exclusivamente o gateway de IA.');
   $sistema .= '\n'.($idiomaSaida === 'pt_BR' ? 'Escreva exclusivamente em português brasileiro. Preserve os nomes dos campos JSON.' : ($idiomaSaida === 'en_GB' ? 'Write exclusively in British English. Keep JSON field names unchanged.' : \App\Support\Idiomas::instrucao($conta)));
   $http=Http::connectTimeout(10)->timeout(max(1,min(55,$timeout)))->acceptJson();
   if(($c['provedor']??'')==='anthropic') {
@@ -52,7 +52,7 @@ class ResumoIA {
    $r=$http->withToken($c['chave'])->post($url,['model'=>$c['modelo'],'max_tokens'=>$maxTokens,'messages'=>[['role'=>'system','content'=>$sistema],['role'=>'user','content'=>$texto]]]);
    $conteudo=$r->json('choices.0.message.content');
   }
-  \Illuminate\Support\Facades\DB::table('agenda_ai_requests')->insert(['request_id'=>(string)\Illuminate\Support\Str::uuid(),'tenant_id'=>$conta->id,'recurso'=>$recurso,'modelo'=>$c['modelo'],'http_status'=>$r->status(),'status'=>$r->successful()?'respondida':'falha','created_at'=>now()]);
+  if(config('agenda.edition')) \Illuminate\Support\Facades\DB::table('agenda_ai_requests')->insert(['request_id'=>(string)\Illuminate\Support\Str::uuid(),'tenant_id'=>$conta->id,'recurso'=>$recurso,'modelo'=>$c['modelo'],'http_status'=>$r->status(),'status'=>$r->successful()?'respondida':'falha','created_at'=>now()]);
   if(!$r->successful()) throw new RuntimeException(__('ui_1fb406e01e0d').$r->status().'). Confira chave, modelo e limite do provedor.');
   $entrada=$r->json('usage.input_tokens') ?? $r->json('usage.prompt_tokens');
   $saida=$r->json('usage.output_tokens') ?? $r->json('usage.completion_tokens');

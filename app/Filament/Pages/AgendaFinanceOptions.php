@@ -3,6 +3,9 @@ namespace App\Filament\Pages;
 use Filament\Pages\Page;
 use App\Services\AgendaBusiness;
 abstract class AgendaFinanceOptions extends Page {
+    // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
+    protected static bool $isDiscovered = false;
+
  protected static string|\UnitEnum|null $navigationGroup='Financeiro';
  protected string $view='filament.pages.agenda-finance-options';
  protected static string $optionKind='category';
