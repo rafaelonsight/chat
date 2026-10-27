@@ -39,6 +39,7 @@ class ConversationWindow extends Component
     {
         $this->conversationId = $conversationId;
         $this->limite = 30;
+        $this->buscaNaConversa = '';
     }
 
     /**

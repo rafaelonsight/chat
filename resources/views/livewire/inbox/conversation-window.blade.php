@@ -85,7 +85,7 @@
             </div>
 
             <div class="flex w-full items-center gap-2 overflow-x-auto pb-0.5 lg:w-auto lg:shrink-0 lg:overflow-visible lg:pb-0">
-                @if ($equipes->isNotEmpty())
+                @if ($conversa->contact->tipo !== \App\Models\Contact::GRUPO && $equipes->isNotEmpty())
                     <div class="relative" x-data="{ aberto: false }" x-on:click.outside="aberto = false">
                         <button type="button" x-on:click="aberto = !aberto"
                                 class="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5">
@@ -229,6 +229,7 @@
                     </button>
                 @endif
 
+                @if ($conversa->contact->tipo !== \App\Models\Contact::GRUPO)
                 {{-- "Volto depois". Fecha a conversa junto — marcar como nao lida com ela
                      aberta na frente nao significaria nada. --}}
                 <button type="button" wire:click="marcarNaoLida"
@@ -261,6 +262,7 @@
                             class="rounded border border-gray-300 px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50 dark:border-white/20 dark:text-gray-200 dark:hover:bg-white/5">
                         Finalizar
                     </button>
+                @endif
                 @endif
             </div>
         </div>
@@ -393,7 +395,25 @@
             artificialmente mensagens recebidas e enviadas e criava grandes faixas vazias em
             monitores largos. A legibilidade continua protegida pelo max-width do próprio balão.
         --}}
-        <div class="vc-thread flex-1 overflow-y-auto px-3 py-4 sm:px-5 lg:px-6">
+        <div class="vc-thread flex-1 overflow-y-auto px-3 py-4 sm:px-5 lg:px-6"
+             wire:key="historico-{{ $conversa->id }}"
+             x-data="{
+                 acompanhar: true,
+                 observador: null,
+                 fim() { if (this.acompanhar) this.$el.scrollTop = this.$el.scrollHeight },
+                 init() {
+                     this.$nextTick(() => {
+                         this.fim();
+                         this.observador = new ResizeObserver(() => this.fim());
+                         this.observador.observe(this.$el.firstElementChild);
+                     });
+                 },
+                 destroy() { this.observador?.disconnect() }
+             }"
+             x-on:wheel.passive="acompanhar = false"
+             x-on:touchstart.passive="acompanhar = false"
+             x-on:pointerdown="acompanhar = false"
+             x-on:keydown="acompanhar = false">
             <div class="mx-auto w-full max-w-[1150px]">
             @if ($mensagens->count() >= $limite)
                 <button type="button" wire:click="carregarMais" class="mx-auto block text-xs text-slate-500 underline dark:text-gray-400">

@@ -71,6 +71,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        \Illuminate\Support\Facades\Event::listen(\App\Events\MessageStored::class, \App\Push\SendBrowserPush::class);
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Auth\Events\Logout::class, \App\Push\RemoveBrowserPushOnLogout::class);
+
         // Registro explicito em vez de descoberta automatica: a descoberta depende de o
         // cache de eventos estar em dia, e um listener que some em producao some em silencio.
         \Illuminate\Support\Facades\Event::listen(

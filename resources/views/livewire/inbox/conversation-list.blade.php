@@ -128,10 +128,11 @@
                      e o caso que som e titulo nao cobrem: navegador minimizado porque a pessoa
                      foi ao ERP ou a planilha. Tambem por maquina, pelo mesmo motivo do som. --}}
                 <button type="button"
-                        x-data="{ ligado: true }"
+                        x-data="{ ligado: false, ocupado: false }"
                         x-init="ligado = window.onchatAvisoLigado ? window.onchatAvisoLigado() : true"
-                        x-on:click="ligado = window.onchatAlternarAviso ? await window.onchatAlternarAviso() : ligado"
-                        x-bind:title="ligado ? 'Avisos na tela ligados — clique para desligar' : 'Avisos na tela desligados — clique para ligar'"
+                        x-bind:disabled="ocupado" aria-label="Notificações do navegador"
+                        x-on:click="ocupado = true; try { ligado = window.onchatAlternarAviso ? await window.onchatAlternarAviso() : ligado } finally { ocupado = false }"
+                        x-bind:title="ligado ? 'Notificações do navegador ligadas — clique para desligar' : 'Ativar notificações, inclusive com a página fechada'"
                         x-bind:class="ligado ? 'text-gray-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'"
                         class="rounded p-1.5 transition hover:bg-gray-100 dark:hover:bg-white/5">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-4 w-4">

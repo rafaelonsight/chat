@@ -230,3 +230,10 @@ Route::get('/widget.js', App\Http\Controllers\WidgetDoSiteController::class)->na
  * PUBLICA E SEM SESSAO, como a sala de video e a pagina de agendamento. O que protege e o token
  * aleatorio: nao ha nada a adivinhar, e proposta em rascunho devolve 404 antes de renderizar.
  */
+
+Route::middleware(['auth', \App\Http\Middleware\SessaoBloqueada::class, \App\Http\Middleware\LicencaValida::class, 'throttle:60,1'])->prefix('browser-push')->group(function () {
+    Route::post('/test', [\App\Http\Controllers\BrowserPushController::class, 'test'])->middleware('throttle:5,1');
+    Route::get('/key', [\App\Http\Controllers\BrowserPushController::class, 'key']);
+    Route::post('/subscriptions', [\App\Http\Controllers\BrowserPushController::class, 'store']);
+    Route::delete('/subscriptions', [\App\Http\Controllers\BrowserPushController::class, 'destroy']);
+});

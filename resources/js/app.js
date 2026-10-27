@@ -1,3 +1,4 @@
+import { browserPushActive, enableBrowserPush, disableBrowserPush, testBrowserPush } from './browser-push';
 //
 // Tempo real do OnChat: um lugar so para receber a mensagem que chegou, avisar as
 // telas e alertar a pessoa.
@@ -95,7 +96,7 @@ const AVISO_LIGADO = 'onchat.aviso';
 
 const avisoLigado = () => localStorage.getItem(AVISO_LIGADO) !== 'nao';
 
-window.onchatAvisoLigado = avisoLigado;
+window.onchatAvisoLigado = () => avisoLigado() && 'Notification' in window && Notification.permission === 'granted';
 
 /**
  * Notificacao do proprio sistema, que aparece por cima de qualquer janela.
@@ -111,30 +112,23 @@ window.onchatAvisoLigado = avisoLigado;
  * atendente clica em qualquer lugar, quando ja esta claramente usando o sistema.
  */
 window.onchatAlternarAviso = async () => {
-    const novo = ! avisoLigado();
-    localStorage.setItem(AVISO_LIGADO, novo ? 'sim' : 'nao');
-
-    if (novo) await pedirPermissao();
-
-    return novo;
-};
-
-async function pedirPermissao() {
-    if (! ('Notification' in window)) return false;
-    if (Notification.permission === 'granted') return true;
-    if (Notification.permission === 'denied') return false;
-
+    const novo = !window.onchatAvisoLigado();
     try {
-        return (await Notification.requestPermission()) === 'granted';
-    } catch (e) {
-        return false;
+        if (novo) await enableBrowserPush();
+        else await disableBrowserPush();
+        localStorage.setItem(AVISO_LIGADO, novo ? 'sim' : 'nao');
+        torrada(novo ? 'Notificações ativadas, inclusive com a página fechada.' : 'Notificações desativadas neste navegador.');
+        if (novo && !await testBrowserPush().catch(() => false)) torrada('Inscrição salva, mas o aviso de teste falhou. Tente desativar e ativar novamente.');
+        return novo;
+    } catch (error) {
+        torrada(error.message || 'Não foi possível ativar as notificações.');
+        return window.onchatAvisoLigado();
     }
-}
+};
 
 // Um clique em qualquer lugar serve de gesto: e o mesmo que libera o audio.
 document.addEventListener('click', function primeiro() {
     document.removeEventListener('click', primeiro);
-    if (avisoLigado()) pedirPermissao();
     try {
         audio = audio ?? new (window.AudioContext ?? window.webkitAudioContext)();
         if (audio.state === 'suspended') audio.resume();
@@ -314,7 +308,7 @@ if (tenant) {
 
             // Corpo cortado: o aviso do sistema fica visivel na tela de quem passa perto, e
             // conversa inteira ali seria vazamento por descuido.
-            avisoDoSistema((e.corpo ?? '').slice(0, 80) || 'Mensagem recebida');
+            if (!browserPushActive()) avisoDoSistema((e.corpo ?? '').slice(0, 80) || 'Mensagem recebida');
         }
     });
 }
