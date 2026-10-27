@@ -93,7 +93,7 @@ class MetaSocialSignup
         $token = (string) data_get($r, 'access_token');
 
         if ($token === '') {
-            throw new \RuntimeException('a Meta nao devolveu access_token.');
+            throw new \RuntimeException(__('ui_e4adbd6f8667'));
         }
 
         return $token;

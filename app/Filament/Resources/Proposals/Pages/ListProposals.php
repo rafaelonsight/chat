@@ -12,6 +12,6 @@ class ListProposals extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Nova proposta')];
+        return [CreateAction::make()->label(__('ui_7e10c8ba98c7'))];
     }
 }

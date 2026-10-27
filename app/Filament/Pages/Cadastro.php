@@ -14,18 +14,20 @@ use UnitEnum;
 // API de forms do Filament, e assim o comportamento fica todo testavel aqui.
 class Cadastro extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedIdentification;
 
     protected static string|UnitEnum|null $navigationGroup = 'Configurações';
 
-    protected static ?string $navigationParentItem = 'Conta';
+    protected static ?string $navigationParentItem = null;
 
     /*
      * "Dados da conta" e nao "Cadastro": com o ERP tendo o seu proprio Cadastro, dois itens com o
      * mesmo nome em grupos diferentes fariam a pessoa clicar no errado — e o titulo desta pagina
      * ja era "Cadastro da conta". O menu passou a dizer o que ela sempre foi.
      */
-    protected static ?string $navigationLabel = 'Dados da conta';
+    protected static ?string $navigationLabel = 'Conta';
 
     protected static ?string $title = 'Cadastro da conta';
 
@@ -43,6 +45,7 @@ class Cadastro extends Page
 
     public string $documento = '';
 
+    public string $email_resumos = '';
     public string $email = '';
 
     public string $telefone = '';
@@ -104,7 +107,7 @@ class Cadastro extends Page
     private function campos(): array
     {
         return [
-            'nome', 'razao_social', 'nome_fantasia', 'documento', 'email', 'telefone',
+            'email_resumos', 'nome', 'razao_social', 'nome_fantasia', 'documento', 'email', 'telefone',
             'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
             'natureza_juridica', 'cnae_principal', 'situacao_cadastral', 'porte',
             'data_abertura',
@@ -141,8 +144,8 @@ class Cadastro extends Page
 
         if (strlen($cnpj) !== 14) {
             Notification::make()->warning()
-                ->title('CNPJ incompleto')
-                ->body('São 14 dígitos. Para CPF não existe consulta pública.')
+                ->title(__('ui_787cc4e190a8'))
+                ->body(__('ui_7954a82c1189'))
                 ->send();
 
             return;
@@ -154,7 +157,7 @@ class Cadastro extends Page
 
         if (! $resultado['ok']) {
             Notification::make()->danger()
-                ->title('Não deu para puxar os dados')
+                ->title(__('ui_2570b91d5fcb'))
                 ->body($resultado['erro'])
                 ->send();
 
@@ -164,8 +167,8 @@ class Cadastro extends Page
         $this->preencher($resultado['dados']);
 
         Notification::make()->success()
-            ->title('Dados da Receita preenchidos')
-            ->body('Confira e clique em Salvar.')
+            ->title(__('ui_9583df459866'))
+            ->body(__('ui_e39182197f78'))
             ->send();
     }
 
@@ -206,6 +209,7 @@ class Cadastro extends Page
             'razao_social' => 'nullable|string|max:160',
             'nome_fantasia' => 'nullable|string|max:160',
             'documento'    => ['nullable', 'string', 'max:32', $this->regraDocumento()],
+            'email_resumos'=> 'nullable|email|max:160',
             'email'        => 'nullable|email|max:160',
             'telefone'     => 'nullable|string|max:32',
             'cep'          => 'nullable|string|max:9',
@@ -249,7 +253,7 @@ class Cadastro extends Page
 
         $conta->update($dados);
 
-        Notification::make()->success()->title('Cadastro salvo')->send();
+        Notification::make()->success()->title(__('ui_ae81487c6b8f'))->send();
     }
 
     /** CNPJ de 14 digitos tem que fechar nos verificadores; CPF passa direto. */

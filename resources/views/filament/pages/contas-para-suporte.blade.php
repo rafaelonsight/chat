@@ -1,8 +1,8 @@
 <x-filament-panels::page>
     <x-filament::section>
-        <x-slot name="heading">Entrar para suporte</x-slot>
+        <x-slot name="heading">{{ __('ui_bfe13b9b7dd3') }}</x-slot>
         <x-slot name="description">
-            Escolha uma conta para atender. Você usará os recursos do painel daquela conta até sair do modo de suporte.
+            {{ __('ui_145791740d26') }}
         </x-slot>
 
         <div class="divide-y divide-gray-100 dark:divide-white/10">
@@ -17,7 +17,7 @@
 
                     <x-filament::button type="button" size="sm" color="gray"
                         wire:click="acessar({{ $conta->id }})" wire:loading.attr="disabled">
-                        Abrir para suporte
+                        {{ __('ui_b7418ddb62f4') }}
                     </x-filament::button>
                 </div>
             @endforeach

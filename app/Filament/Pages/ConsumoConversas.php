@@ -21,17 +21,19 @@ use UnitEnum;
  * Quem revende ve todas as contas; o cliente ve so a dele. E ele PRECISA ver: numero de fatura
  * que o pagante nao consegue conferir e numero em que ele nao confia.
  */
-class ConsumoConversas extends Page
+class ConsumoConversas extends PrecosConsumoMeta
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartPie;
 
     protected static string|UnitEnum|null $navigationGroup = 'Configurações';
 
-    protected static ?string $navigationParentItem = 'Conta';
+    protected static ?string $navigationParentItem = null;
 
-    protected static ?string $navigationLabel = 'Consumo de conversas';
+    protected static ?string $navigationLabel = 'Consumo e custos';
 
-    protected static ?string $title = 'Consumo de conversas';
+    protected static ?string $title = 'Consumo e custos';
 
     protected static ?int $navigationSort = 4;
 
@@ -41,8 +43,14 @@ class ConsumoConversas extends Page
 
     public static function canAccess(): bool
     {
-        return (bool) auth()->user()?->admin;
+        return (bool) auth()->user()?->consultaRelatorios();
     }
+
+    protected static bool $shouldRegisterNavigation = true;
+
+    public string $secao = 'infraestrutura';
+
+    public function mount(): void { parent::mount(); $this->aba = 'consumo'; }
 
     public function getViewData(): array
     {
@@ -72,7 +80,7 @@ class ConsumoConversas extends Page
             ];
         });
 
-        return [
+        return parent::getViewData() + [
             'linhas'   => $linhas,
             'operador' => $operador,
             'mesAtual' => $agora,

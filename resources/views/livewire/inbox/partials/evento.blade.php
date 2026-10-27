@@ -3,7 +3,7 @@
     <div class="flex justify-center">
         <div class="vc-note max-w-lg rounded-lg border px-3 py-2 text-sm">
             <div class="mb-0.5 flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
-                <span>&#128274;</span> nota interna
+                <span>&#128274;</span> {{ __('ui_ea3540e5f39f') }}
             </div>
             <div class="whitespace-pre-wrap">{{ $ev->descricao }}</div>
             <div class="mt-1 text-[10px] text-amber-700/80 dark:text-amber-300/70">

@@ -23,7 +23,7 @@
             {{-- Estado 1: so o botao de login. --}}
             <div id="onsight-social-login" class="flex flex-col items-start gap-3">
                 <x-filament::button type="button" id="onsight-btn-social" onclick="onsightIniciarLoginSocial()">
-                    Continuar com o Facebook
+                    {{ __('ui_8ac414f9c077') }}
                 </x-filament::button>
 
                 <p id="onsight-social-status" class="hidden text-sm text-gray-500"></p>
@@ -56,7 +56,7 @@
                  usuario. Escapar aqui duplicava o "&" em "&amp;amp;" — o
                  componente do botao ja escapa uma vez, e {{ }} escaparia de novo. --}}
             <x-filament::button tag="a" href="{!! $urlInstagram !!}">
-                Continuar com o Instagram
+                {{ __('ui_1c7ca99a7d74') }}
             </x-filament::button>
         </x-filament::section>
     @endif

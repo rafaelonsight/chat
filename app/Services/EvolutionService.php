@@ -44,6 +44,7 @@ class EvolutionService
             'integration'  => 'WHATSAPP-BAILEYS',
             'qrcode'       => true,
             'webhook'      => [
+                'enabled'  => true,
                 'url'      => $webhookUrl,
                 'byEvents' => false,
                 'base64'   => true,

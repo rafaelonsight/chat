@@ -15,23 +15,23 @@ class LicenseForm
     {
         return $schema->components([
             Select::make('status')
-                ->label('Status')
-                ->options(License::STATUS)
+                ->label(__('ui_bae7d5be7082'))
+                ->options(fn () => \App\Support\Idiomas::opcoes(License::STATUS))
                 ->required(),
 
             TextInput::make('plano')
-                ->label('Plano')
+                ->label(__('ui_eac9e53a1678'))
                 ->maxLength(60),
 
             DateTimePicker::make('vence_em')
-                ->label('Vence em')
+                ->label(__('ui_39e35d115789'))
                 ->native(false)
-                ->helperText('Só importa enquanto o status for "Período de teste" — nos demais status, quem decide é o status.'),
+                ->helperText(__('ui_62d5cdba1504')),
 
             Textarea::make('motivo')
-                ->label('Motivo da mudança')
+                ->label(__('ui_7130b14b6c3e'))
                 ->rows(3)
-                ->helperText('Por que suspendeu, cancelou ou reativou — fica registrado para quem olhar depois.'),
+                ->helperText(__('ui_37f6dfc1272e')),
         ]);
     }
 }

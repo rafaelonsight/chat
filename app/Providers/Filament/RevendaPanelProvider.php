@@ -32,20 +32,33 @@ class RevendaPanelProvider extends PanelProvider
     {
         return $panel
             ->id('revenda')
-            ->domain('admin.virtus.chat')
-            ->path('/')
-            ->login()
+            ->viteTheme('resources/css/filament/admin/theme.css')
+            ->font('Archivo', url: '/fontes/archivo.css', provider: \Filament\FontProviders\LocalFontProvider::class)
+            ->domain('agenda.virtus.chat')
+            ->path('gestao')
+            ->sidebarCollapsibleOnDesktop()
+            ->collapsedSidebarWidth('70px')
+            ->login([\App\Http\Controllers\AcessoPorCodigoController::class, 'mostrar'])
             ->colors([
                 // Mesma cor de marca do painel do produto — ver AdminPanelProvider.
-                'primary' => Color::hex('#E8A924'),
+                'primary' => Color::hex('#6338F6'),
             ])
-            ->brandName(config('app.name').' — Revenda')
+            ->favicon(fn () => asset('marca/virtus-v2-favicon.svg'))
+            ->brandName(config('app.name').' — Gestão')
+            ->brandLogo(fn () => new \Illuminate\Support\HtmlString(view('filament.marca-v2')->render()))
+            ->userMenuItems([
+                \Filament\Navigation\MenuItem::make()
+                    ->label('Abrir atendimento')
+                    ->icon('tabler-message-2-heart')
+                    ->url(fn (): string => url('/admin')),
+            ])
             ->discoverResources(in: app_path('Filament/Revenda/Resources'), for: 'App\Filament\Revenda\Resources')
             ->discoverPages(in: app_path('Filament/Revenda/Pages'), for: 'App\Filament\Revenda\Pages')
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
+                \App\Http\Middleware\IdiomaDaInterface::class,
                 AuthenticateSession::class,
                 ShareErrorsFromSession::class,
                 PreventRequestForgery::class,
@@ -55,6 +68,7 @@ class RevendaPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+                \App\Http\Middleware\ExigirPerfilInicial::class,
+            ], isPersistent: true);
     }
 }

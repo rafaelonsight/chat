@@ -19,7 +19,7 @@ class ListContacts extends ListRecords
     {
         return [
             Action::make('exportar')
-                ->label('Exportar contatos')
+                ->label(__('ui_50bda2da6b68'))
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color('gray')
                 ->action(fn () => $this->exportar()),
@@ -29,14 +29,14 @@ class ListContacts extends ListRecords
             // ocupa a posicao de destaque.
             ImportAction::make()
                 ->importer(ContactImporter::class)
-                ->label('Importar planilha')
+                ->label(__('ui_096c6528de99'))
                 ->icon('heroicon-o-arrow-up-tray')
-                ->modalDescription('Planilha CSV. A primeira linha precisa ser o cabeçalho — os nomes das colunas são reconhecidos automaticamente quando possível, e o que faltar você liga na mão.')
+                ->modalDescription(__('ui_9b558fb1c1ef'))
                 // Em blocos: importacao de dez mil linhas num request morre no
                 // tempo limite do PHP. Vai para a fila, e o Horizon toca.
                 ->chunkSize(250),
 
-            CreateAction::make()->label('Novo contato'),
+            CreateAction::make()->label(__('ui_b20eee18b0df')),
         ];
     }
 
@@ -60,7 +60,7 @@ class ListContacts extends ListRecords
                 'Situacao', 'Criado em',
             ], ';');
 
-            Contact::with('tags')->orderBy('nome')->chunk(500, function ($contatos) use ($saida) {
+            ContactResource::getEloquentQuery()->with('tags')->orderBy('nome')->chunk(500, function ($contatos) use ($saida) {
                 foreach ($contatos as $c) {
                     fputcsv($saida, [
                         $c->nome, $c->telefone_e164, $c->email, $c->instagram,

@@ -105,3 +105,15 @@ it('o total respeita o filtro de equipe, senao o contador mentiria', function ()
     expect($tela->viewData('total'))->toBe(5)
         ->and($tela->viewData('restantes'))->toBe(0);
 });
+
+
+it('limpar filtros reinicia a lista e preserva a fila e o recorte de equipe', function () {
+    $tela = Livewire::actingAs($this->usuario)->test(ConversationList::class)
+        ->call('selecionarBalde','grupos')->set('equipe','sem')->set('busca','inexistente')
+        ->set('somenteNaoLidas',true)->set('canal',(string)$this->channel->id)
+        ->call('carregarMais')->call('limparFiltros')
+        ->assertSet('busca','')->assertSet('somenteNaoLidas',false)
+        ->assertSet('canal','')->assertSet('etiqueta',null)
+        ->assertSet('balde','grupos')->assertSet('equipe','sem')
+        ->assertSet('limite',ConversationList::PAGINA);
+});

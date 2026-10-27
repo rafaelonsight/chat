@@ -18,6 +18,8 @@ use UnitEnum;
 
 class ChatbotResource extends Resource
 {
+    use \App\Filament\TraduzirResource;
+
     protected static ?string $model = Chatbot::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedSquares2x2;

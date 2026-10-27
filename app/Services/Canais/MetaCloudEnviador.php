@@ -81,7 +81,7 @@ class MetaCloudEnviador implements Enviador
         // isso aparecer alto no Horizon em vez de a mensagem sumir so do nosso lado, deixando
         // o atendente convencido de que o cliente nao ve mais o que ele apagou.
         throw new ConfiguracaoInvalida(
-            'O WhatsApp oficial não permite apagar mensagens já enviadas.'
+            __('ui_36ed2e2864ea')
         );
     }
 
@@ -114,6 +114,15 @@ class MetaCloudEnviador implements Enviador
             ->json();
 
         return ['external_id' => data_get($r, 'messages.0.id')];
+    }
+
+    public function interativo(Channel $canal,string $destino,array $interactive): array
+    {
+        $r=$this->cliente($canal)->post($this->url($canal).'/messages',[
+            'messaging_product'=>'whatsapp','recipient_type'=>'individual','to'=>self::soDigitos($destino),
+            'type'=>'interactive','interactive'=>$interactive,
+        ])->throw()->json();
+        return ['external_id'=>data_get($r,'messages.0.id')];
     }
 
     public function marcarLida(Channel $canal, string $jid, array $externalIds): void
@@ -221,8 +230,13 @@ class MetaCloudEnviador implements Enviador
             $corpo['template']['components'] = [[
                 'type'       => 'body',
                 'parameters' => array_map(
-                    fn ($valor) => ['type' => 'text', 'text' => (string) $valor],
+                    fn ($valor, $i) => array_merge(
+                        ['type' => 'text', 'text' => (string) $valor],
+                        isset($modelo->nomesParametros()[$i])
+                            ? ['parameter_name' => $modelo->nomesParametros()[$i]] : [],
+                    ),
                     $valores,
+                    array_keys($valores),
                 ),
             ]];
         }
@@ -263,7 +277,7 @@ class MetaCloudEnviador implements Enviador
         $id = (string) data_get($subida, 'id');
 
         if ($id === '') {
-            throw new \RuntimeException('a Meta aceitou o arquivo mas nao devolveu o id da midia.');
+            throw new \RuntimeException(__('ui_859b5e83214b'));
         }
 
         // PASSO 2: a mensagem que aponta para o arquivo.
@@ -338,7 +352,7 @@ class MetaCloudEnviador implements Enviador
         $url = (string) data_get($meta, 'url');
 
         if ($url === '') {
-            throw new \RuntimeException('a Meta nao devolveu a URL da midia '.$mediaId);
+            throw new \RuntimeException(__('ui_f206ccc36f6d').$mediaId);
         }
 
         $arquivo = $this->cliente($canal)
@@ -367,6 +381,48 @@ class MetaCloudEnviador implements Enviador
      *
      * @return array{ok: bool, erro?: string, templates?: array<int, array<string, mixed>>}
      */
+    public function consumo(Channel $canal, int $inicio, int $fim): array
+    {
+        try {
+            $campo = 'pricing_analytics.start('.$inicio.').end('.$fim.').granularity(DAILY).metric_types(["COST","VOLUME"]).dimensions(["PRICING_CATEGORY","PRICING_TYPE","COUNTRY","PHONE"])';
+            $r = $this->cliente($canal)->get($this->urlWaba($canal), ['fields' => $campo]);
+            $aviso = null;
+            if (!$r->successful()) {
+                // Algumas contas usam a linha de crédito de um parceiro: volume ainda pode estar disponível.
+                $aviso = mb_substr((string) ($r->json('error.error_user_msg') ?? $r->json('error.message') ?? 'Custo indisponível.'), 0, 400);
+                $campo = str_replace('["COST","VOLUME"]', '["VOLUME"]', $campo);
+                $r = $this->cliente($canal)->get($this->urlWaba($canal), ['fields' => $campo]);
+                if (!$r->successful()) return ['ok' => false, 'erro' => mb_substr((string) ($r->json('error.error_user_msg') ?? $r->json('error.message') ?? 'Falha ao consultar consumo da Meta.'), 0, 400)];
+            }
+            $dados = $r->json();
+            if (!isset($dados['pricing_analytics'])) return ['ok' => false, 'erro' => 'A Meta não disponibilizou os dados de consumo desta conta.'];
+            $moeda = $this->cliente($canal)->get($this->urlWaba($canal), ['fields' => 'currency'])->json('currency');
+            return ['ok' => true, 'dados' => $dados['pricing_analytics'], 'moeda' => $moeda, 'aviso_custo' => $aviso];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'erro' => 'Não foi possível consultar o consumo. Verifique a conexão e as permissões da conta Meta.'];
+        }
+    }
+
+    public function criarTemplate(Channel $canal, MetaTemplate $modelo): array
+    {
+        if ($modelo->tenant_id !== $canal->tenant_id || $modelo->meta_waba_id !== $canal->meta_waba_id || $modelo->status !== 'DRAFT') {
+            return ['ok' => false, 'erro' => 'Template incompatível com a conta selecionada.'];
+        }
+        $dados = ['name' => $modelo->nome, 'language' => $modelo->idioma, 'category' => $modelo->categoria, 'components' => $modelo->componentes];
+        if ($modelo->categoria !== 'AUTHENTICATION') $dados['parameter_format'] = $modelo->nomesParametros() ? 'NAMED' : 'POSITIONAL';
+        try {
+            $resposta = $this->cliente($canal)->post($this->urlWaba($canal).'/message_templates', $dados);
+            if (!$resposta->successful()) {
+                return ['ok' => false, 'erro' => mb_substr((string) ($resposta->json('error.error_user_msg') ?? $resposta->json('error.message') ?? 'Falha ao solicitar aprovação. Sincronize antes de tentar novamente.'), 0, 500)];
+            }
+            $r = $resposta->json();
+            if (empty($r['id']) || empty($r['status'])) return ['ok' => false, 'erro' => 'A Meta não confirmou a solicitação. Sincronize antes de tentar novamente.'];
+            return ['ok' => true, 'id' => (string) $r['id'], 'status' => $r['status'], 'categoria' => $r['category'] ?? null];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'erro' => 'Não foi possível confirmar a resposta da Meta. Sincronize antes de tentar novamente.'];
+        }
+    }
+
     public function templates(Channel $canal, int $paginas = 10): array
     {
         $todos = [];
@@ -397,6 +453,10 @@ class MetaCloudEnviador implements Enviador
             }
         } catch (\Throwable $e) {
             return ['ok' => false, 'erro' => mb_substr($e->getMessage(), 0, 300)];
+        }
+
+        if ($depois && data_get($r, 'paging.next')) {
+            return ['ok' => false, 'erro' => 'A lista de templates excedeu o limite de páginas. Nenhum template local foi removido.'];
         }
 
         return ['ok' => true, 'templates' => $todos];

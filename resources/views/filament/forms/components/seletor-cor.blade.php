@@ -37,7 +37,7 @@
         <div
             x-ref="grade"
             role="radiogroup"
-            aria-label="Cor da etiqueta"
+            aria-label="{{ __('ui_dd30c8aa5720') }}"
             class="grid max-w-max grid-cols-8 gap-2 sm:grid-cols-12"
             x-on:keydown.arrow-right.prevent="mover(1)"
             x-on:keydown.arrow-left.prevent="mover(-1)"
@@ -63,7 +63,7 @@
 
         {{-- Confere o resultado antes de salvar, com o nome que esta sendo digitado. --}}
         <div class="flex flex-wrap items-center gap-2">
-            <span class="text-xs text-gray-500 dark:text-gray-400">Fica assim:</span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui_55b63723a7fd') }}</span>
             <span
                 class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1"
                 x-bind:class="atual.pill"

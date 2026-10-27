@@ -14,6 +14,8 @@ use UnitEnum;
 
 class Sequencias extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedArrowPathRoundedSquare;
 
     protected static string|UnitEnum|null $navigationGroup = 'Aplicações';
@@ -151,7 +153,7 @@ class Sequencias extends Page
         $this->formAberto = false;
         $this->editando = null;
 
-        Notification::make()->title('Sequência salva')->success()->send();
+        Notification::make()->title(__('ui_c15922d9523e'))->success()->send();
     }
 
     public function alternarAtiva(int $id): void

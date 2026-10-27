@@ -65,7 +65,7 @@ it('compositor cresce automaticamente e separa escrita das acoes', function () {
         ->toContain('min-h-[72px]')
         ->toContain('ajustarAltura(el)')
         ->toContain("Math.max(120, window.innerHeight * 0.4)")
-        ->toContain('Ctrl + Enter quebra a linha');
+        ->toContain("__('ui_459171e6c66b')");
 });
 
 it('compositor aceita arrastar um anexo para o mesmo upload do botao', function () {
@@ -77,5 +77,5 @@ it('compositor aceita arrastar um anexo para o mesmo upload do botao', function 
         ->toContain('data-anexo-atendimento')
         ->toContain("input.dispatchEvent(new Event('change', { bubbles: true }))")
         ->toContain('Arraste um arquivo por vez.')
-        ->toContain('Solte para anexar');
+        ->toContain("__('ui_5978e171e275')");
 });

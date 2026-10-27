@@ -42,25 +42,25 @@ class ConviteDeCompromisso extends Notification implements ShouldQueue
 
         $mensagem = (new MailMessage)
             ->subject($this->compromisso->titulo.' — '.$quando->format('d/m \à\s H:i'))
-            ->greeting('Olá!')
-            ->line('Você está convidado para **'.$this->compromisso->titulo.'**.')
-            ->line('🗓️ '.DataPtBr::porExtenso($quando).' às '.$quando->format('H:i'))
-            ->line('⏱️ '.($this->compromisso->duracao_min ?: 30).' minutos');
+            ->greeting(__('ui_d3a0420c5887'))
+            ->line(__('ui_e925d615d253').$this->compromisso->titulo.'**.')
+            ->line(__('ui_b356d64b0414').DataPtBr::porExtenso($quando).' às '.$quando->format('H:i'))
+            ->line(__('ui_f0e1900ac6c8').($this->compromisso->duracao_min ?: 30).' minutos');
 
         if ($quem) {
-            $mensagem->line('👤 com '.$quem);
+            $mensagem->line(__('ui_b0a69e2ebff6').$quem);
         }
 
         if ($this->compromisso->descricao) {
-            $mensagem->line('📝 '.$this->compromisso->descricao);
+            $mensagem->line(__('ui_3fcd7398f6ad').$this->compromisso->descricao);
         }
 
         // O botao so existe quando ha sala: botao "Entrar" numa reuniao presencial manda a
         // pessoa para uma tela de camera que ninguem vai atender.
         if ($this->linkDaSala) {
             $mensagem
-                ->line('A reunião é por vídeo. No horário, use o botão abaixo — não precisa instalar nada.')
-                ->action('Entrar na reunião', $this->linkDaSala)
+                ->line(__('ui_9c78818d3b29'))
+                ->action(__('ui_3eadfe35dedf'), $this->linkDaSala)
                 // No e-mail o risco e o mesmo: quem abre pelo aplicativo do celular tambem cai
                 // numa janela embutida sem camera.
                 ->line(\App\Services\Video\Chamada::AVISO_DO_NAVEGADOR);
@@ -83,7 +83,7 @@ class ConviteDeCompromisso extends Notification implements ShouldQueue
         }
 
         return $mensagem
-            ->line('Se não puder comparecer, responda a quem te convidou para remarcar.')
-            ->salutation('— '.config('app.name'));
+            ->line(__('ui_6c075854bad4'))
+            ->salutation(__('ui_2e6ba7dc8625').config('app.name'));
     }
 }

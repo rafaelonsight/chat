@@ -9,6 +9,8 @@ use UnitEnum;
 
 class FuncionariosDigitais extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCpuChip;
 
     protected static string|UnitEnum|null $navigationGroup = 'Aplicações';

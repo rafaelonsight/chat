@@ -3,10 +3,9 @@
 
         @if (! $disponivel)
             <div class="rounded-xl border border-dashed border-gray-300 p-10 text-center dark:border-white/20">
-                <p class="text-base font-medium text-gray-700 dark:text-gray-200">Chamada de vídeo desligada</p>
+                <p class="text-base font-medium text-gray-700 dark:text-gray-200">{{ __('ui_05444ea123c4') }}</p>
                 <p class="mx-auto mt-2 max-w-lg text-sm text-gray-500 dark:text-gray-400">
-                    Este servidor não tem as credenciais do servidor de mídia. O atendimento por
-                    texto continua funcionando normalmente.
+                    {{ __('ui_5b61ec7e32aa') }}
                 </p>
             </div>
         @else
@@ -18,27 +17,27 @@
 
             {{-- --------------------------------------------------------- abrir --}}
             <x-filament::section>
-                <x-slot name="heading">Nova reunião</x-slot>
+                <x-slot name="heading">{{ __('ui_c62e6ee23092') }}</x-slot>
 
                 <div class="space-y-4">
                     <div class="grid gap-4 sm:grid-cols-2">
                         <label class="block">
-                            <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Assunto (opcional)</span>
+                            <span class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ __('ui_d3f0909a2ab6') }}</span>
                             <input type="text" wire:model="titulo" maxlength="120"
-                                   placeholder="Reunião de equipe, suporte ao cliente…"
+                                   placeholder="{{ __('ui_5dfc31c8e038') }}"
                                    class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
                         </label>
 
                         {{-- Com contato, o link sai pelo WhatsApp dele. Sem contato, e um link
                              para mandar a mão. --}}
                         <div>
-                            <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Chamar um contato (opcional)</span>
+                            <span class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ __('ui_a47914ee40f8') }}</span>
                             <div class="mt-1 flex flex-wrap items-center gap-2">
                                 <input type="text" wire:model.live.debounce.300ms="buscaContato"
-                                       placeholder="nome do contato"
+                                       placeholder="{{ __('ui_ed869fb33b44') }}"
                                        class="min-w-48 flex-1 rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
                                 @if ($contact_id)
-                                    <x-filament::button size="xs" color="gray" wire:click="tirarContato">Tirar</x-filament::button>
+                                    <x-filament::button size="xs" color="gray" wire:click="tirarContato">{{ __('ui_f409bdf3a555') }}</x-filament::button>
                                 @endif
                             </div>
 
@@ -58,7 +57,7 @@
 
                     <div class="flex items-center gap-3">
                         <x-filament::button wire:click="abrir" icon="heroicon-o-video-camera">
-                            Abrir sala
+                            {{ __('ui_5a076c72ec61') }}
                         </x-filament::button>
 
                         <span class="text-xs text-gray-400">
@@ -76,7 +75,7 @@
             @if ($abertas->isNotEmpty())
                 <x-filament::section>
                     <x-slot name="heading">
-                        Abertas agora <span class="text-xs opacity-60">({{ $abertas->count() }})</span>
+                        {{ __('ui_7647f38c35fa') }} <span class="text-xs opacity-60">({{ $abertas->count() }})</span>
                     </x-slot>
 
                     <div class="space-y-2">
@@ -105,11 +104,11 @@
 
                                 <div class="flex shrink-0 gap-1">
                                     <x-filament::button size="xs" tag="a" href="{{ $r->url() }}" target="_blank">
-                                        Entrar
+                                        {{ __('ui_7573ba85155c') }}
                                     </x-filament::button>
                                     <x-filament::button size="xs" color="danger" wire:click="encerrar({{ $r->id }})"
                                         wire:confirm="Encerrar para todos? Quem estiver dentro sai na hora e o link para de abrir.">
-                                        Encerrar
+                                        {{ __('ui_8041ee4c59fa') }}
                                     </x-filament::button>
                                 </div>
                             </div>
@@ -121,7 +120,7 @@
             {{-- ------------------------------------------------------ passadas --}}
             @if ($passadas->isNotEmpty())
                 <x-filament::section collapsible collapsed>
-                    <x-slot name="heading">Encerradas</x-slot>
+                    <x-slot name="heading">{{ __('ui_8bd3b20f6a25') }}</x-slot>
 
                     <div class="space-y-1">
                         @foreach ($passadas as $r)
@@ -136,11 +135,11 @@
                                     · {{ $r->participants_count }} {{ $r->participants_count === 1 ? 'entrada' : 'entradas' }}
                                 </span>
                                 @unless ($r->aberta())
-                                    <span class="text-gray-400">· encerrada</span>
+                                    <span class="text-gray-400">{{ __('ui_723493065c04') }}</span>
                                 @else
                                     {{-- Vencida sem ninguem encerrar: o link ja nao abre, e
                                          dizer "aberta" aqui seria mentira. --}}
-                                    <span class="text-gray-400">· link expirado</span>
+                                    <span class="text-gray-400">{{ __('ui_a930498c0589') }}</span>
                                 @endunless
                             </div>
                         @endforeach
@@ -150,9 +149,7 @@
 
             @if ($abertas->isEmpty() && $passadas->isEmpty())
                 <p class="text-sm text-gray-500 dark:text-gray-400">
-                    Nenhuma reunião ainda. Você também pode chamar por vídeo direto de dentro de
-                    uma conversa, pelo botão de câmera — assim o link já sai no WhatsApp do
-                    cliente.
+                    {{ __('ui_2062fba6bd8b') }}
                 </p>
             @endif
         @endif

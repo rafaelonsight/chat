@@ -14,6 +14,7 @@ function cenario(string $slug): array
     $t = Tenant::create(['nome' => strtoupper($slug), 'slug' => $slug]);
     TenantContext::set($t->id);
     $u = User::create(['tenant_id' => $t->id, 'name' => 'U', 'email' => "u@{$slug}.test", 'password' => 'segredo123']);
+    $u->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
     $c = Channel::create(['nome' => 'C'])->refresh();
     $ct = Contact::create(['telefone_e164' => '+5511999998888', 'nome' => 'Cliente']);
     $cv = Conversation::create(['channel_id' => $c->id, 'contact_id' => $ct->id, 'ultima_msg_em' => now()]);

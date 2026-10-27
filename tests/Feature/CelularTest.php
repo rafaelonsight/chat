@@ -31,6 +31,7 @@ beforeEach(function () {
         'tenant_id' => $this->conta->id, 'name' => 'Atendente',
         'email' => 'atendente@celular.test', 'password' => 'segredo123', 'admin' => true,
     ]);
+    $this->pessoa->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     $this->canal = Channel::create([
         'tenant_id' => $this->conta->id, 'nome' => 'Canal',

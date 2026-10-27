@@ -248,7 +248,7 @@
                 <svg class="size-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                     <path fill-rule="evenodd" d="M5 2.5A1.5 1.5 0 0 1 6.5 1h7A1.5 1.5 0 0 1 15 2.5V5h.5A2.5 2.5 0 0 1 18 7.5v5A2.5 2.5 0 0 1 15.5 15H15v2.5a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 5 17.5V15h-.5A2.5 2.5 0 0 1 2 12.5v-5A2.5 2.5 0 0 1 4.5 5H5V2.5Zm1.5 0h7V5h-7V2.5Zm7 11h-7v4h7v-4Z" clip-rule="evenodd"/>
                 </svg>
-                PDF
+                {{ __('ui_d613d88cb2d8') }}
             </button>
         </div>
     </div>
@@ -268,7 +268,7 @@
             <div>
                 <p class="rotulo flex items-center gap-2 text-[#8a8071]" data-revelar>
                     <span class="inline-block size-1.5 rotate-45 bg-[#e8a924]"></span>
-                    Proposta comercial
+                    {{ __('ui_826f567b941a') }}
                     <span class="text-[#4d463c]">·</span>
                     <span class="font-mono tracking-normal normal-case">{{ $p->numero }}</span>
                 </p>
@@ -288,7 +288,7 @@
                             {{ mb_strtoupper(mb_substr($p->autor->name, 0, 1)) }}
                         </span>
                         <span class="text-left">
-                            <span class="rotulo block text-[#8a8071]">Preparada por</span>
+                            <span class="rotulo block text-[#8a8071]">{{ __('ui_38b097a85776') }}</span>
                             <span class="block text-sm font-semibold">{{ $p->autor->name }}</span>
                         </span>
                     </div>
@@ -379,10 +379,10 @@
                     @if ($listaDores->isNotEmpty() || $listaSolucoes->isNotEmpty())
                         <section class="pt-20 sm:pt-28">
                             <div class="text-center" data-revelar>
-                                <p class="rotulo text-[#8a8071]">Diagnóstico e plano de ação</p>
+                                <p class="rotulo text-[#8a8071]">{{ __('ui_249e10db4cc6') }}</p>
                                 <h2 class="display mt-4 text-[clamp(2rem,5vw,3.25rem)]">
-                                    O que trava hoje,<br>
-                                    <span class="gradiente">e como resolvemos</span>
+                                    {{ __('ui_5e144712f67d') }}<br>
+                                    <span class="gradiente">{{ __('ui_96b31af5825e') }}</span>
                                 </h2>
                                 <div class="mx-auto mt-5 h-[3px] w-16 rounded-full bg-gradient-to-r from-[#e09028] to-[#f8c830]"></div>
                             </div>
@@ -463,7 +463,7 @@
                     @if ($etapas->isNotEmpty())
                         <section class="pt-20 sm:pt-28">
                             <div class="text-center" data-revelar>
-                                <p class="rotulo text-[#8a8071]">Cronograma</p>
+                                <p class="rotulo text-[#8a8071]">{{ __('ui_876fe7cf7bbe') }}</p>
                                 <h2 class="display mt-4 text-[clamp(2rem,5vw,3.25rem)]">
                                     <span class="gradiente">{{ $d['titulo'] ?? 'Etapas do projeto' }}</span>
                                 </h2>
@@ -519,7 +519,7 @@
                                 <div class="no-print pointer-events-none absolute -right-24 -top-24 size-72 rounded-full"
                                      style="background: radial-gradient(closest-side, rgb(232 169 36 / 14%), transparent 70%)" aria-hidden="true"></div>
 
-                                <p class="rotulo text-[#8a8071]">Quem assina</p>
+                                <p class="rotulo text-[#8a8071]">{{ __('ui_20c24213f145') }}</p>
 
                                 <div class="mt-6 flex flex-col gap-6 sm:flex-row sm:items-start sm:gap-8">
                                     @if ($foto)
@@ -568,10 +568,10 @@
         @if ($itens->isNotEmpty())
             <section class="pt-20 sm:pt-28">
                 <div class="text-center" data-revelar>
-                    <p class="rotulo text-[#8a8071]">Investimento</p>
+                    <p class="rotulo text-[#8a8071]">{{ __('ui_d4c1c0818274') }}</p>
                     <h2 class="display mt-4 text-[clamp(2rem,5vw,3.25rem)]">
-                        O que está incluído,<br>
-                        <span class="gradiente">e quanto é</span>
+                        {{ __('ui_7c29ba0ed4e3') }}<br>
+                        <span class="gradiente">{{ __('ui_b11fd25d5ea6') }}</span>
                     </h2>
                     <div class="mx-auto mt-5 h-[3px] w-16 rounded-full bg-gradient-to-r from-[#e09028] to-[#f8c830]"></div>
                 </div>
@@ -613,7 +613,7 @@
                                 --}}
                                 @if ($chave === 'unicos' && (float) $p->desconto > 0)
                                     <div class="flex justify-between border-b border-white/5 py-3.5 text-[15px] text-emerald-300">
-                                        <span>Desconto na implantação</span>
+                                        <span>{{ __('ui_351fa85e6986') }}</span>
                                         <span class="font-semibold tabular-nums">− R$ {{ number_format((float) $p->desconto, 2, ',', '.') }}</span>
                                     </div>
                                 @endif
@@ -633,7 +633,7 @@
                         <div class="grid gap-8 sm:grid-cols-2">
                             @if ((float) $p->total_unico > 0)
                                 <div>
-                                    <p class="rotulo text-[#8a8071]">Implantação</p>
+                                    <p class="rotulo text-[#8a8071]">{{ __('ui_fc5e9188a696') }}</p>
 
                                     @if ($ancoraUnica)
                                         <p class="mt-2 text-sm tabular-nums text-[#6b6459] line-through">
@@ -649,7 +649,7 @@
 
                             @if ((float) $p->total_recorrente > 0)
                                 <div>
-                                    <p class="rotulo text-[#8a8071]">Mensalidade</p>
+                                    <p class="rotulo text-[#8a8071]">{{ __('ui_b90dddf6366a') }}</p>
 
                                     @if ($ancoraMensal)
                                         <p class="mt-2 text-sm tabular-nums text-[#6b6459] line-through">
@@ -659,7 +659,7 @@
 
                                     <p class="display mt-1 text-[clamp(2rem,4vw,2.75rem)] tabular-nums">
                                         R$ {{ number_format((float) $p->total_recorrente, 2, ',', '.') }}
-                                        <span class="text-base font-medium text-[#8a8071]">/mês</span>
+                                        <span class="text-base font-medium text-[#8a8071]">{{ __('ui_16f90c5ecc35') }}</span>
                                     </p>
                                 </div>
                             @endif
@@ -688,18 +688,18 @@
                 @if ($p->aceita_em)
                     {{-- O RECIBO. Depois do aceite a pagina deixa de vender e passa a comprovar. --}}
                     <div class="cartao border-emerald-400/25 bg-emerald-400/5 p-7 sm:p-9" data-revelar>
-                        <p class="text-xl font-bold text-emerald-200">Proposta aceita</p>
+                        <p class="text-xl font-bold text-emerald-200">{{ __('ui_56d1721e5999') }}</p>
                         <p class="mt-3 text-sm text-emerald-100/80">
-                            Confirmada por <strong class="font-semibold">{{ $p->aceita_por }}</strong>
+                            {{ __('ui_fc0e307ce552') }} <strong class="font-semibold">{{ $p->aceita_por }}</strong>
                             em {{ $p->aceita_em->format('d/m/Y \à\s H:i') }}.
                         </p>
                         <p class="mt-3 text-sm text-emerald-100/80">
-                            Recebemos o aceite e vamos falar com você para começar. Obrigado pela confiança.
+                            {{ __('ui_557ff4fd0b79') }}
                         </p>
                     </div>
                 @elseif ($p->recusada_em)
                     <div class="cartao p-7 sm:p-9" data-revelar>
-                        <p class="text-lg font-bold">Proposta recusada</p>
+                        <p class="text-lg font-bold">{{ __('ui_ef70330f6625') }}</p>
                         <p class="mt-3 text-sm text-[#b9af9e]">
                             Registramos sua resposta em {{ $p->recusada_em->format('d/m/Y') }}. Se algo mudar, é só chamar.
                         </p>
@@ -719,17 +719,16 @@
                         <div class="no-print pointer-events-none absolute -left-20 -top-24 size-80 rounded-full"
                              style="background: radial-gradient(closest-side, rgb(232 169 36 / 12%), transparent 70%)" aria-hidden="true"></div>
 
-                        <h2 class="display text-[clamp(1.5rem,3vw,2rem)]">Aceitar esta proposta</h2>
+                        <h2 class="display text-[clamp(1.5rem,3vw,2rem)]">{{ __('ui_3d0cde4ebef8') }}</h2>
                         <p class="mt-3 max-w-[58ch] text-sm leading-relaxed text-[#b9af9e]">
-                            Escreva seu nome e confirme. Guardamos a data e a hora do aceite, e você continua
-                            com esta página no mesmo link.
+                            {{ __('ui_d001d5807817') }}
                         </p>
 
                         <form wire:submit="aceitar" class="mt-7 flex flex-col gap-3 sm:flex-row">
                             <div class="flex-1">
-                                <label for="nome-aceite" class="sr-only">Seu nome completo</label>
+                                <label for="nome-aceite" class="sr-only">{{ __('ui_d905079ff916') }}</label>
                                 <input id="nome-aceite" type="text" wire:model="nomeDeQuemAceita"
-                                       placeholder="Seu nome completo"
+                                       placeholder="{{ __('ui_d905079ff916') }}"
                                        class="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3.5 text-[15px] text-[#f6f2ea] placeholder:text-[#6b6459] outline-none transition focus:border-[#e8a924]/60 focus:ring-2 focus:ring-[#e8a924]/25">
                                 @error('nomeDeQuemAceita')
                                     <p class="mt-2 text-xs text-rose-300" role="alert">{{ $message }}</p>
@@ -742,8 +741,8 @@
                                  unico jeito de um botao parecer um botao de verdade. --}}
                             <button type="submit" wire:loading.attr="disabled"
                                     class="rounded-xl bg-gradient-to-r from-[#f8c830] to-[#e09028] px-7 py-3.5 text-[15px] font-bold text-[#14100b] shadow-lg shadow-[#e8a924]/20 transition duration-200 hover:brightness-110 active:scale-[0.97] disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f8c830]">
-                                <span wire:loading.remove wire:target="aceitar">Aceitar proposta</span>
-                                <span wire:loading wire:target="aceitar">Registrando&hellip;</span>
+                                <span wire:loading.remove wire:target="aceitar">{{ __('ui_cea9ffee1a29') }}</span>
+                                <span wire:loading wire:target="aceitar">{{ __('ui_f144bfea9f0e') }}</span>
                             </button>
                         </form>
 
@@ -753,16 +752,16 @@
                             @if (! $recusando)
                                 <button type="button" wire:click="$set('recusando', true)"
                                         class="text-[#8a8071] underline decoration-white/15 underline-offset-4 transition hover:text-[#f6f2ea]">
-                                    Não é o que eu esperava
+                                    {{ __('ui_b2fc003f272d') }}
                                 </button>
                             @else
                                 <form wire:submit="recusar" class="space-y-3">
-                                    <label for="motivo" class="block text-[#b9af9e]">O que faltou? Isso ajuda a ajustar.</label>
+                                    <label for="motivo" class="block text-[#b9af9e]">{{ __('ui_e266bc832d8d') }}</label>
                                     <textarea id="motivo" wire:model="motivoDaRecusa" rows="3"
                                               class="w-full rounded-xl border border-white/10 bg-black/30 px-3.5 py-2.5 text-sm text-[#f6f2ea] outline-none focus:border-white/25"></textarea>
                                     <div class="flex gap-2">
-                                        <button type="submit" class="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium transition hover:bg-white/15">Enviar</button>
-                                        <button type="button" wire:click="$set('recusando', false)" class="px-3 py-2 text-sm text-[#8a8071]">Cancelar</button>
+                                        <button type="submit" class="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium transition hover:bg-white/15">{{ __('ui_a91a95517c03') }}</button>
+                                        <button type="button" wire:click="$set('recusando', false)" class="px-3 py-2 text-sm text-[#8a8071]">{{ __('ui_c111e0ab9ddb') }}</button>
                                     </div>
                                 </form>
                             @endif

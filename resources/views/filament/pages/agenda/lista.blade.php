@@ -14,7 +14,7 @@
                          'border-red-200 bg-red-50 dark:border-red-500/30 dark:bg-red-500/10' => $a->atrasado(),
                          'border-gray-200 dark:border-white/10' => ! $a->atrasado(),
                      ])>
-                    <button type="button" wire:click="concluir({{ $a->id }})" title="Marcar como feito"
+                    <button type="button" wire:click="concluir({{ $a->id }})" title="{{ __('ui_acd7386a0c0f') }}"
                             class="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded border border-gray-400 text-transparent hover:border-emerald-600 hover:text-emerald-600 dark:border-white/30">
                         &check;
                     </button>
@@ -25,13 +25,13 @@
 
                             @if ($a->ehLembrete())
                                 <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600 dark:bg-white/10 dark:text-gray-300"
-                                      title="Só você vê">lembrete</span>
+                                      title="{{ __('ui_76391a4c16f2') }}">lembrete</span>
                             @endif
 
                             @if ($a->ehPorVideo())
                                 <a href="{{ $a->meeting->url() }}" target="_blank" rel="noopener"
                                    class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-200"
-                                   title="Entrar na reunião">por vídeo</a>
+                                   title="{{ __('ui_3eadfe35dedf') }}">{{ __('ui_3676245a5b81') }}</a>
                             @endif
                         </div>
 
@@ -51,12 +51,12 @@
                         @if ($a->contact)
                             <x-filament::button size="xs" color="gray" tag="a"
                                 href="{{ \App\Filament\Resources\Contacts\ContactResource::getUrl('edit', ['record' => $a->contact]) }}">
-                                Contato
+                                {{ __('ui_56661c07cf29') }}
                             </x-filament::button>
                         @endif
-                        <x-filament::button size="xs" color="gray" wire:click="editar({{ $a->id }})">Editar</x-filament::button>
+                        <x-filament::button size="xs" color="gray" wire:click="editar({{ $a->id }})">{{ __('ui_2b5f23437f58') }}</x-filament::button>
                         <x-filament::button size="xs" color="danger" wire:click="excluir({{ $a->id }})"
-                            wire:confirm="Excluir da agenda?">Excluir</x-filament::button>
+                            wire:confirm="Excluir da agenda?">{{ __('ui_8e7c1314fe0b') }}</x-filament::button>
                     </div>
                 </div>
             @endforeach
@@ -65,13 +65,12 @@
 @empty
     @unless ($formAberto)
         <div class="rounded-xl border border-dashed border-gray-300 p-10 text-center dark:border-white/20">
-            <p class="text-base font-medium text-gray-700 dark:text-gray-200">Nada marcado</p>
+            <p class="text-base font-medium text-gray-700 dark:text-gray-200">{{ __('ui_6d64f217b88a') }}</p>
             <p class="mx-auto mt-2 max-w-lg text-sm text-gray-500 dark:text-gray-400">
-                Marque uma visita, um retorno de orçamento, ou só um lembrete para você mesmo.
-                Compromisso a equipe vê; lembrete é só seu.
+                {{ __('ui_b3296a27d165') }}
             </p>
             <div class="mt-4">
-                <x-filament::button wire:click="novo">Marcar alguma coisa</x-filament::button>
+                <x-filament::button wire:click="novo">{{ __('ui_3a67b2ddeb2e') }}</x-filament::button>
             </div>
         </div>
     @endunless

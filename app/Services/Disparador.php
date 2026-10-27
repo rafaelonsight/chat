@@ -35,6 +35,10 @@ class Disparador
             $q->whereHas('tags', fn ($t) => $t->whereKey($campanha->tag_id));
         }
 
+        $config = (array) $campanha->configuracao;
+        if ($ids = ($config['contact_ids'] ?? [])) $q->whereIn('id', $ids);
+        elseif (($config['lista'] ?? false)) $q->whereRaw('1=0');
+        if ($tag = ($config['excluir_tag_id'] ?? null)) $q->whereDoesntHave('tags', fn($t)=>$t->whereKey($tag));
         return $q;
     }
 
@@ -113,7 +117,15 @@ class Disparador
     /** Empurra para a proxima janela permitida, se cair fora dela. */
     public function dentroDaJanela(Campaign $campanha, Carbon $momento): Carbon
     {
-        $m = $momento->copy();
+        $tz = data_get($campanha->configuracao, 'timezone', config('app.timezone'));
+        $m = $momento->copy()->timezone($tz);
+        $dias = data_get($campanha->configuracao, 'dias', [0,1,2,3,4,5,6]);
+        if (!is_array($dias) || !$dias) $dias = [0,1,2,3,4,5,6];
+        while (!in_array($m->dayOfWeek, array_map('intval',$dias), true)) $m->addDay()->setTime($campanha->hora_inicio,0);
+        if ($m->hour >= $campanha->hora_fim) {
+            $m->addDay()->setTime($campanha->hora_inicio,0);
+            while (!in_array($m->dayOfWeek, array_map('intval',$dias), true)) $m->addDay();
+        }
 
         if ($m->hour < $campanha->hora_inicio) {
             return $m->setTime($campanha->hora_inicio, 0);

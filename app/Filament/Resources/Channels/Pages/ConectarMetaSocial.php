@@ -31,6 +31,8 @@ use Illuminate\Support\Str;
  */
 class ConectarMetaSocial extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static string $resource = ChannelResource::class;
 
     protected string $view = 'filament.resources.channels.pages.conectar-meta-social';
@@ -81,7 +83,7 @@ class ConectarMetaSocial extends Page
     public function getTitle(): string
     {
         if (! $this->reconectando) {
-            return 'Conectar Facebook e Instagram';
+            return __('ui_8d26511d969e');
         }
 
         return $this->tipoCanal === Channel::INSTAGRAM ? 'Reconectar Instagram' : 'Reconectar Messenger';

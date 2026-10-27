@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Filament\Resources\Channels\ChannelResource;
 use App\Models\Channel;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
+use App\Support\TenantContext;
 use App\Services\Canais\MetaEmbeddedSignup;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,27 +17,9 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 /**
- * Cadastro Incorporado: dois passos que nao podem confiar na mesma sessao.
- *
- * `retorno` (GET) e o callback do link hospedado pela Meta — roda DENTRO DO POPUP,
- * troca o code por token e guarda o resultado num cache de curta duracao, sob um id
- * de uso unico. `conectar` (POST) e quem persiste no banco, chamado pela ABA
- * PRINCIPAL depois que o popup manda esse id de volta por postMessage.
- *
- * Por que nao criar o canal direto em `retorno`: a unica forma de saber PARA QUAL
- * canal esta reconexao era (criar um novo ou atualizar o canal X) e a aba que abriu
- * o popup — nao a sessao do navegador, que e compartilhada entre abas. Guardar
- * "canal X" numa chave de sessao fixa quebra no instante em que o mesmo admin abre
- * uma segunda reconexao numa aba diferente antes de terminar a primeira: o retorno
- * de uma aba acaba lido pela sessao que a OUTRA aba deixou por ultimo, e o token
- * escolhido para o canal A e gravado no canal B, em silencio.
- *
- * A aba principal, ao contrario da sessao, nao tem esse problema — cada aba tem o
- * proprio `canalId`, capturado no carregamento da pagina, isolado das outras.
- *
- * E por isso que o TOKEN nunca atravessa o navegador: o que o popup manda de volta
- * pela postMessage e so o id do cache (um UUID que nao vale nada sem a sessao de
- * administrador que o gerou), nao a credencial da Meta.
+ * Cada tentativa guarda no servidor o usuario, a conta selecionada e o canal.
+ * O callback valida essa identidade antes de trocar a autorizacao com a Meta.
+ * O resultado de uso unico e consumido pela aba principal sob bloqueio.
  */
 class MetaEmbeddedSignupController extends Controller
 {
@@ -43,6 +28,106 @@ class MetaEmbeddedSignupController extends Controller
      * `retorno` gerou e, se for reconexao, o id do canal — que veio do JS da
      * PROPRIA aba, nunca da sessao.
      */
+    /** Identifica a tentativa antes de abrir a Meta, sem compartilhar destino entre abas. */
+    public function iniciar(Request $request): JsonResponse
+    {
+        abort_unless((bool) $request->user()?->admin, 403);
+        $dados = $request->validate(['canal_id' => ['nullable', 'integer']]);
+        $tenantId = $this->contaAtual($request);
+        $canalId = $dados['canal_id'] ?? null;
+        if ($canalId !== null) {
+            abort_unless(Channel::query()->where('tenant_id', $tenantId)
+                ->where('tipo', Channel::META_CLOUD)->whereKey($canalId)->exists(), 404);
+        }
+        $state = (string) Str::uuid();
+        Cache::put("meta_attempt:{$state}", [
+            'tenant_id' => $tenantId,
+            'user_id' => (int) $request->user()->id,
+            'canal_id' => $canalId,
+        ], now()->addMinutes(15));
+        Cache::put("meta_progress:{$state}", [
+            'tenant_id' => $tenantId, 'user_id' => (int) $request->user()->id,
+            'status' => 'pending',
+        ], now()->addMinutes(15));
+        return response()->json(['ok' => true, 'state' => $state]);
+    }
+
+    /** Retorno consultavel sem code, token da Meta ou dependencia de window.opener. */
+    public function resultado(Request $request): JsonResponse
+    {
+        abort_unless((bool) $request->user()?->admin, 403);
+        $dados = $request->validate(['state' => ['required', 'uuid']]);
+        $resultado = Cache::get("meta_progress:{$dados['state']}");
+        if (! $resultado) return response()->json(['ok' => false, 'erro' => 'Esta tentativa expirou. Inicie novamente.'], 410);
+        abort_unless($this->pertence($resultado, $request), 403);
+        return response()->json(array_intersect_key($resultado, array_flip(['status', 'signup_token', 'redirect', 'erro'])) + ['ok' => true]);
+    }
+
+    private function contaAtual(Request $request): int
+    {
+        $usuario = $request->user();
+        $suporte = $request->session()->get(TenantContext::CHAVE_SESSAO_SUPORTE);
+        return $usuario->operador && $usuario->super_admin && $suporte
+            ? (int) $suporte : (int) $usuario->tenant_id;
+    }
+
+    private function pertence(array $dados, Request $request): bool
+    {
+        return ($dados['user_id'] ?? null) === (int) $request->user()->id
+            && ($dados['tenant_id'] ?? null) === $this->contaAtual($request);
+    }
+
+    /** Recebe o code do SDK junto com os dados do evento de conclusao. */
+    public function receber(Request $request, MetaEmbeddedSignup $signup): JsonResponse
+    {
+        abort_unless((bool) $request->user()?->admin, 403);
+        $dados = $request->validate([
+            'state' => ['required', 'uuid'],
+            'code' => ['required', 'string', 'max:4096'],
+            'waba_id' => ['nullable', 'regex:/^\d{1,32}$/'],
+            'phone_number_id' => ['nullable', 'regex:/^\d{1,32}$/'],
+            'business_id' => ['nullable', 'regex:/^\d{1,32}$/'],
+        ]);
+        $resultado = $this->processarAutorizacao($request, $signup, $dados);
+        return response()->json($resultado, $resultado['ok'] ? 200 : 422);
+    }
+
+    private function processarAutorizacao(Request $request, MetaEmbeddedSignup $signup, array $dados): array
+    {
+        $state = $dados['state'];
+        $tentativa = Cache::get("meta_attempt:{$state}");
+        if (! $tentativa || ! $this->pertence($tentativa, $request)) {
+            return ['ok' => false, 'erro' => 'Tentativa inválida, expirada ou pertencente a outra conta/usuário. Inicie novamente no Virtus.'];
+        }
+        $lock = Cache::lock("meta_attempt_lock:{$state}", 90);
+        if (! $lock->get()) return ['ok' => false, 'erro' => 'Esta autorização já está sendo processada.'];
+        try {
+            // Consome antes da rede: o code da Meta vale uma vez. Um replay nao deve troca-lo novamente.
+            if (Cache::pull("meta_attempt:{$state}") === null) {
+                return ['ok' => false, 'erro' => 'Esta tentativa já foi utilizada. Inicie novamente.'];
+            }
+            $progresso = ['tenant_id' => $tentativa['tenant_id'], 'user_id' => $tentativa['user_id']];
+            Cache::put("meta_progress:{$state}", $progresso + ['status' => 'processing'], now()->addMinutes(15));
+            $r = $signup->autorizar($dados['code'], $dados['waba_id'] ?? null, $dados['phone_number_id'] ?? null);
+            if (! $r['ok']) {
+                Cache::put("meta_progress:{$state}", $progresso + ['status' => 'failed', 'erro' => $r['erro']], now()->addMinutes(15));
+                return $r;
+            }
+            $signupToken = (string) Str::uuid();
+            Cache::put("meta_signup:{$signupToken}", [
+                'waba_id' => $r['waba_id'], 'phone_number_id' => $r['phone_number_id'],
+                'business_id' => $dados['business_id'] ?? null,
+                'token' => $r['token'], 'nome' => $r['nome'], 'numero' => $r['numero'],
+                'state' => $state,
+                ...$tentativa,
+            ], now()->addMinutes(5));
+            Cache::put("meta_progress:{$state}", $progresso + ['status' => 'ready', 'signup_token' => $signupToken], now()->addMinutes(5));
+            return ['ok' => true, 'signup_token' => $signupToken];
+        } finally {
+            $lock->release();
+        }
+    }
+
     public function conectar(Request $request): JsonResponse
     {
         abort_unless((bool) auth()->user()?->admin, 403);
@@ -58,11 +143,13 @@ class MetaEmbeddedSignupController extends Controller
 
         $dados = $validador->validated();
 
-        // pull: le e apaga na mesma operacao. Sem isto, chamar esta rota duas vezes
-        // com o mesmo signup_token (o relay do popup falhando e sendo repetido,
-        // por exemplo) criaria ou atualizaria o canal duas vezes com um token que
-        // a Meta ja considerou entregue.
-        $pendente = Cache::pull("meta_signup:{$dados['signup_token']}");
+        // Verifica o proprietario antes de consumir; o consumo ocorre sob lock abaixo.
+        $finalizado = Cache::get("meta_signup_done:{$dados['signup_token']}");
+        if ($finalizado) {
+            abort_unless($this->pertence($finalizado, $request), 403);
+            return response()->json(['ok' => true, 'redirect' => $finalizado['redirect']]);
+        }
+        $pendente = Cache::get("meta_signup:{$dados['signup_token']}");
 
         if ($pendente === null) {
             return response()->json([
@@ -74,21 +161,68 @@ class MetaEmbeddedSignupController extends Controller
         // Entre o retorno da Meta e este POST, a sessao pode ter mudado de conta —
         // o id sozinho nao prova de quem e, e um id de outro tenant aqui criaria
         // canal na conta errada.
-        if ($pendente['tenant_id'] !== auth()->user()->tenant_id) {
+        if (! $this->pertence($pendente, $request)) {
             return response()->json(['ok' => false, 'erro' => 'Esta conexão pertence a outra conta.'], 403);
         }
 
-        $canalId = $dados['canal_id'] ?? null;
+        if (array_key_exists('canal_id', $dados) && $dados['canal_id'] !== $pendente['canal_id']) {
+            return response()->json(['ok' => false, 'erro' => 'O canal não corresponde à tentativa de conexão.'], 403);
+        }
+        $canalId = $pendente['canal_id'];
         $canalExistente = $canalId !== null
-            ? Channel::query()->where('tipo', Channel::META_CLOUD)->find($canalId)
+            ? Channel::query()->where('tenant_id', $pendente['tenant_id'])->where('tipo', Channel::META_CLOUD)->find($canalId)
             : null;
 
-        $canal = $this->criarOuAtualizarCanal($pendente, $pendente['waba_id'], $pendente['phone_number_id'], $pendente['business_id'], $canalExistente);
-
-        return response()->json([
-            'ok'       => true,
-            'redirect' => ChannelResource::getUrl('edit', ['record' => $canal]),
-        ]);
+        if ($canalId !== null && $canalExistente === null) {
+            return response()->json(['ok' => false, 'erro' => 'O canal de reconexão não está mais disponível.'], 404);
+        }
+        // O lock do numero tambem cobre duas tentativas diferentes para o mesmo numero.
+        $lock = Cache::lock('meta_phone_lock:'.hash('sha256', $pendente['phone_number_id']), 30);
+        if (! $lock->get()) {
+            return response()->json(['ok' => false, 'erro' => 'Este número já está sendo processado. Aguarde e tente novamente.'], 409);
+        }
+        try {
+            $finalizado = Cache::get("meta_signup_done:{$dados['signup_token']}");
+            if ($finalizado) return response()->json(['ok' => true, 'redirect' => $finalizado['redirect']]);
+            if (! Cache::has("meta_signup:{$dados['signup_token']}")) {
+                return response()->json(['ok' => false, 'erro' => 'Esta conexão expirou. Inicie novamente.'], 422);
+            }
+            $ocupante = Channel::withoutGlobalScopes()->where('tipo', Channel::META_CLOUD)
+                ->where('meta_phone_number_id', $pendente['phone_number_id'])->first();
+            if ($ocupante && ((int) $ocupante->tenant_id !== (int) $pendente['tenant_id']
+                || ($canalId !== null && $ocupante->id !== $canalId))) {
+                return response()->json(['ok' => false, 'erro' => 'Este número já está vinculado a outro canal. Confira a conta e o canal antes de reconectar.'], 409);
+            }
+            if ($ocupante && ! $canalExistente) {
+                $canalExistente = Channel::query()->where('tenant_id', $pendente['tenant_id'])->find($ocupante->id);
+                abort_unless($canalExistente, 403);
+            }
+            $canal = DB::transaction(function () use ($pendente, $canalExistente) {
+                $canal = $this->criarOuAtualizarCanal($pendente, $pendente['waba_id'], $pendente['phone_number_id'], $pendente['business_id'], $canalExistente);
+                // Um canal novo precisa aparecer para o administrador da propria conta.
+                if (! $canalExistente) {
+                    $admins = User::withoutGlobalScopes()->where('tenant_id', $pendente['tenant_id'])
+                        ->where('admin', true)->pluck('id');
+                    foreach ($admins as $id) {
+                        DB::table('channel_user')->insertOrIgnore([
+                            'channel_id' => $canal->id, 'user_id' => $id,
+                            'created_at' => now(), 'updated_at' => now(),
+                        ]);
+                    }
+                }
+                return $canal;
+            });
+            $redirect = ChannelResource::getUrl('edit', ['record' => $canal]);
+            $concluido = ['tenant_id' => $pendente['tenant_id'], 'user_id' => $pendente['user_id'], 'redirect' => $redirect];
+            Cache::put("meta_signup_done:{$dados['signup_token']}", $concluido, now()->addMinutes(15));
+            if (! empty($pendente['state'])) {
+                Cache::put("meta_progress:{$pendente['state']}", $concluido + ['status' => 'completed'], now()->addMinutes(15));
+            }
+            Cache::forget("meta_signup:{$dados['signup_token']}");
+            return response()->json(['ok' => true, 'redirect' => $redirect]);
+        } finally {
+            $lock->release();
+        }
     }
 
     /**
@@ -101,55 +235,20 @@ class MetaEmbeddedSignupController extends Controller
     {
         abort_unless((bool) auth()->user()?->admin, 403);
 
-        // 'code' nunca vai para o log: e uma credencial de uso unico, mas ainda assim
-        // uma credencial — o resto do projeto trata token do mesmo jeito (ver
-        // MetaCloudEnviador), e o log nao pode ser a excecao.
-        Log::info('meta-embedded-signup: retorno do link hospedado', $this->parametrosParaExibir($request));
-
-        $code = (string) $request->query('code', '');
-
-        if ($code === '') {
-            return $this->paginaDeErro(
-                'A Meta não devolveu o "code" de autorização. Parâmetros recebidos: '
-                .json_encode($this->parametrosParaExibir($request))
-            );
+        $validador = Validator::make($request->query(), [
+            'state' => ['required', 'uuid'],
+            'code' => ['required', 'string', 'max:4096'],
+            'waba_id' => ['nullable', 'regex:/^\d{1,32}$/'],
+            'phone_number_id' => ['nullable', 'regex:/^\d{1,32}$/'],
+            'business_id' => ['nullable', 'regex:/^\d{1,32}$/'],
+        ]);
+        if ($validador->fails()) {
+            return $this->paginaDeErro('A Meta não devolveu uma autorização completa vinculada à tentativa. Inicie novamente no Virtus.');
         }
-
-        // Nem toda versao do fluxo hospedado manda waba_id/phone_number_id na propria
-        // URL de retorno — por isso o erro aqui e explicito com o que chegou, em vez de
-        // estourar tentando montar uma chamada a Graph API com id vazio.
-        $wabaId = (string) $request->query('waba_id', '');
-        $phoneNumberId = (string) $request->query('phone_number_id', '');
-        $businessId = $request->query('business_id');
-
-        if ($wabaId === '' || $phoneNumberId === '') {
-            return $this->paginaDeErro(
-                'Recebi o code, mas faltou waba_id/phone_number_id na volta. Parâmetros '
-                .'recebidos: '.json_encode($this->parametrosParaExibir($request))
-            );
-        }
-
-        $r = $signup->conectar($code, $wabaId, $phoneNumberId);
-
-        if (! $r['ok']) {
-            return $this->paginaDeErro($r['erro']);
-        }
-
-        // 5 minutos: tempo de sobra para o JS do popup mandar a mensagem e a aba
-        // principal responder, curto o bastante para nao deixar token pendurado no
-        // cache se a aba principal tiver sido fechada no meio do caminho.
-        $signupToken = (string) Str::uuid();
-        Cache::put("meta_signup:{$signupToken}", [
-            'waba_id'         => $wabaId,
-            'phone_number_id' => $phoneNumberId,
-            'business_id'     => $businessId,
-            'token'           => $r['token'],
-            'nome'            => $r['nome'],
-            'numero'          => $r['numero'],
-            'tenant_id'       => auth()->user()->tenant_id,
-        ], now()->addMinutes(5));
-
-        return $this->paginaDeSucesso($signupToken);
+        $resultado = $this->processarAutorizacao($request, $signup, $validador->validated());
+        return $resultado['ok']
+            ? $this->paginaDeSucesso($resultado['signup_token'])
+            : $this->paginaDeErro($resultado['erro']);
     }
 
     /**
@@ -159,8 +258,10 @@ class MetaEmbeddedSignupController extends Controller
     private function parametrosParaExibir(Request $request): array
     {
         return [
-            ...$request->query(),
             'code' => $request->has('code') ? '(presente)' : '(ausente)',
+            'waba_id_presente' => $request->filled('waba_id'),
+            'phone_number_id_presente' => $request->filled('phone_number_id'),
+            'state_presente' => $request->filled('state'),
         ];
     }
 
@@ -195,7 +296,7 @@ class MetaEmbeddedSignupController extends Controller
 
         return Channel::create([
             ...$dados,
-            'tenant_id'     => auth()->user()->tenant_id,
+            'tenant_id'     => $r['tenant_id'],
             'nome'          => $r['nome'] ?: Channel::nomeProvisorio(),
             'telefone_e164' => $r['numero'],
         ]);
@@ -204,6 +305,7 @@ class MetaEmbeddedSignupController extends Controller
     private function paginaDeSucesso(string $signupToken): Response
     {
         return response()->view('filament.resources.channels.pages.conectar-meta-retorno', [
+            'state' => Cache::get("meta_signup:{$signupToken}")['state'] ?? null,
             'sucesso'     => true,
             'signupToken' => $signupToken,
         ]);

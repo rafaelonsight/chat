@@ -109,14 +109,14 @@ class BusinessHours
         };
     }
 
-    public function minutosUteisEntre(Carbon $de, Carbon $ate, ?Channel $canal = null, ?Team $equipe = null): int
+    public function minutosUteisEntre(Carbon $de, Carbon $ate, ?Channel $canal = null, ?Team $equipe = null, bool $arredondar = true): int
     {
         if ($ate->lessThanOrEqualTo($de)) {
             return 0;
         }
 
         if (! $this->configurado($canal, $equipe)) {
-            return (int) round($de->diffInSeconds($ate) / 60);
+            return (int) ($arredondar ? round($de->diffInSeconds($ate) / 60) : floor($de->diffInSeconds($ate) / 60));
         }
 
         $inicio = $de->copy()->setTimezone($this->fuso());
@@ -139,7 +139,7 @@ class BusinessHours
             $dia->addDay();
         }
 
-        return (int) round($segundos / 60);
+        return (int) ($arredondar ? round($segundos / 60) : floor($segundos / 60));
     }
 
     // ----------------------------------------------------------------- interno

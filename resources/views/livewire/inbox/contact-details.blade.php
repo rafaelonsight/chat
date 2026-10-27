@@ -43,13 +43,13 @@
                  a tela em branco: o painel some e nada toma o lugar dele. --}}
             <button type="button" wire:click="fechar" x-on:click="$dispatch('voltar-para-conversa')"
                     class="shrink-0 rounded px-3 py-1 text-2xl leading-none text-gray-400 hover:text-gray-700 lg:px-2 lg:text-base dark:hover:text-gray-200"
-                    title="Fechar" aria-label="Fechar detalhes">&times;</button>
+                    title="{{ __('ui_7b2006fd7af8') }}" aria-label="{{ __('ui_44d2a4974215') }}">&times;</button>
         </div>
 
         @if ($contato->bloqueado() || $contato->arquivado())
             <div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
                 @if ($contato->bloqueado())
-                    <p><strong>Bloqueado</strong> em {{ \Illuminate\Support\Carbon::parse($contato->bloqueado_em)->format('d/m/Y H:i') }}.
+                    <p><strong>{{ __('ui_99c1b43ea202') }}</strong> em {{ \Illuminate\Support\Carbon::parse($contato->bloqueado_em)->format('d/m/Y H:i') }}.
                         Nenhuma automação responde; as mensagens dele continuam chegando aqui.</p>
                     @if ($contato->bloqueio_motivo)
                         <p class="mt-0.5 opacity-90">{{ $contato->bloqueio_motivo }}</p>
@@ -57,7 +57,7 @@
                 @endif
                 @if ($contato->arquivado())
                     <p @class(['mt-1' => $contato->bloqueado()])>
-                        <strong>Arquivado</strong> em {{ \Illuminate\Support\Carbon::parse($contato->arquivado_em)->format('d/m/Y H:i') }}.
+                        <strong>{{ __('ui_8d036bd82021') }}</strong> em {{ \Illuminate\Support\Carbon::parse($contato->arquivado_em)->format('d/m/Y H:i') }}.
                     </p>
                 @endif
             </div>
@@ -85,7 +85,7 @@
                 {{-- nome editavel: o que vem do WhatsApp e o apelido do cliente,
                      quase sempre inutil para identificar quem e --}}
                 <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">Nome</label>
+                    <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ __('ui_13030dd962f4') }}</label>
                     <div class="flex gap-2">
                         {{-- value explicito: sem ele o campo sai vazio do servidor
                              e so aparece depois que o Livewire hidrata --}}
@@ -93,8 +93,8 @@
                                wire:keydown.enter="salvarNome"
                                class="min-w-0 flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
                         <button type="button" wire:click="salvarNome" wire:loading.attr="disabled"
-                                class="shrink-0 rounded bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-60">
-                            Salvar
+                                class="shrink-0 rounded bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 disabled:opacity-60">
+                            {{ __('ui_93bf2d32ec33') }}
                         </button>
                     </div>
                     @error('nome') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
@@ -102,7 +102,7 @@
 
                 <dl class="space-y-3">
                     <div>
-                        <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Telefone</dt>
+                        <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ __('ui_04e0410282ed') }}</dt>
                         <dd class="flex items-center gap-1.5 text-gray-800 dark:text-gray-100">
                             <span class="min-w-0 truncate">{{ $contato->telefoneDiscavel() }}</span>
 
@@ -116,7 +116,7 @@
                                      ainda nao faz — nao substitui o envio daqui. --}}
                                 <a href="https://wa.me/{{ $waDigitos }}" target="_blank" rel="noopener"
                                    class="shrink-0 rounded p-1 text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10"
-                                   title="Abrir no WhatsApp">
+                                   title="{{ __('ui_1093d51c122a') }}">
                                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm0 18.15c-1.5 0-2.98-.4-4.27-1.16l-.31-.18-3.12.82.83-3.04-.2-.32a8.19 8.19 0 01-1.26-4.36c0-4.54 3.7-8.24 8.24-8.24s8.24 3.7 8.24 8.24-3.7 8.24-8.15 8.24zm4.52-6.16c-.25-.12-1.47-.72-1.7-.8-.23-.09-.4-.13-.56.12-.17.25-.64.8-.79.97-.14.16-.29.18-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.39.11-.51.11-.11.25-.29.37-.44.12-.14.16-.25.25-.41.08-.17.04-.31-.02-.44-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.43h-.48c-.16 0-.43.06-.65.31-.23.25-.87.85-.87 2.07 0 1.23.89 2.41 1.01 2.58.12.16 1.74 2.66 4.21 3.73.59.25 1.05.4 1.41.52.59.19 1.13.16 1.55.1.47-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.11-.23-.17-.48-.29z"/>
                                     </svg>
@@ -127,7 +127,7 @@
 
                     @if ($contato->email)
                         <div>
-                            <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">E-mail</dt>
+                            <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ __('ui_0d01e2e86669') }}</dt>
                             <dd class="flex items-center gap-1.5 text-gray-800 dark:text-gray-100">
                                 <a href="mailto:{{ $contato->email }}" class="min-w-0 truncate hover:underline">{{ $contato->email }}</a>
                                 <x-inbox.copiar :valor="$contato->email" titulo="Copiar e-mail" />
@@ -137,7 +137,7 @@
 
                     @if ($contato->instagram)
                         <div>
-                            <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Instagram</dt>
+                            <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ __('ui_5721bbef40b2') }}</dt>
                             <dd class="text-gray-800 dark:text-gray-100">
                                 <a href="{{ $contato->instagramUrl() }}" target="_blank" rel="noopener"
                                    class="text-pink-600 hover:underline dark:text-pink-400">
@@ -149,7 +149,7 @@
 
                     @if ($contato->enderecoResumido())
                         <div>
-                            <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Endereço</dt>
+                            <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ __('ui_ef764c1db7f8') }}</dt>
                             <dd class="text-gray-800 dark:text-gray-100">
                                 {{ $contato->enderecoResumido() }}
                                 @if ($contato->cep)
@@ -160,7 +160,7 @@
                     @endif
 
                     <div>
-                        <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Canal</dt>
+                        <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ __('ui_61f21e6ff9d6') }}</dt>
                         <dd class="text-gray-800 dark:text-gray-100">
                             {{ $conversa->channel->nome }}
                             @if ($conversa->channel->telefone_e164)
@@ -171,7 +171,7 @@
 
                     @if ($conversa->veioDeAnuncio())
                         <div>
-                            <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Veio de</dt>
+                            <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ __('ui_5fd071f31011') }}</dt>
                             <dd class="text-gray-800 dark:text-gray-100">
                                 {{ $conversa->origemResumo() }}
                                 @if (data_get($conversa->origem, 'url'))
@@ -186,7 +186,7 @@
                     @endif
 
                     <div>
-                        <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">Atendimento</dt>
+                        <dt class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ __('ui_fff9eab29fe6') }}</dt>
                         <dd class="text-gray-800 dark:text-gray-100">
                             {{ $conversa->rotuloStatus() }}
                             @if ($conversa->atendente)
@@ -199,20 +199,23 @@
                 {{-- Editar o cadastro completo (endereco, CEP, campos personalizados)
                      e no formulario do contato: duplicar tudo aqui daria duas fontes
                      de verdade para a mesma informacao. --}}
+                @if(!config('agenda.edition') || !$contato->eGrupo())
                 <a href="{{ route('filament.admin.resources.contacts.edit', ['record' => $contato->getKey()]) }}"
                    class="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline dark:text-emerald-400">
-                    Abrir cadastro completo &rarr;
+                    {{ __('ui_ec06c2e7c0cb') }}
                 </a>
+                @endif
 
                 <div class="rounded border border-gray-200 dark:border-white/10">
                     {{-- Etiquetas: aqui COM nome, ao contrario da lista, onde so a cor
                          aparece para nao roubar espaco do nome do cliente. --}}
                     <div class="px-3 py-3">
-                        <p class="mb-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">Etiquetas</p>
+                        <p class="mb-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">{{ __('ui_0b281817af62') }}</p>
+                        @include('livewire.inbox.partials.criar-etiqueta-local')
 
                         @if ($etiquetas->isEmpty())
                             <p class="text-xs text-gray-400">
-                                Nenhuma cadastrada. Crie em <strong>Configurações &rarr; Etiquetas</strong>.
+                                {{ __('ui_5d6a1711910b') }}
                             </p>
                         @else
                             <div class="flex flex-wrap gap-1">
@@ -252,7 +255,7 @@
                          que nao da para editar nesta tela. --}}
                     @if ($camposPreenchidos !== [])
                         <div class="border-t border-gray-100 px-3 py-3 dark:border-white/5">
-                            <p class="mb-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">Campos personalizados</p>
+                            <p class="mb-1.5 text-xs font-medium text-gray-500 dark:text-gray-400">{{ __('ui_f801a31165b3') }}</p>
                             <dl class="space-y-1.5">
                                 @foreach ($camposPreenchidos as $rotulo => $valor)
                                     <div wire:key="cp-{{ \Illuminate\Support\Str::slug($rotulo) }}" class="flex justify-between gap-2 text-xs">
@@ -296,30 +299,30 @@
                                     </p>
                                 </div>
                             @empty
-                                <p class="text-xs text-gray-400">Nenhuma nota. Use o cadeado no campo de mensagem.</p>
+                                <p class="text-xs text-gray-400">{{ __('ui_20e7f0fb4575') }}</p>
                             @endforelse
                         </div>
                     </div>
 
                     <div class="border-t border-gray-200 px-3 py-2 text-xs font-medium text-gray-500 dark:border-white/10 dark:text-gray-400">
-                        Historico
+                        {{ __('ui_b5362fcff553') }}
                     </div>
                     <dl class="divide-y divide-gray-100 text-sm dark:divide-white/5">
                         <div class="flex justify-between px-3 py-2">
-                            <dt class="text-gray-500 dark:text-gray-400">Mensagens</dt>
+                            <dt class="text-gray-500 dark:text-gray-400">{{ __('ui_d3b297e4de4f') }}</dt>
                             <dd class="text-gray-800 dark:text-gray-100">{{ $resumo['total'] }}</dd>
                         </div>
                         <div class="flex justify-between px-3 py-2">
-                            <dt class="text-gray-500 dark:text-gray-400">Recebidas</dt>
+                            <dt class="text-gray-500 dark:text-gray-400">{{ __('ui_88adb0e2fc58') }}</dt>
                             <dd class="text-gray-800 dark:text-gray-100">{{ $resumo['recebidas'] }}</dd>
                         </div>
                         <div class="flex justify-between px-3 py-2">
-                            <dt class="text-gray-500 dark:text-gray-400">Enviadas</dt>
+                            <dt class="text-gray-500 dark:text-gray-400">{{ __('ui_422b6c14f240') }}</dt>
                             <dd class="text-gray-800 dark:text-gray-100">{{ $resumo['enviadas'] }}</dd>
                         </div>
                         @if ($resumo['primeira'])
                             <div class="flex justify-between px-3 py-2">
-                                <dt class="text-gray-500 dark:text-gray-400">Primeiro contato</dt>
+                                <dt class="text-gray-500 dark:text-gray-400">{{ __('ui_5507b06cc59c') }}</dt>
                                 <dd class="text-gray-800 dark:text-gray-100">
                                     {{ \Illuminate\Support\Carbon::parse($resumo['primeira'])->format('d/m/Y H:i') }}
                                 </dd>
@@ -327,7 +330,7 @@
                         @endif
                         @if ($resumo['ultima'])
                             <div class="flex justify-between px-3 py-2">
-                                <dt class="text-gray-500 dark:text-gray-400">Ultima mensagem</dt>
+                                <dt class="text-gray-500 dark:text-gray-400">{{ __('ui_ca2e46f896dd') }}</dt>
                                 <dd class="text-gray-800 dark:text-gray-100">
                                     {{ \Illuminate\Support\Carbon::parse($resumo['ultima'])->format('d/m/Y H:i') }}
                                 </dd>
@@ -335,7 +338,7 @@
                         @endif
                         @if ($outrasConversas > 0)
                             <div class="flex justify-between px-3 py-2">
-                                <dt class="text-gray-500 dark:text-gray-400">Outros canais</dt>
+                                <dt class="text-gray-500 dark:text-gray-400">{{ __('ui_aaef5bdf476f') }}</dt>
                                 <dd class="text-gray-800 dark:text-gray-100">{{ $outrasConversas }} conversa(s)</dd>
                             </div>
                         @endif
@@ -374,7 +377,7 @@
                         </div>
                     </a>
                 @empty
-                    <p class="text-xs text-gray-400">Nenhum arquivo nesta conversa.</p>
+                    <p class="text-xs text-gray-400">{{ __('ui_35809cc82641') }}</p>
                 @endforelse
             </div>
         @endif
@@ -389,7 +392,7 @@
                         <p class="flex items-center justify-between gap-2 text-xs font-medium text-gray-800 dark:text-gray-100">
                             <span class="truncate">{{ $outra->channel?->nome ?? 'Canal removido' }}</span>
                             @if ($outra->nao_lidas > 0)
-                                <span class="shrink-0 rounded-full bg-emerald-600 px-1.5 text-[10px] font-semibold text-white">{{ $outra->nao_lidas }}</span>
+                                <span class="shrink-0 rounded-full bg-violet-600 px-1.5 text-[10px] font-semibold text-white">{{ $outra->nao_lidas }}</span>
                             @endif
                         </p>
                         <p class="text-[11px] text-gray-500 dark:text-gray-400">
@@ -404,8 +407,7 @@
                     </button>
                 @empty
                     <p class="text-xs text-gray-400">
-                        Este contato só tem esta conversa. Outras aparecem aqui quando ele
-                        escrever por outro canal ou quando esta for encerrada.
+                        {{ __('ui_ddc7c91964b6') }}
                     </p>
                 @endforelse
             </div>
@@ -415,12 +417,12 @@
         @if ($aba === 'integrantes')
             <div class="space-y-3 p-4 text-sm">
                 @if (! $contato->eGrupo())
-                    <p class="text-xs text-gray-400">Integrantes estão disponíveis apenas em conversas de grupo.</p>
+                    <p class="text-xs text-gray-400">{{ __('ui_44aebebe4ba0') }}</p>
                 @else
                     <div>
-                        <label for="busca-integrantes" class="sr-only">Buscar integrante</label>
+                        <label for="busca-integrantes" class="sr-only">{{ __('ui_21cfc71a6195') }}</label>
                         <input id="busca-integrantes" type="search" wire:model.live.debounce.250ms="buscaIntegrantes"
-                               placeholder="Buscar por nome ou número"
+                               placeholder="{{ __('ui_1c9cb2355390') }}"
                                class="w-full rounded border border-gray-300 px-2.5 py-2 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
                     </div>
 
@@ -451,7 +453,7 @@
                             </div>
                         @empty
                             <p class="rounded border border-dashed border-gray-200 p-3 text-xs text-gray-400 dark:border-white/10">
-                                Nenhum integrante encontrado. Tente atualizar a busca em alguns instantes.
+                                {{ __('ui_f5d5194a5a68') }}
                             </p>
                         @endforelse
                     </div>
@@ -463,7 +465,7 @@
             {{-- Perfil curto de proposito: o atendente veio do grupo, quer confirmar quem e
                  e decidir se abre o privado. Cadastro completo so faria essa decisao demorar. --}}
             <div class="fixed inset-0 z-50 grid place-items-center bg-black/45 p-4" wire:click.self="fecharPerfilIntegrante">
-                <section role="dialog" aria-modal="true" aria-label="Perfil do integrante"
+                <section role="dialog" aria-modal="true" aria-label="{{ __('ui_cfc1d19217d2') }}"
                          class="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl dark:bg-gray-900">
                     <div class="flex items-start justify-between gap-3">
                         <div class="flex min-w-0 items-center gap-3">
@@ -476,14 +478,14 @@
                             @endif
                             <div class="min-w-0">
                                 <h3 class="truncate font-semibold text-gray-900 dark:text-gray-100">{{ $integranteSelecionado['nome'] }}</h3>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">Integrante deste grupo</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ __('ui_05458ab1ec87') }}</p>
                             </div>
                         </div>
-                        <button type="button" wire:click="fecharPerfilIntegrante" class="rounded p-1 text-xl leading-none text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" aria-label="Fechar perfil">&times;</button>
+                        <button type="button" wire:click="fecharPerfilIntegrante" class="rounded p-1 text-xl leading-none text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" aria-label="{{ __('ui_73b306a9b399') }}">&times;</button>
                     </div>
 
                     <div class="mt-5 rounded border border-gray-200 px-3 py-2.5 dark:border-white/10">
-                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">Telefone</p>
+                        <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ __('ui_04e0410282ed') }}</p>
                         <div class="mt-1 flex items-center gap-1.5">
                             <span class="min-w-0 flex-1 truncate text-sm text-gray-800 dark:text-gray-100">+{{ $integranteSelecionado['telefone'] }}</span>
                             <x-inbox.copiar :valor="'+'.$integranteSelecionado['telefone']" titulo="Copiar telefone" />
@@ -491,10 +493,10 @@
                     </div>
 
                     <button type="button" wire:click="abrirConversaComIntegrante" wire:loading.attr="disabled"
-                            class="mt-4 w-full rounded bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60">
-                        Abrir conversa privada
+                            class="mt-4 w-full rounded bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700 disabled:opacity-60">
+                        {{ __('ui_edf027818103') }}
                     </button>
-                    <p class="mt-2 text-center text-[11px] text-gray-500 dark:text-gray-400">Nenhuma mensagem será enviada automaticamente.</p>
+                    <p class="mt-2 text-center text-[11px] text-gray-500 dark:text-gray-400">{{ __('ui_9d64e107704f') }}</p>
                 </section>
             </div>
         @endif
@@ -506,13 +508,10 @@
                      que os dados dos outros sistemas da empresa vao entrar pela
                      integracao. Aba que finge ter dado e pior que aba vazia. --}}
                 <p class="text-xs text-gray-500 dark:text-gray-400">
-                    Aqui vão aparecer os dados deste cliente que hoje moram nos seus outros
-                    sistemas — cadastro, pedidos, pagamentos, agendamentos — sem sair do
-                    atendimento.
+                    {{ __('ui_ea10bcc68d3c') }}
                 </p>
                 <p class="mt-2 text-xs text-gray-400">
-                    A integração ainda não está ligada. Enquanto isso, consulte no sistema
-                    onde esses dados ficam hoje.
+                    {{ __('ui_45b051a38bee') }}
                 </p>
             </div>
         @endif

@@ -29,11 +29,35 @@ class ConversationList extends Component
     public const ORDENS = [
         'recentes' => 'Últimas interações primeiro',
         'antigos'  => 'Mais antigos primeiro',
+        'atrasadas' => 'Mais atrasadas primeiro',
     ];
 
     public string $balde = 'novos';
 
     public bool $somenteNaoLidas = false;
+    public bool $somenteSemResposta = false;
+    private ?array $atrasosRequest = null;
+
+    private function atrasos(): array
+    {
+        return $this->atrasosRequest ??= collect(app(\App\Services\AlertasResposta::class)->pendentes(false))->keyBy('id')->all();
+    }
+
+    public function updatedSomenteSemResposta(): void { $this->limite = self::PAGINA; }
+
+    private function aplicarOrdem(Builder $query): Builder
+    {
+        if ($this->ordemEfetiva() === 'atrasadas') {
+            $atrasos = collect($this->atrasos())->sortByDesc('minutos')->keys()->all();
+            if ($atrasos) {
+                $casos = []; $bindings = [];
+                foreach ($atrasos as $posicao => $id) { $casos[] = 'when id = ? then ?'; $bindings[] = $id; $bindings[] = $posicao; }
+                $query->orderByRaw('case '.implode(' ', $casos).' else '.count($atrasos).' end', $bindings);
+            }
+        }
+        return $query->orderByRaw('case when fixada_em is not null and fixada_por = ? then 0 else 1 end', [auth()->id()])
+            ->orderBy('ultima_msg_em', $this->ordemEfetiva() === 'antigos' ? 'asc' : 'desc');
+    }
 
     public string $busca = '';
 
@@ -122,9 +146,7 @@ class ConversationList extends Component
      */
     public function irParaVizinha(int $passo): void
     {
-        $ids = $this->aplicarRecortes($this->doBalde($this->balde))
-            ->orderByRaw('case when fixada_em is not null and fixada_por = ? then 0 else 1 end', [auth()->id()])
-            ->orderBy('ultima_msg_em', $this->ordemEfetiva() === 'antigos' ? 'asc' : 'desc')
+        $ids = $this->aplicarOrdem($this->aplicarRecortes($this->doBalde($this->balde)))
             ->limit($this->limite)
             ->pluck('id')
             ->all();
@@ -203,6 +225,16 @@ class ConversationList extends Component
 
     // Busca e filtro de nao lidas vem de wire:model, entao usam os hooks do
     // Livewire; balde, equipe e ordem passam por metodo e reiniciam lá.
+    public function limparFiltros(): void
+    {
+        $this->busca = '';
+        $this->somenteNaoLidas = false;
+        $this->somenteSemResposta = false;
+        $this->canal = '';
+        $this->filtrarEtiqueta(null);
+        $this->updatedBusca();
+    }
+
     public function updatedBusca(): void
     {
         $this->limite = self::PAGINA;
@@ -293,17 +325,17 @@ class ConversationList extends Component
         $semGrupo = fn (Builder $q) => $q->whereHas('contact', fn ($c) => $c->where('tipo', '!=', Contact::GRUPO));
 
         return match ($balde) {
-            'novos' => $semGrupo(Conversation::where('status', Conversation::NOVA)),
+            'novos' => $semGrupo(Conversation::where(fn ($q) => $q->where('status', Conversation::NOVA)->orWhere(fn ($q) => $q->where('status', Conversation::EM_ATENDIMENTO)->whereNull('atendente_id')))),
 
             'meus' => $semGrupo(
                 Conversation::where('status', Conversation::EM_ATENDIMENTO)->where('atendente_id', $eu)
             ),
 
-            // "ou atendente nulo" fecha o furo: conversa conduzida por automacao
-            // tem status em atendimento sem humano e desapareceria da tela.
+            // Sem responsável humano, a conversa pertence a Novos.
+            // Outros mostra somente atendimentos assumidos por outra pessoa.
             'outros' => $semGrupo(
                 Conversation::where('status', Conversation::EM_ATENDIMENTO)
-                    ->where(fn ($q) => $q->whereNull('atendente_id')->orWhere('atendente_id', '!=', $eu))
+                    ->whereNotNull('atendente_id')->where('atendente_id', '!=', $eu)
             ),
 
             'grupos' => Conversation::where('status', '!=', Conversation::ARQUIVADA)
@@ -372,6 +404,8 @@ class ConversationList extends Component
             $query->where('nao_lidas', '>', 0);
         }
 
+        if ($this->somenteSemResposta) { $query->whereIn('id', array_keys($this->atrasos())); }
+
         $termo = trim($this->busca);
 
         if ($termo === '') {
@@ -387,7 +421,7 @@ class ConversationList extends Component
                 if ($digitos !== '') {
                     $c->orWhere('telefone_e164', 'ilike', '%'.$digitos.'%');
                 }
-            })->orWhereHas('messages', function ($m) use ($termo) {
+            })->orWhere('protocolo', 'ilike', '%'.$termo.'%')->orWhereHas('messages', function ($m) use ($termo) {
                 // transcricao entra na busca: sem ela, audio e buraco negro no
                 // historico — "o cliente falou de cancelamento" nao encontra nada
                 $m->where('corpo', 'ilike', '%'.$termo.'%')
@@ -416,20 +450,17 @@ class ConversationList extends Component
         // de fora. Sem ele a lista truncaria calada.
         $total = $this->aplicarRecortes($this->doBalde($this->balde))->count();
 
-        $conversas = $this->aplicarRecortes(
+        $conversas = $this->aplicarOrdem($this->aplicarRecortes(
             $this->doBalde($this->balde)
                 ->with(['contact.tags', 'ultimaMensagem', 'atendente', 'team', 'channel'])
                 ->withCount('messages')
-        )
-            // Fixadas primeiro, e so as fixadas por QUEM ESTA OLHANDO. Conversa que outro
-            // atendente prendeu no topo dele nao pode ocupar o topo do meu.
-            ->orderByRaw('case when fixada_em is not null and fixada_por = ? then 0 else 1 end', [auth()->id()])
-            ->orderBy('ultima_msg_em', $this->ordemEfetiva() === 'antigos' ? 'asc' : 'desc')
+        ))
             ->limit($this->limite)
             ->get();
 
         return view('livewire.inbox.conversation-list', [
             'conversas'     => $conversas,
+            'atrasos' => $this->atrasos(),
             'total'         => $total,
             'restantes'     => max(0, $total - $conversas->count()),
             /*

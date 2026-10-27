@@ -17,13 +17,15 @@ use UnitEnum;
 
 class ChannelResource extends Resource
 {
+    use \App\Filament\TraduzirResource;
+
     protected static ?string $model = Channel::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDevicePhoneMobile;
 
     protected static string|UnitEnum|null $navigationGroup = 'Configurações';
 
-    protected static ?string $navigationParentItem = 'Conta';
+    protected static ?string $navigationParentItem = null;
 
     protected static ?string $navigationLabel = 'Canais';
 

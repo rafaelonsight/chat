@@ -23,6 +23,8 @@ use UnitEnum;
 
 class OfferingResource extends Resource
 {
+    use \App\Filament\TraduzirResource;
+
     protected static bool $shouldRegisterNavigation = false;
 
     public static function canViewAny(): bool
@@ -51,11 +53,11 @@ class OfferingResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema->components([
-            TextInput::make('nome')->label('Nome')->required()->maxLength(160)->columnSpan(2),
+            TextInput::make('nome')->label(__('ui_13030dd962f4'))->required()->maxLength(160)->columnSpan(2),
 
             Select::make('tipo')
-                ->label('Tipo')
-                ->options([Offering::SERVICO => 'Serviço', Offering::PRODUTO => 'Produto'])
+                ->label(__('ui_6cc6198d9e75'))
+                ->options(fn () => \App\Support\Idiomas::opcoes([Offering::SERVICO => 'Serviço', Offering::PRODUTO => 'Produto']))
                 ->default(Offering::SERVICO)
                 ->required()
                 ->live()
@@ -69,7 +71,7 @@ class OfferingResource extends Resource
              * quem ja tem codigo de outro sistema tem de poder usar o dele.
              */
             TextInput::make('codigo')
-                ->label('Código interno')
+                ->label(__('ui_8e1e7b4006cb'))
                 ->maxLength(40)
                 ->default(fn () => Offering::proximoCodigo(Offering::SERVICO))
                 /*
@@ -83,30 +85,30 @@ class OfferingResource extends Resource
                  */
                 ->unique(ignoreRecord: true, modifyRuleUsing: fn (Unique $rule) => $rule
                     ->where('tenant_id', TenantContext::get()))
-                ->helperText('Sugerido. Pode trocar pelo código que você já usa — ou apagar, que é opcional.'),
+                ->helperText(__('ui_28e11dee9809')),
 
             Textarea::make('descricao')
-                ->label('Descrição')
+                ->label(__('ui_469768598e0f'))
                 ->rows(3)
                 ->columnSpanFull()
-                ->helperText('Vai para a proposta como está escrito aqui. Escreva o que o cliente lê.'),
+                ->helperText(__('ui_0789702e7527')),
 
             TextInput::make('preco')->label('Preço (R$)')->numeric()->default(0)->required(),
 
             TextInput::make('unidade')
-                ->label('Unidade')
+                ->label(__('ui_b1e91af082de'))
                 ->maxLength(20)
-                ->placeholder('hora, mês, unidade')
-                ->helperText('Aparece ao lado do preço.'),
+                ->placeholder(__('ui_89ab716f1e3c'))
+                ->helperText(__('ui_eea50392b555')),
 
             Toggle::make('recorrente')
-                ->label('Cobrança mensal')
+                ->label(__('ui_9ba36f1da940'))
                 // A decisao vive AQUI e nao na proposta: "plataforma" e mensal por natureza.
                 // Deixar para o momento de montar a proposta convida o erro que mais dói —
                 // cobrar mensalidade como parcela unica, ou o contrario.
-                ->helperText('Marque no que se repete todo mês. A proposta separa os dois totais por isso.'),
+                ->helperText(__('ui_e5d0a4a280c0')),
 
-            Toggle::make('ativo')->label('Ativo')->default(true),
+            Toggle::make('ativo')->label(__('ui_8263fde6ccc4'))->default(true),
         ])->columns(2);
     }
 
@@ -137,25 +139,25 @@ class OfferingResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('nome')->label('Nome')->searchable()->sortable()->wrap(),
+                TextColumn::make('nome')->label(__('ui_13030dd962f4'))->searchable()->sortable()->wrap(),
 
                 TextColumn::make('tipo')
-                    ->label('Tipo')
+                    ->label(__('ui_6cc6198d9e75'))
                     ->badge()
                     ->formatStateUsing(fn (string $state) => $state === Offering::PRODUTO ? 'Produto' : 'Serviço')
                     ->color(fn (string $state) => $state === Offering::PRODUTO ? 'info' : 'gray'),
 
-                TextColumn::make('preco')->label('Preço')->money('BRL')->alignEnd()->sortable(),
+                TextColumn::make('preco')->label(__('ui_2f11b88a8d68'))->money('BRL')->alignEnd()->sortable(),
 
-                IconColumn::make('recorrente')->label('Mensal')->boolean(),
+                IconColumn::make('recorrente')->label(__('ui_6cb71f655e29'))->boolean(),
 
-                TextColumn::make('unidade')->label('Unidade')->placeholder('—'),
+                TextColumn::make('unidade')->label(__('ui_b1e91af082de'))->placeholder('—'),
 
-                IconColumn::make('ativo')->label('Ativo')->boolean(),
+                IconColumn::make('ativo')->label(__('ui_8263fde6ccc4'))->boolean(),
             ])
             ->defaultSort('nome')
-            ->emptyStateHeading('Nenhum produto ou serviço ainda')
-            ->emptyStateDescription('Cadastre o que você vende: a proposta escolhe daqui, com o preço vindo de um lugar só.');
+            ->emptyStateHeading(__('ui_89dc525d0042'))
+            ->emptyStateDescription(__('ui_ca867e2e3d0c'));
     }
 
     public static function getPages(): array

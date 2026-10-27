@@ -7,7 +7,21 @@ use Livewire\Component;
 
 class ConversationWindow extends Component
 {
+    use \App\Livewire\Inbox\Concerns\CriaEtiquetaNoLocal;
     public ?int $conversationId = null;
+    #[\Livewire\Attributes\Locked] public array $traducoes = [];
+    #[\Livewire\Attributes\Locked] public array $idiomasTraducoes = [];
+    public array $errosTraducao = [];
+    public function traduzirMensagem(int $id,string $idioma='pt_BR'): void {
+        $m=\App\Models\Message::findOrFail($id);
+        abort_unless($m->conversation_id===$this->conversationId,403);
+        unset($this->errosTraducao[$id]);
+        try {$this->traducoes[$id]=app(\App\Services\TradutorMensagem::class)->traduzir($m,auth()->user(),$idioma);$this->idiomasTraducoes[$id]=$idioma;}
+        catch(\RuntimeException $e){$this->errosTraducao[$id]=$e->getMessage();}
+        catch(\Illuminate\Http\Client\ConnectionException $e){$this->errosTraducao[$id]=__('A tradução demorou para responder. Tente novamente.');}
+    }
+    public function ocultarTraducao(int $id): void {unset($this->traducoes[$id],$this->errosTraducao[$id],$this->idiomasTraducoes[$id]);}
+
 
     /** Texto procurado dentro da conversa aberta. */
     public string $buscaNaConversa = '';
@@ -33,10 +47,13 @@ class ConversationWindow extends Component
     public function mount(?int $conversationId = null): void
     {
         $this->conversationId = $conversationId;
+        $this->classificando=false;
+        $this->reset('assuntoEncerramento','resumoEncerramento','solucaoEncerramento','pendenciasEncerramento','emailEncerramento');
     }
 
     public function abrir(int $conversationId): void
     {
+        $this->traducoes = []; $this->errosTraducao = []; $this->idiomasTraducoes = [];
         $this->conversationId = $conversationId;
         $this->limite = 30;
         $this->buscaNaConversa = '';
@@ -137,7 +154,7 @@ class ConversationWindow extends Component
 
         // Quem pode receber a conversa. O escopo global ja limita a conta; tirar quem ja e o
         // atendente evita oferecer "passar para quem ja esta com ela", que nao faz nada.
-        $pessoas = \App\Models\User::query()
+        $pessoas = \App\Models\User::query()->where('perfil', '!=', 'auditor')
             ->when($conversa?->atendente_id, fn ($q, $id) => $q->whereKeyNot($id))
             ->orderBy('name')
             ->get();
@@ -151,14 +168,14 @@ class ConversationWindow extends Component
         $desde = $procurado !== '' ? null : $mensagens->first()?->created_at;
 
         $eventos = ($conversa && $procurado === '')
-            ? $conversa->events()
+            ? $conversa->events()->when(! auth()->user()?->consultaNotas(), fn ($q) => $q->where('tipo', '!=', \App\Models\ConversationEvent::NOTA))
                 ->with('user')
                 ->whereNull('dados->message_id')
                 ->when($desde, fn ($q) => $q->where('created_at', '>=', $desde))
                 ->get()
             : collect();
 
-        $notasPorMensagem = ($conversa && $procurado === '')
+        $notasPorMensagem = ($conversa && $procurado === '' && auth()->user()?->consultaNotas())
             ? $conversa->events()->with('user')
                 ->where('tipo', \App\Models\ConversationEvent::NOTA)
                 ->whereNotNull('dados->message_id')
@@ -223,6 +240,7 @@ class ConversationWindow extends Component
 
     public function assumir(): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
         $conversa->assumir();
 
@@ -231,6 +249,54 @@ class ConversationWindow extends Component
 
     /** Fica true enquanto a tela pergunta como o atendimento terminou. */
     public bool $classificando = false;
+    public string $assuntoEncerramento = '';
+    public string $resumoEncerramento = '';
+    public string $solucaoEncerramento = '';
+    public string $pendenciasEncerramento = '';
+    public string $emailEncerramento = '';
+    public bool $enviarResumoCliente = true;
+    public bool $enviarPesquisa = false;
+    public ?int $avaliacaoCliente = null;
+    public function reenviarResumo(): void {
+        $conversa=\App\Models\Conversation::findOrFail($this->conversationId);
+        abort_unless(auth()->user()?->podeVer($conversa) && auth()->user()?->consultaRelatorios() && !auth()->user()?->ehAuditor(),403);
+        $db=\Illuminate\Support\Facades\DB::class;
+        $fim=$db::table('encerramentos_atendimento')->where('conversation_id',$conversa->id)->orderByDesc('versao')->first();
+        if(!$fim) return;
+        if($fim->resumo_estado==='falhou') {
+            if($db::table('encerramentos_atendimento')->where('id',$fim->id)->where('resumo_estado','falhou')->update(['resumo_estado'=>'preparando','updated_at'=>now()]))
+                \App\Jobs\GerarResumoEncerramento::dispatch($fim->id);
+        } else {
+            $db::table('emails_encerramento')->where('encerramento_id',$fim->id)->where('estado','falhou')->update(['estado'=>'pendente','tentativas'=>0,'proxima_tentativa_em'=>null,'updated_at'=>now()]);
+        }
+    }
+    public function prepararResumo(): void {
+        $conversa=\App\Models\Conversation::findOrFail($this->conversationId);
+        abort_unless(auth()->user()?->podeVer($conversa),403);
+        abort_if(auth()->user()?->ehAuditor(),403);
+        $this->emailEncerramento=$conversa->contact->email??'';
+        $this->enviarResumoCliente=false;
+        $this->avaliacaoCliente=null;
+        $this->enviarPesquisa=false;
+        $this->reset('assuntoEncerramento','resumoEncerramento','solucaoEncerramento','pendenciasEncerramento');
+        $this->classificando=true;
+    }
+
+    public function gerarResumoIA(): void {
+        $conversa=\App\Models\Conversation::findOrFail($this->conversationId);
+        abort_if(auth()->user()?->ehAuditor(),403);
+        abort_unless(auth()->user()?->podeVer($conversa),403);
+        try {
+            $d=app(\App\Services\ResumoIA::class)->gerar($conversa,auth()->user());
+            $this->assuntoEncerramento=$d['assunto'];$this->resumoEncerramento=$d['resumo'];
+            $this->solucaoEncerramento=$d['solucao'];$this->pendenciasEncerramento=$d['pendencias'];
+            \Filament\Notifications\Notification::make()->success()->title(__('ui_e7fd7bbe1bce'))->send();
+        } catch(\RuntimeException $e) {
+            \Filament\Notifications\Notification::make()->warning()->title(__('ui_38c15f510bf8'))->body($e->getMessage())->send();
+        } catch(\Throwable $e) {
+            \Filament\Notifications\Notification::make()->warning()->title(__('ui_1dcf94806f30'))->body(__('ui_95a180d4d1d8'))->send();
+        }
+    }
 
     /**
      * Pergunta ANTES de arquivar.
@@ -247,33 +313,70 @@ class ConversationWindow extends Component
      */
     public function finalizar(): void
     {
-        if (! $this->classificando && \App\Models\Tag::deConversa()->exists()) {
-            $this->classificando = true;
-
-            return;
-        }
-
-        $this->encerrar();
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
+        $this->prepararResumo();
     }
 
     /** Classifica e encerra, num movimento so. */
     public function encerrarCom(int $tagId): void
     {
+        $this->validarResumo();
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $this->alternarEtiquetaDaConversa($tagId);
         $this->encerrar();
     }
 
+    private function validarResumo(): void
+    {
+        $this->validate([
+            'assuntoEncerramento'=>'nullable|string|max:180',
+            'resumoEncerramento'=>'nullable|string|max:6000',
+            'solucaoEncerramento'=>'nullable|string|max:6000',
+            'pendenciasEncerramento'=>'nullable|string|max:3000',
+            'emailEncerramento'=>'nullable|email|max:255',
+            'avaliacaoCliente'=>'nullable|integer|between:1,5',
+            'enviarResumoCliente'=>'boolean',
+            'enviarPesquisa'=>'boolean',
+        ]);
+    }
+
     public function encerrar(): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
-        $conversa->arquivar();
+        $this->validarResumo();
+        if ($conversa->status === \App\Models\Conversation::ARQUIVADA) return;
+        if(config('agenda.edition')) {
+            abort_unless(auth()->user()->podeVer($conversa),403);
+            abort_if($conversa->contact->eGrupo(),422);
+            \Illuminate\Support\Facades\DB::transaction(function()use($conversa){
+                $fresh=\App\Models\Conversation::whereKey($conversa->id)->lockForUpdate()->firstOrFail();
+                if($fresh->status===\App\Models\Conversation::ARQUIVADA)return;
+                $fresh->arquivar();
+                \App\Models\ConversationEvent::create(['conversation_id'=>$fresh->id,'user_id'=>auth()->id(),'tipo'=>'encerramento','descricao'=>'Atendimento finalizado.']);
+            });
+            $this->classificando=false;$this->dispatch('conversa-atualizada');return;
+        }
+        app(\App\Services\EncerrarComResumo::class)->registrar($conversa,[
+            'automatico'=>trim($this->resumoEncerramento)==='',
+            'assunto'=>$this->assuntoEncerramento ?: 'Atendimento '.$conversa->protocolo,'resumo'=>$this->resumoEncerramento ?: 'Resumo em preparação.',
+            'solucao'=>$this->solucaoEncerramento,'pendencias'=>$this->pendenciasEncerramento,
+            'email_cliente'=>$this->emailEncerramento,
+            'enviar_resumo_cliente'=>$this->enviarResumoCliente,
+            'avaliacao_cliente'=>$this->avaliacaoCliente,
+            'enviar_pesquisa'=>$this->enviarPesquisa || (bool)$conversa->tenant?->pesquisa_obrigatoria,
+        ],auth()->user());
+        \Filament\Notifications\Notification::make()->success()->title(__('ui_98502c6b783b'))
+            ->body(__('ui_e54ea4955f52'))->send();
+
+        $conversa->refresh();
 
         // Depois de arquivar, nao antes: se a pergunta saisse primeiro, o cliente responderia
         // numa conversa ainda aberta e a nota entraria como conversa normal.
         // No widget encerrado nao existe campo para responder a pesquisa; mostrar a pergunta
         // e bloquear a resposta seria uma promessa quebrada. Ali vai apenas o aviso final.
-        if (! $conversa->channel?->ehSite()) {
-            app(\App\Services\PesquisaDeSatisfacao::class)->perguntar($conversa->refresh());
+        if (! $conversa->channel?->ehSite() && ($this->enviarPesquisa || $conversa->tenant?->pesquisa_obrigatoria)) {
+            app(\App\Services\PesquisaDeSatisfacao::class)->perguntar($conversa->refresh(),true);
         }
 
         // E a jornada de pos-atendimento, se houver alguma ligada.
@@ -289,6 +392,7 @@ class ConversationWindow extends Component
         app(\App\Services\EncerramentoChatDoSite::class)->avisar($conversa->refresh());
 
         $this->classificando = false;
+        $this->reset('assuntoEncerramento','resumoEncerramento','solucaoEncerramento','pendenciasEncerramento','emailEncerramento');
 
         $this->dispatch('conversa-atualizada');
     }
@@ -309,6 +413,7 @@ class ConversationWindow extends Component
      */
     public function chamarPorVideo(\App\Services\Video\Chamada $chamada): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         if (! $chamada->disponivel()) {
             $this->addError('video', 'A chamada de vídeo não está configurada neste servidor.');
 
@@ -338,6 +443,7 @@ class ConversationWindow extends Component
 
     public function reabrir(): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
 
         if (! $conversa->reabrir()) {
@@ -389,6 +495,7 @@ class ConversationWindow extends Component
 
     public function salvarEdicaoNota(): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $nota = $this->notaEditavel((int) $this->editandoNota);
         if (! $nota) return;
 
@@ -399,6 +506,7 @@ class ConversationWindow extends Component
 
     public function excluirNota(int $notaId): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $nota = $this->notaEditavel($notaId);
         if ($nota) $nota->delete();
     }
@@ -417,6 +525,7 @@ class ConversationWindow extends Component
 
     public function passarPara(int $userId): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
 
         // find sob o escopo global: usuario de outro tenant nao existe nesta consulta. E a
@@ -442,6 +551,7 @@ class ConversationWindow extends Component
      */
     public function reagir(int $messageId, string $emoji = ''): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $mensagem = \App\Models\Message::find($messageId);
 
         if (! $mensagem || $mensagem->conversation_id !== $this->conversationId) {
@@ -471,6 +581,7 @@ class ConversationWindow extends Component
      */
     public function apagar(int $messageId): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $mensagem = \App\Models\Message::find($messageId);
 
         if (! $mensagem || $mensagem->conversation_id !== $this->conversationId) {
@@ -519,6 +630,7 @@ class ConversationWindow extends Component
 
     public function salvarEdicaoMensagem(): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $mensagem = $this->mensagemEditavel((int) $this->editandoMensagem);
 
         if (! $mensagem) {
@@ -603,6 +715,7 @@ class ConversationWindow extends Component
      */
     public function marcarNaoLida(): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
         $conversa->marcarNaoLida();
 
@@ -622,6 +735,7 @@ class ConversationWindow extends Component
      */
     public function alternarEtiquetaDaConversa(int $tagId): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $conversa = \App\Models\Conversation::find($this->conversationId);
 
         if (! $conversa) {
@@ -667,6 +781,7 @@ class ConversationWindow extends Component
 
     public function alternarFixada(): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
 
         $conversa->fixadaPara(auth()->user())
@@ -686,6 +801,7 @@ class ConversationWindow extends Component
      */
     public function encaminhar(int $messageId, int $contactId): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $mensagem = \App\Models\Message::find($messageId);
         $destino = \App\Models\Contact::find($contactId);
 
@@ -764,6 +880,7 @@ class ConversationWindow extends Component
 
     public function transferir(int $teamId): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $conversa = \App\Models\Conversation::findOrFail($this->conversationId);
 
         // ativas()->find() sob o escopo global: equipe de outro tenant nao existe aqui

@@ -28,7 +28,20 @@ class ChatbotAction extends Model
 
     public const ETIQUETA = 'etiqueta';
 
+    public const NOVOS = ['modelo','pergunta_dinamica','sequencia','criar_card','mover_card','alterar_card','aguardar','outro_chatbot','metadados','webhook','agente_ia','supervisor_ia'];
     public const TIPOS = [
+        'modelo' => 'Enviar modelo de mensagem',
+        'pergunta_dinamica' => 'Enviar pergunta dinâmica',
+        'sequencia' => 'Adicionar/remover da sequência',
+        'criar_card' => 'Criar card',
+        'mover_card' => 'Mover card',
+        'alterar_card' => 'Alterar campos do card',
+        'aguardar' => 'Aguardar mensagens do contato',
+        'outro_chatbot' => 'Direcionar para outro chatbot',
+        'metadados' => 'Modificar metadados',
+        'webhook' => 'Enviar webhook',
+        'agente_ia' => 'Agente IA',
+        'supervisor_ia' => 'Supervisor IA',
         self::MENSAGEM    => 'Enviar mensagem',
         self::MENU        => 'Enviar menu',
         self::PERGUNTA    => 'Enviar pergunta',
@@ -94,7 +107,7 @@ class ChatbotAction extends Model
                 .' '
                 .(count($this->cfg('remover', [])) ? '-'.count($this->cfg('remover', [])) : '')
             ) ?: 'nenhuma escolhida',
-            default           => '',
+            default           => (string) $this->cfg('nome', $this->cfg('chave', $this->cfg('url', $this->cfg('titulo', 'Configure este bloco')))),
         };
     }
 
@@ -105,7 +118,8 @@ class ChatbotAction extends Model
             self::MENU => collect($this->cfg('opcoes', []))
                 ->map(fn ($o) => ChatbotEdge::opcao((string) ($o['gatilho'] ?? '')))
                 ->all(),
-            self::CONDICIONAL => [ChatbotEdge::SIM, ChatbotEdge::NAO],
+            self::CONDICIONAL => $this->cfg('modo')==='multiplo' ? \App\Services\CondicoesChatbot::handles($this->config??[]) : [ChatbotEdge::SIM, ChatbotEdge::NAO],
+            'webhook','pergunta_dinamica' => ['sucesso','erro'],
             default => [],
         };
     }

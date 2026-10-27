@@ -41,7 +41,7 @@
                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-6 w-6">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M5 14.5v3.75A1.75 1.75 0 0 0 6.75 20h10.5A1.75 1.75 0 0 0 19 18.25V14.5" />
                 </svg>
-                Solte para anexar
+                {{ __('ui_5978e171e275') }}
             </div>
         </div>
 
@@ -49,7 +49,7 @@
              class="mb-2 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
              role="alert">
             <span x-text="erroDoArrasto"></span>
-            <button type="button" x-on:click="erroDoArrasto = ''" class="font-semibold underline">Fechar</button>
+            <button type="button" x-on:click="erroDoArrasto = ''" class="font-semibold underline">{{ __('ui_7b2006fd7af8') }}</button>
         </div>
         {{-- Janela de 24h. So aparece em canal que TEM janela: avisar de um limite
              onde ele nao vale ensina o atendente a ignorar o aviso, inclusive quando
@@ -58,15 +58,14 @@
             @if ($janelaAberta)
                 <div class="mb-2 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-1.5 text-xs text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
                     <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                    Janela de atendimento aberta — fecha em <strong>{{ $janelaRestante }}</strong>.
+                    {{ __('ui_fc868d1e8434') }} <strong>{{ $janelaRestante }}</strong>.
                 </div>
             @else
                 <div class="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-500/10 dark:text-amber-200">
-                    <p class="font-semibold">Janela de 24 horas fechada.</p>
+                    <p class="font-semibold">{{ __('ui_d520af7f3bf0') }}</p>
                     <p class="mt-0.5">
-                        Neste canal, passadas 24h da última mensagem do cliente, só um
-                        <strong>template aprovado</strong> pode sair — texto livre é recusado pela Meta.
-                        Escolha um template abaixo.
+                        {{ __('ui_b925aa3b9127') }}
+                        <strong>{{ __('ui_6bcd65e63599') }}</strong> {{ __('ui_cf766aa7cf4c') }}
                     </p>
                 </div>
             @endif
@@ -102,14 +101,14 @@
         @endif
 
         <div wire:loading wire:target="anexo" class="mb-2 text-xs text-slate-500 dark:text-gray-400">
-            enviando arquivo para o servidor&hellip;
+            {{ __('ui_a50ceeff8f72') }}
         </div>
 
         @if ($nota)
             <div class="mb-2 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1.5 text-xs text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
                 <div class="flex items-center gap-2">
                     <span>&#128274;</span>
-                    <span>Nota interna: fica no histórico da conversa e <strong>não é enviada ao cliente</strong>. Escreva <strong>@</strong> para chamar alguém.</span>
+                    <span>{{ __('ui_432d5a75665e') }} <strong>{{ __('ui_e4fdc0ef9db7') }}</strong>{{ __('ui_e98ed2462dc1') }} <strong>@</strong> {{ __('ui_7f21c552135c') }}</span>
                 </div>
 
                 {{--
@@ -126,7 +125,7 @@
 
                 @if ($chamados->isNotEmpty())
                     <div class="mt-1.5 flex flex-wrap items-center gap-1 border-t border-amber-200 pt-1.5 dark:border-amber-500/30">
-                        <span class="text-amber-700 dark:text-amber-300">Avisando:</span>
+                        <span class="text-amber-700 dark:text-amber-300">{{ __('ui_c7cfd661ca84') }}</span>
                         @foreach ($chamados as $quem)
                             <button type="button"
                                     wire:click="$set('mencionados', {{ json_encode(array_values(array_diff($mencionados, [$quem['id']]))) }})"
@@ -143,10 +142,10 @@
             @if ($anotada = $this->mensagemAnotada())
                 <div class="mb-2 flex items-start gap-2 rounded-lg border-l-4 border-amber-500 bg-amber-50 px-3 py-2 dark:bg-amber-500/10">
                     <div class="min-w-0 flex-1">
-                        <div class="text-xs font-semibold text-amber-800 dark:text-amber-200">Nota vinculada a esta mensagem</div>
+                        <div class="text-xs font-semibold text-amber-800 dark:text-amber-200">{{ __('ui_b2794840b547') }}</div>
                         <div class="truncate text-xs text-amber-700/80 dark:text-amber-300/80">{{ $anotada->resumo(120) }}</div>
                     </div>
-                    <button type="button" wire:click="cancelarAnotacao" title="Remover vínculo"
+                    <button type="button" wire:click="cancelarAnotacao" title="{{ __('ui_650493a750de') }}"
                             class="rounded px-2 text-lg leading-none text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-500/20">&times;</button>
                 </div>
             @endif
@@ -162,12 +161,11 @@
             <div class="rounded-xl border border-slate-200 p-3 dark:border-white/10">
                 @if ($templatesDisponiveis->isEmpty())
                     <p class="text-xs text-slate-500 dark:text-gray-400">
-                        Nenhum template disponível neste canal. Eles são criados no painel da Meta
-                        e trazidos em <strong>Configurações &rarr; Templates da Meta</strong>.
+                        {{ __('ui_fce7721ccdab') }} <strong>{{ __('ui_612965e967c0') }}</strong>.
                     </p>
                 @elseif (! $templateEscolhido)
                     <p class="mb-2 text-xs font-medium text-slate-600 dark:text-gray-300">
-                        Escolha um template aprovado — cada envio é cobrado pela Meta.
+                        {{ __('ui_98d068ebc61f') }}
                     </p>
                     <div class="flex flex-wrap gap-2">
                         @foreach ($templatesDisponiveis as $disponivel)
@@ -185,41 +183,42 @@
                         @endforeach
                     </div>
                 @else
-                    <div class="mb-2 flex items-center justify-between gap-2">
-                        <span class="text-xs font-medium text-slate-700 dark:text-gray-200">
-                            {{ $templateEscolhido->nome }} &middot; {{ $templateEscolhido->idioma }}
-                        </span>
-                        <button type="button" wire:click="limparTemplate"
-                                class="text-xs text-slate-500 underline hover:text-slate-700 dark:text-gray-400">
-                            trocar
-                        </button>
-                    </div>
-
-                    @if ($templateEscolhido->variaveis)
-                        <div class="mb-2 space-y-2">
-                            @for ($i = 0; $i < $templateEscolhido->variaveis; $i++)
-                                <input type="text" wire:model.live.debounce.400ms="valoresTemplate.{{ $i }}"
-                                       placeholder="valor {{ $i + 1 }}"
-                                       class="w-full rounded border border-slate-300 px-3 py-1.5 text-sm dark:border-white/10 dark:bg-gray-800 dark:text-gray-100">
-                            @endfor
+                    @teleport('body')
+                    <div class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/45 p-4"
+                         wire:key="previa-template-{{ $templateEscolhido->id }}" x-data x-trap.inert.noscroll="true"
+                         x-on:keydown.escape.window="$wire.limparTemplate()" role="dialog" aria-modal="true" aria-labelledby="titulo-previa-template">
+                        <div class="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-gray-900">
+                            <div class="flex items-start justify-between gap-4 border-b border-slate-200 p-5 dark:border-white/10">
+                                <div>
+                                    <h2 id="titulo-previa-template" class="text-lg font-semibold text-slate-900 dark:text-white">{{ __('Prévia da mensagem') }}</h2>
+                                    <p class="mt-1 text-xs text-slate-500">{{ $templateEscolhido->nome }} · {{ $templateEscolhido->idioma }}</p>
+                                </div>
+                                <button type="button" wire:click="limparTemplate" aria-label="{{ __('Fechar prévia') }}" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100">✕</button>
+                            </div>
+                            <div class="max-h-[65vh] space-y-4 overflow-y-auto p-5">
+                                <p class="text-sm text-slate-600 dark:text-gray-300">{{ __('Confira o texto antes de enviar para') }} <strong>{{ $destinatarioTemplate }}</strong>.</p>
+                                @if ($templateEscolhido->variaveis)
+                                    @foreach ($templateEscolhido->nomesParametros() as $i => $nomeParametro)
+                                        <label class="block text-sm text-slate-700 dark:text-gray-200">
+                                            {{ $nomeParametro }}
+                                            <input type="text" wire:model.live.debounce.250ms="valoresTemplate.{{ $i }}" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 dark:bg-gray-800 dark:text-white">
+                                        </label>
+                                    @endforeach
+                                @endif
+                                <div class="rounded-xl border border-violet-100 bg-violet-50 p-4 text-sm text-slate-800 dark:bg-violet-950 dark:text-white">
+                                    <p class="whitespace-pre-wrap break-words">{{ $templateEscolhido->renderizar($valoresTemplate) }}</p>
+                                    @if ($templateEscolhido->rodape)<p class="mt-3 text-xs text-slate-500">{{ $templateEscolhido->rodape }}</p>@endif
+                                </div>
+                                <p class="text-xs text-slate-500">{{ __('Este envio pode ser cobrado pela Meta.') }}</p>
+                                @error('template') <p role="alert" class="text-sm text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div class="flex justify-end gap-3 border-t border-slate-200 p-4 dark:border-white/10">
+                                <button type="button" wire:click="limparTemplate" class="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 dark:text-white">{{ __('Cancelar') }}</button>
+                                <button type="button" wire:click="enviarTemplate" wire:loading.attr="disabled" wire:target="enviarTemplate,valoresTemplate" class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700 disabled:opacity-50">{{ __('Confirmar envio') }}</button>
+                            </div>
                         </div>
-                    @endif
-
-                    {{-- Previa: o atendente le o que o cliente vai ler ANTES de gastar um
-                         envio cobrado. Sem isso, conferir o texto exigiria enviar. --}}
-                    <div class="mb-2 whitespace-pre-line rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-700 dark:bg-white/5 dark:text-gray-200">{{ $templateEscolhido->renderizar($valoresTemplate) }}</div>
-
-                    <div class="flex items-center gap-3">
-                        <button type="button" wire:click="enviarTemplate"
-                                wire:loading.attr="disabled" wire:target="enviarTemplate"
-                                class="rounded bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-60">
-                            Enviar template
-                        </button>
-                        <button type="button" wire:click="alternarNota"
-                                class="text-xs text-slate-500 underline hover:text-slate-700 dark:text-gray-400">
-                            escrever nota interna
-                        </button>
                     </div>
+                    @endteleport
                 @endif
 
                 @error('template') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
@@ -239,7 +238,7 @@
 
                 <button type="button" wire:click="cancelarResposta"
                         class="shrink-0 rounded px-2 text-lg leading-none text-slate-400 hover:text-slate-700 dark:text-gray-500 dark:hover:text-gray-200"
-                        title="Não citar" aria-label="Cancelar a citação">&times;</button>
+                        title="{{ __('ui_6d61fd8cb113') }}" aria-label="{{ __('ui_3a7ea007169f') }}">&times;</button>
             </div>
         @endif
 
@@ -260,12 +259,25 @@
              x-effect="$wire.corpo ? localStorage.setItem(chave, $wire.corpo) : localStorage.removeItem(chave)">
         </div>
 
+        @if(!$nota && !config('agenda.edition'))
+        <section class="mb-2 rounded-xl border border-violet-200 bg-violet-50 p-3" aria-label="{{ __('ui_6852e59c65cf') }}">
+            <label class="mb-2 block text-xs font-medium">{{ __('Idioma da sugestão e tradução') }}
+                <select wire:model.live="idiomaEscrita" class="ml-2 rounded-lg border bg-white px-3 py-1.5 text-sm">
+                    <option value="pt_BR">Português (BR)</option><option value="en_GB">English (UK)</option>
+                </select>
+            </label>
+            <div class="flex flex-wrap items-center gap-2"><label class="text-xs font-medium">{{ __('ui_6852e59c65cf') }}<select wire:model="acaoEscrita" class="ml-2 rounded-lg border bg-white p-2 text-sm">@foreach(\App\Services\AssistenteEscrita::ACOES as $key=>$label)<option value="{{ $key }}">{{ __($label) }}</option>@endforeach</select></label><button type="button" wire:click="sugerirEscrita" wire:loading.attr="disabled" wire:target="sugerirEscrita,sugerirResposta" class="rounded-lg bg-violet-600 px-3 py-2 text-sm text-white">{{ $acaoEscrita === 'traduzir_uk' ? __('Traduzir rascunho') : __('ui_a50be1cb48c4') }}</button><button type="button" wire:click="sugerirResposta" wire:loading.attr="disabled" wire:target="sugerirEscrita,sugerirResposta" class="rounded-lg border border-violet-300 bg-white px-3 py-2 text-sm text-violet-700">{{ __('ui_bc95484ac40d') }}</button><span wire:loading wire:target="sugerirEscrita,sugerirResposta" class="text-xs">{{ __('ui_bbc03b4c2a91') }}</span></div>
+            <p class="mt-2 text-xs text-gray-500">{{ __('ui_4fd5a0c1b2fa') }}</p>
+            @if($erroEscrita)<p role="alert" class="mt-2 text-sm text-red-600">{{ $erroEscrita }}</p>@endif
+            @if($sugestaoEscrita)<p class="mt-3 text-xs font-semibold">{{ __('ui_10fb79a26878') }}</p><p class="mt-1 whitespace-pre-wrap rounded-lg bg-white p-3 text-sm">{{ $sugestaoEscrita }}</p><div class="mt-2 flex gap-2"><button type="button" wire:click="aplicarEscrita" class="rounded-lg bg-violet-600 px-3 py-2 text-sm text-white">{{ __('ui_5fcf77a62a45') }}</button><button type="button" wire:click="descartarEscrita" class="rounded-lg border px-3 py-2 text-sm">{{ __('ui_63a77c77e07e') }}</button></div>@endif
+        </section>
+        @endif
         <form wire:submit="enviar"
               class="flex flex-wrap items-center gap-2 rounded-2xl border p-2 shadow-sm transition-colors duration-150 {{ $nota ? 'border-amber-300 bg-amber-50/70 ring-1 ring-amber-200 dark:border-amber-500/40 dark:bg-amber-500/10 dark:ring-amber-500/20' : 'border-slate-300 bg-white dark:border-white/15 dark:bg-white/[0.035]' }}">
             {{-- anexar: escondido em nota interna, o arquivo iria para o cliente --}}
             @unless ($nota)
                 <label class="grid h-11 w-11 shrink-0 cursor-pointer place-items-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm transition duration-150 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 focus-within:ring-2 focus-within:ring-emerald-500/40 dark:border-white/15 dark:bg-white/[0.03] dark:text-slate-300 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
-                       title="Anexar arquivo" aria-label="Anexar imagem, vídeo, áudio ou documento">
+                       title="{{ __('ui_0e4f2d7f536d') }}" aria-label="{{ __('ui_386e21190c86') }}">
                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
                         <path stroke-linecap="round" stroke-linejoin="round" d="m20.25 11.25-8.69 8.69a6 6 0 0 1-8.49-8.49l9.19-9.19a4.5 4.5 0 0 1 6.36 6.36l-9.19 9.19a3 3 0 0 1-4.24-4.24l8.69-8.69" />
                     </svg>
@@ -277,9 +289,9 @@
             {{-- modelos de mensagem --}}
             @if ($modelos->isNotEmpty() && ! $nota)
                 <div class="relative shrink-0" x-data="{ aberto: false }" x-on:click.outside="aberto = false">
-                    <button type="button" x-on:click="aberto = !aberto" title="Modelos de mensagem"
-                            aria-label="Abrir modelos de mensagem"
-                            class="grid h-11 w-11 place-items-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm transition duration-150 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 dark:border-white/15 dark:bg-white/[0.03] dark:text-slate-300 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300">
+                    <button type="button" x-on:click="aberto = !aberto" title="{{ __('ui_7ed6761a4972') }}"
+                            aria-label="{{ __('ui_e0789fe0adf8') }}"
+                            class="grid h-11 w-11 place-items-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm transition duration-150 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 dark:border-white/15 dark:bg-white/[0.03] dark:text-slate-300 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300">
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h4.5M6.75 3.75h7.69a2 2 0 0 1 1.42.59l1.8 1.8a2 2 0 0 1 .59 1.42v10.69a2 2 0 0 1-2 2h-9.5a2 2 0 0 1-2-2V5.75a2 2 0 0 1 2-2Z" />
                             <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 3.9v3.35a.5.5 0 0 0 .5.5h3.35" />
@@ -320,9 +332,9 @@
                         x-show="!gravando && !iniciando && !enviando"
                         x-on:pointerdown.prevent="segureParaGravar($event)"
                         style="touch-action: none"
-                        aria-label="Gravar mensagem de voz"
-                        class="grid h-11 w-11 place-items-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm transition duration-150 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 dark:border-white/15 dark:bg-white/[0.03] dark:text-slate-300 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
-                        title="Segure para gravar. Arraste para cima para travar.">
+                        aria-label="{{ __('ui_a5a7eaed3f66') }}"
+                        class="grid h-11 w-11 place-items-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm transition duration-150 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 dark:border-white/15 dark:bg-white/[0.03] dark:text-slate-300 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300"
+                        title="{{ __('ui_77e0151b6935') }}">
                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
                         <rect x="8.25" y="3" width="7.5" height="12" rx="3.75" />
                         <path stroke-linecap="round" stroke-linejoin="round" d="M5.75 11.25a6.25 6.25 0 0 0 12.5 0M12 17.5V21m-3 0h6" />
@@ -332,13 +344,13 @@
                 <div x-show="iniciando" x-cloak
                      class="flex items-center gap-2 rounded border border-slate-300 px-3 py-2 text-sm text-slate-600 dark:border-white/15 dark:text-gray-300">
                     <span class="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-emerald-600"></span>
-                    <span>Liberando microfone…</span>
+                    <span>{{ __('ui_364156b46fa9') }}</span>
                 </div>
 
                 <div x-show="enviando" x-cloak
-                     class="flex items-center gap-2 rounded bg-emerald-600 px-3 py-2 text-sm text-white">
+                     class="flex items-center gap-2 rounded bg-violet-600 px-3 py-2 text-sm text-white">
                     <span class="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white"></span>
-                    <span>Enviando áudio…</span>
+                    <span>{{ __('ui_136c6bd4ddf2') }}</span>
                 </div>
 
                 {{-- Gravando e ainda segurando: a dica muda conforme o dedo anda, para a
@@ -355,7 +367,7 @@
                 <div x-show="gravando && travado" x-cloak class="flex items-center gap-1">
                     <button type="button" x-on:click="cancelar()"
                             class="rounded border border-slate-300 px-2 py-2 text-sm text-slate-500 hover:bg-slate-50 dark:border-white/15 dark:text-gray-400 dark:hover:bg-white/5"
-                            title="Descartar">&times;</button>
+                            title="{{ __('ui_63a77c77e07e') }}">&times;</button>
 
                     <span class="flex items-center gap-1.5 rounded bg-red-600 px-2 py-2 text-sm text-white">
                         <span class="h-2 w-2 animate-pulse rounded-full bg-white"></span>
@@ -363,8 +375,8 @@
                     </span>
 
                     <button type="button" x-on:click="pararEEnviar()"
-                            class="rounded bg-emerald-600 px-3 py-2 text-sm text-white hover:bg-emerald-700"
-                            title="Enviar agora" aria-label="Enviar áudio agora">
+                            class="rounded bg-violet-600 px-3 py-2 text-sm text-white hover:bg-violet-700"
+                            title="{{ __('ui_dcbf8d2f94ba') }}" aria-label="{{ __('ui_3fbb4072fe0a') }}">
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="m5 12 14-8-4.5 16-3-6.5L5 12Zm6.5 1.5L19 4" /></svg>
                     </button>
                 </div>
@@ -389,8 +401,8 @@
             @unless ($nota)
                 <div class="relative shrink-0" x-data="{ aberto: false }" x-on:click.outside="aberto = false">
                     <button type="button" x-on:click="aberto = !aberto"
-                            title="Emojis" aria-label="Escolher um emoji"
-                            class="grid h-11 w-11 place-items-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm transition duration-150 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/40 dark:border-white/15 dark:bg-white/[0.03] dark:text-slate-300 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300">
+                            title="{{ __('ui_ac171aacfa24') }}" aria-label="{{ __('ui_d4b44ab4e488') }}"
+                            class="grid h-11 w-11 place-items-center rounded-xl border border-slate-300 bg-white text-slate-600 shadow-sm transition duration-150 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/40 dark:border-white/15 dark:bg-white/[0.03] dark:text-slate-300 dark:hover:border-emerald-500/60 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300">
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="h-5 w-5">
                             <circle cx="12" cy="12" r="8.75" /><path stroke-linecap="round" d="M8.5 14.25c.9 1.15 2.05 1.75 3.5 1.75s2.6-.6 3.5-1.75" /><path stroke-linecap="round" d="M8.75 9.5h.01M15.25 9.5h.01" stroke-width="2.5" />
                         </svg>
@@ -559,7 +571,7 @@
 
                 @if ($nota)
                     {{-- Enter salva; Ctrl/Cmd + Enter abre uma nova linha sem enviar. --}}
-                    <textarea wire:model="corpo" rows="2" autocomplete="off" data-atalho="responder"
+                    <textarea wire:model="corpo" rows="2" autocomplete="off" spellcheck="true" lang="{{ str_replace('_', '-', app()->getLocale()) }}" autocorrect="on" data-atalho="responder"
                               x-init="$nextTick(() => ajustarAltura($el))"
                               x-on:input="ajustarAltura($el); aoDigitar($el)"
                               x-on:keydown.arrow-down="if (aberto) { $event.preventDefault(); andar(1) }"
@@ -582,7 +594,7 @@
                     {{-- Enter envia; Ctrl/Cmd + Enter insere uma quebra de linha. Um input
                          comum nunca poderia cumprir esse atalho, por isso o compositor de
                          mensagem tambem precisa ser textarea. --}}
-                    <textarea wire:model="corpo" rows="2" autocomplete="off" data-atalho="responder"
+                    <textarea wire:model="corpo" rows="2" autocomplete="off" spellcheck="true" lang="{{ str_replace('_', '-', app()->getLocale()) }}" autocorrect="on" data-atalho="responder"
                            x-init="$nextTick(() => ajustarAltura($el))"
                            x-on:input.throttle.3000ms="$wire.digitando(true)"
                            x-on:input="ajustarAltura($el); aoDigitar($el)"
@@ -625,12 +637,12 @@
                 </div>
             </div>
 
-            <div class="hidden min-w-0 flex-1 items-center justify-end px-1 text-[11px] text-slate-400 dark:text-slate-500 sm:flex" aria-hidden="true">
-                Enter envia&nbsp;&nbsp;&middot;&nbsp;&nbsp;Ctrl + Enter quebra a linha
+            <div class="vc-composer-hint" aria-hidden="true">
+                {{ __('ui_459171e6c66b') }}
             </div>
 
             <button type="submit" wire:loading.attr="disabled" wire:target="enviar,anexo"
-                    class="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white shadow-sm transition duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 {{ $nota ? 'bg-amber-600 hover:bg-amber-700 focus-visible:ring-amber-500' : 'bg-emerald-600 hover:bg-emerald-700 focus-visible:ring-emerald-500' }}">
+                    class="ml-auto inline-flex h-11 shrink-0 items-center gap-2 rounded-xl px-4 text-sm font-semibold text-white shadow-sm transition duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 {{ $nota ? 'bg-amber-600 hover:bg-amber-700 focus-visible:ring-amber-500' : 'bg-violet-600 hover:bg-violet-700 focus-visible:ring-violet-500' }}">
                 <span>{{ $nota ? 'Salvar nota' : 'Enviar' }}</span>
                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" class="h-4 w-4"><path stroke-linecap="round" stroke-linejoin="round" d="m5 12 14-8-4.5 16-3-6.5L5 12Zm6.5 1.5L19 4" /></svg>
             </button>
@@ -640,7 +652,7 @@
         @error('corpo') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         @error('anexo') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
     @else
-        <p class="text-center text-xs text-slate-400">Selecione uma conversa para responder</p>
+        <p class="text-center text-xs text-slate-400">{{ __('ui_5d5d2987509b') }}</p>
     @endif
 </div>
 

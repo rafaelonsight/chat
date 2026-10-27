@@ -61,7 +61,7 @@ it('pergunta antes de arquivar', function () {
         ->call('abrir', $this->conversa->id)
         ->call('finalizar')
         ->assertSet('classificando', true)
-        ->assertSee('Como este atendimento terminou?');
+        ->assertSee('Finalizar atendimento');
 
     // Nao arquivou ainda: a pergunta vem primeiro.
     expect($this->conversa->refresh()->status)->toBe(Conversation::EM_ATENDIMENTO);
@@ -73,7 +73,7 @@ it('classifica e encerra num movimento so', function () {
     Livewire::actingAs($this->pessoa)->test(ConversationWindow::class)
         ->call('abrir', $this->conversa->id)
         ->call('finalizar')
-        ->call('encerrarCom', $tag->id)
+        ->set('assuntoEncerramento','Atendimento')->set('resumoEncerramento','Orientações fornecidas ao cliente.')->call('encerrarCom', $tag->id)
         ->assertSet('classificando', false);
 
     $this->conversa->refresh();
@@ -89,7 +89,7 @@ it('deixa sair sem classificar', function () {
     Livewire::actingAs($this->pessoa)->test(ConversationWindow::class)
         ->call('abrir', $this->conversa->id)
         ->call('finalizar')
-        ->call('encerrar');
+        ->set('assuntoEncerramento','Atendimento')->set('resumoEncerramento','Orientações fornecidas ao cliente.')->call('encerrar');
 
     $this->conversa->refresh();
 
@@ -97,7 +97,7 @@ it('deixa sair sem classificar', function () {
         ->and($this->conversa->tags()->count())->toBe(0);
 });
 
-it('sem etiqueta de conversa cadastrada, nem pergunta', function () {
+it('sem etiqueta também exige a revisão do resumo', function () {
     // Perguntar com a lista vazia so atrapalha quem ainda nao configurou nada.
     Tag::create([
         'tenant_id' => $this->conta->id, 'nome' => 'Cliente VIP',
@@ -107,9 +107,9 @@ it('sem etiqueta de conversa cadastrada, nem pergunta', function () {
     Livewire::actingAs($this->pessoa)->test(ConversationWindow::class)
         ->call('abrir', $this->conversa->id)
         ->call('finalizar')
-        ->assertSet('classificando', false);
+        ->assertSet('classificando', true);
 
-    expect($this->conversa->refresh()->status)->toBe(Conversation::ARQUIVADA);
+    expect($this->conversa->refresh()->status)->toBe(Conversation::EM_ATENDIMENTO);
 });
 
 it('desistir da pergunta nao arquiva', function () {

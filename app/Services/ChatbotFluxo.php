@@ -141,6 +141,17 @@ class ChatbotFluxo
             return $problemas;
         }
 
+        if ($bot->channel_ids !== null) {
+            return \Illuminate\Support\Facades\DB::transaction(function () use ($bot) {
+                \App\Models\Tenant::whereKey($bot->tenant_id)->lockForUpdate()->firstOrFail();
+                $conflitos = $bot->conflitosDeCanais();
+                if ($conflitos->isNotEmpty()) return ['Canais já usados por: '.$conflitos->pluck('nome')->implode(', ').'. Desative esses chatbots ou ajuste os canais antes de publicar.'];
+                $bot->update(['status' => Chatbot::PUBLICADO, 'ativo' => true, 'publicado_em' => now()]);
+                $bot->increment('versao');
+                return [];
+            });
+        }
+
         $bot->update([
             'status'       => Chatbot::PUBLICADO,
             'publicado_em' => now(),
@@ -162,6 +173,11 @@ class ChatbotFluxo
     public function validar(Chatbot $bot): array
     {
         $problemas = [];
+        foreach ($bot->actions()->where('tipo', ChatbotAction::TRANSFERIR)->get() as $acao) {
+            if ($acao->cfg('exigir_equipe', false) && ! Team::where('tenant_id', $bot->tenant_id)->whereKey($acao->cfg('team_id'))->exists()) {
+                $problemas[] = 'Selecione a equipe no grupo '.$acao->step->nome.'.';
+            }
+        }
 
         $inicio = $bot->inicio();
 
@@ -186,6 +202,7 @@ class ChatbotFluxo
                 continue;
             }
 
+            if($passo->actions->filter(fn($a)=>count($a->handles())>0)->count()>1)$problemas[]="O grupo {$passo->nome} tem mais de uma ação com caminhos. Separe essas ações em grupos diferentes.";
             // Rede de seguranca: adicionarAcao ja impede criar isso, e a migracao
             // reparou o que existia. Se aparecer de novo, e melhor barrar do que
             // deixar o usuario configurar uma acao que nunca roda.
@@ -197,7 +214,7 @@ class ChatbotFluxo
                     break;
                 }
 
-                if ($acao->encerra()) {
+                if ($acao->encerra() || in_array($acao->tipo,['condicional','menu','webhook','pergunta_dinamica','outro_chatbot'])) {
                     $encerrouEm = $acao->rotulo();
                 }
             }
@@ -216,10 +233,14 @@ class ChatbotFluxo
         $problemas = [];
         $onde = "\"{$passo->nome}\" → {$acao->rotulo()}";
 
+        if(in_array($acao->tipo, ChatbotAction::NOVOS)) {
+            foreach(app(BlocosChatbot::class)->validar($acao) as $erro)$problemas[]="{$onde}: {$erro}";
+            if(in_array($acao->tipo,['webhook','pergunta_dinamica']))foreach(['sucesso','erro'] as $lado)if(!$passo->destino($lado))$problemas[]="{$onde}: ligue o caminho {$lado}.";
+        }
         switch ($acao->tipo) {
             case ChatbotAction::MENSAGEM:
             case ChatbotAction::PERGUNTA:
-                if (trim((string) $acao->cfg('texto')) === '') {
+                if (trim((string) $acao->cfg('texto')) === '' && ($acao->tipo!==ChatbotAction::MENSAGEM || $acao->cfg('tipo_midia','text')==='text')) {
                     $problemas[] = "{$onde}: falta o texto.";
                 }
 
@@ -242,13 +263,15 @@ class ChatbotFluxo
 
             case ChatbotAction::MENU:
                 $opcoes = collect($acao->cfg('opcoes', []));
+                foreach(MenuChatbot::validar((string)$acao->cfg('formato','numerico'),$opcoes->all()) as $erro)$problemas[]="{$onde}: {$erro}";
+                if($acao->cfg('formato','numerico')!=='numerico' && mb_strlen((string)$acao->cfg('texto'))>1024)$problemas[]="{$onde}: o texto interativo permite até 1024 caracteres.";
 
                 if ($opcoes->isEmpty()) {
                     $problemas[] = "{$onde}: menu sem opções.";
                     break;
                 }
 
-                if (trim((string) $acao->cfg('texto')) === '') {
+                if (trim((string) $acao->cfg('texto')) === '' && ($acao->tipo!==ChatbotAction::MENSAGEM || $acao->cfg('tipo_midia','text')==='text')) {
                     $problemas[] = "{$onde}: falta o texto do menu.";
                 }
 
@@ -292,6 +315,12 @@ class ChatbotFluxo
                 break;
 
             case ChatbotAction::CONDICIONAL:
+                if($acao->cfg('modo')==='multiplo'){
+                    foreach(CondicoesChatbot::validar($acao->config??[],$acao->tenant_id) as $erro)$problemas[]="{$onde}: {$erro}";
+                    foreach($acao->handles() as $lado)if(!$passo->destino($lado))$problemas[]="{$onde}: falta ligar a saída {$lado}.";
+                    break;
+                }
+                if($acao->cfg('fonte')==='etiqueta' && !\App\Models\Tag::where('tenant_id',$acao->tenant_id)->whereIn('contexto',['contato','conversa'])->whereKey((int)$acao->cfg('etiqueta_id'))->exists()) $problemas[]="{$onde}: selecione uma etiqueta válida desta empresa.";
                 foreach ([ChatbotEdge::SIM, ChatbotEdge::NAO] as $lado) {
                     if (! $passo->destino($lado)) {
                         $problemas[] = "{$onde}: falta ligar o caminho \"{$lado}\".";

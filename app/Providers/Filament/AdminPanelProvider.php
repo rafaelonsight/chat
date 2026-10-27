@@ -35,6 +35,7 @@ class AdminPanelProvider extends PanelProvider
         return $panel
             ->default()
             ->id('admin')
+            ->font('Archivo', url: '/fontes/archivo.css', provider: \Filament\FontProviders\LocalFontProvider::class)
             ->path('admin')
             ->viteTheme('resources/css/filament/admin/theme.css')
             // O viteTheme acima traz SO o CSS. Sem esta linha o resources/js/app.js
@@ -49,7 +50,7 @@ class AdminPanelProvider extends PanelProvider
             // desistido dos ouvintes com "Laravel Echo cannot be found".
             ->renderHook(
                 PanelsRenderHook::HEAD_END,
-                fn (): string => view('filament.tempo-real')->render(),
+                fn (): string => view('filament.tempo-real')->render().view('filament.aplicativo-mobile')->render(),
             )
             // Aviso de conta sem canal, no topo do conteudo de TODA tela. Caixa de entrada
             // vazia porque ninguem escreveu e caixa vazia porque o WhatsApp nunca foi
@@ -59,21 +60,15 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::CONTENT_START,
                 fn (): string => view('filament.modo-suporte')->render().view('filament.aviso-sem-canal')->render(),
             )
-            /*
-             * O SINO DO PAINEL.
-             *
-             * Entrou junto com a mencao em nota: chamar alguem sem ter onde o chamado aparecer
-             * nao chama ninguem. E o polling fica DESLIGADO de proposito — o canal
-             * App.Models.User.{id} ja estava autorizado e o Reverb ja esta de pe, entao o aviso
-             * chega empurrado. Com polling ligado, cada atendente com a tela aberta bateria no
-             * servidor a cada poucos segundos para quase sempre ouvir "nada de novo".
-             */
+            /* O sino recebe menções e alertas de qualidade. A atualização a cada
+             * 60 segundos também cobre os avisos duráveis sem evento de broadcast. */
             /*
              * RELOGIO E CONTA, sempre visiveis na barra superior — sem precisar abrir o
              * menu do usuario para saber de qual conta e a sessao aberta. Fica logo antes do
              * sino/avatar (GLOBAL_SEARCH_AFTER e o gancho dentro de fi-topbar-end, na mesma
              * fileira deles), e nao dentro de uma pagina, porque vale para qualquer tela.
              */
+            ->renderHook(PanelsRenderHook::SIDEBAR_FOOTER, fn (): string => view('filament.seletor-idioma')->render())
             ->renderHook(
                 PanelsRenderHook::GLOBAL_SEARCH_AFTER,
                 fn (): string => view('filament.topbar-relogio')->render(),
@@ -91,19 +86,19 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::BODY_END,
                 fn (): string => auth()->check()
-                    ? Blade::render('<livewire:chat-interno />')
+                    ? Blade::render('<livewire:chat-interno /><livewire:avisos-resposta />').view('filament.navegacao-mobile')->render()
                     : '',
             )
             ->databaseNotifications()
-            ->databaseNotificationsPolling(null)
-            ->login()
+            ->databaseNotificationsPolling('60s')
+            ->login([\App\Http\Controllers\AcessoPorCodigoController::class, 'mostrar'])
             // Sem isto, funcionario do cliente que esquece a senha depende de alguem com
             // acesso ao banco. Para revender, isso e constrangedor antes de ser tecnico.
             //
             // Depende de e-mail configurado para valer de verdade: com MAIL_MAILER vazio o
             // Laravel escreve a mensagem no log e a tela diz "enviamos" — falha silenciosa
             // que o Diagnostico agora denuncia.
-            ->passwordReset()
+
             // "Meu perfil": trocar o proprio nome e a propria senha. Nao existia — depois de
             // aceitar o convite a pessoa ficava com aquela senha para sempre, ou usava
             // "esqueci minha senha" para trocar uma senha que ela lembra.
@@ -114,47 +109,26 @@ class AdminPanelProvider extends PanelProvider
             // visita quando quer.
             ->profile(Perfil::class, isSimple: false)
             ->colors([
-                /*
-                 * O AMBAR SAI DO ARQUIVO DO LOGOTIPO, e nao da paleta pronta.
-                 *
-                 * Color::Amber e #F59E0B; a marca, medida pixel a pixel, e #E8A924 — com o
-                 * gradiente do simbolo indo de #E09028 a #F8C830. A diferenca entre os dois
-                 * passa despercebida em quase toda a tela, menos num lugar: o botao ao lado do
-                 * logotipo. E e justamente ali que ela aparece.
-                 */
-                'primary' => Color::hex('#E8A924'),
+                // Cor ativa compartilhada com a navegação e os componentes da v2.
+                'primary' => Color::hex('#6338F6'),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             // Le do APP_NAME em vez de fixar aqui: o nome do produto ainda nao esta
             // decidido, e no dia da decisao ele tem de mudar num lugar so. Um nome escrito
             // em dois lugares vira dois nomes diferentes na primeira troca.
-            /*
-             * A MARCA VIRA IMAGEM, e o nome continua existindo como texto alternativo — quem
-             * usa leitor de tela ouve "Virtus Chat", nao "imagem".
-             *
-             * DUAS VERSOES, e nao uma: o wordmark e grafite (#404040) e sumiria no fundo escuro
-             * do painel. A versao clara troca SO o wordmark por quase-branco; o ambar e
-             * idendico nas duas, senao seriam duas marcas em vez de uma marca em dois fundos.
-             *
-             * O arquivo tem 128px de altura para desenhar 32: em tela retina, imagem no tamanho
-             * exato sai serrilhada.
-             *
-             * Em Closure porque o endereco depende do gerador de URL, que nasce depois do
-             * provedor: resolver na hora de desenhar e sempre seguro, resolver aqui depende da
-             * ordem de boot.
-             */
             ->brandName(config('app.name'))
-            ->brandLogo(fn () => asset('marca/virtus-chat.png'))
-            ->darkModeBrandLogo(fn () => asset('marca/virtus-chat-claro.png'))
+            ->brandLogo(fn () => new \Illuminate\Support\HtmlString(view('filament.marca-v2')->render()))
+            ->darkModeBrandLogo(fn () => new \Illuminate\Support\HtmlString(view('filament.marca-v2')->render()))
             ->brandLogoHeight('2rem')
             // .ico com 16, 32 e 48: o navegador escolhe o tamanho certo em vez de reduzir um
             // PNG grande e entregar o simbolo borrado na aba.
-            ->favicon(fn () => asset('favicon.ico'))
+            ->favicon(fn () => asset('marca/virtus-v2-favicon.svg'))
             // Recolhida por padrao: so os icones. Clicar no icone de um grupo abre
             // a lista com o nome dos itens — comportamento nativo do Filament,
             // habilitado pela combinacao "colapsavel + grupo com icone".
             ->sidebarCollapsibleOnDesktop()
+            ->collapsedSidebarWidth('70px')
             ->pages([
                 Atendimento::class,
             ])
@@ -166,25 +140,32 @@ class AdminPanelProvider extends PanelProvider
             // Consequencia aceita: com icone no grupo, o Filament remove os icones
             // dos itens na lista expandida — grupo OU itens, nunca os dois.
             ->navigationGroups([
-                NavigationGroup::make('CRM')->icon(Heroicon::OutlinedUsers),
-                NavigationGroup::make('Relatórios')->icon(Heroicon::OutlinedChartBar),
-                NavigationGroup::make('Aplicações')->icon(Heroicon::OutlinedSquares2x2),
-                NavigationGroup::make('Configurações')->icon(Heroicon::OutlinedCog6Tooth),
+                NavigationGroup::make(fn () => __('ui_2a13d05eafbc'))->icon('tabler-user-shield'),
+                NavigationGroup::make(fn () => __('ui_a7a1ebe81fa8'))->icon('tabler-chart-bar'),
+                NavigationGroup::make(fn () => __('ui_e7a180f8babc'))->icon('tabler-apps'),
+                NavigationGroup::make(fn () => __('ui_871f24c4cdaf'))->icon('tabler-settings'),
             ])
             // Item sem URL, so para agrupar: o Filament o mantem porque tem
             // filhos, e as paginas se penduram nele por $navigationParentItem.
             ->navigationItems([
-                NavigationItem::make('Conta')
-                    ->group('Configurações')
-                    ->icon(Heroicon::OutlinedBuildingOffice2)
+                NavigationItem::make('Conta')->label(fn () => __('ui_4d07517575be'))
+                    ->group(fn () => __('ui_871f24c4cdaf'))
+                    ->icon('tabler-building')
                     ->sort(3),
             ])
             // O menu do perfil vinha so com tema e Sair. Estes dois sao os que uma
             // operacao de atendimento usa de verdade.
             ->userMenuItems([
                 MenuItem::make()
+                    ->label('Gestão de contas')
+                    ->icon('tabler-building')
+                    ->url(fn (): string => url('/gestao/clientes'))
+                    ->visible(fn (): bool => (bool) auth()->user()?->operador)
+                    ->sort(5),
+
+                MenuItem::make()
                     ->label('Bloquear sessão')
-                    ->icon(Heroicon::OutlinedLockClosed)
+                    ->icon('tabler-lock')
                     // postAction e nao url: bloquear muda estado, e o Filament manda
                     // por POST com o token, em vez de virar link clicavel por engano.
                     ->postAction(fn (): string => route('sessao.bloquear'))
@@ -192,7 +173,7 @@ class AdminPanelProvider extends PanelProvider
 
                 MenuItem::make()
                     ->label('Limpar dados deste navegador')
-                    ->icon(Heroicon::OutlinedTrash)
+                    ->icon('tabler-trash')
                     ->url(fn (): string => route('sessao.limpar-navegador'))
                     ->sort(20),
             ])
@@ -201,6 +182,7 @@ class AdminPanelProvider extends PanelProvider
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
+                \App\Http\Middleware\IdiomaDaInterface::class,
                 AuthenticateSession::class,
                 ShareErrorsFromSession::class,
                 PreventRequestForgery::class,
@@ -224,6 +206,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+                \App\Http\Middleware\ExigirPerfilInicial::class,
+            ], isPersistent: true);
     }
 }

@@ -14,14 +14,14 @@ class MessageTemplatesTable
     {
         return $table
             ->columns([
-                TextColumn::make('titulo')->label('Título')->searchable()->sortable(),
-                TextColumn::make('atalho')->label('Atalho')->badge()->searchable(),
-                TextColumn::make('corpo')->label('Mensagem')->limit(60)->wrap(),
-                IconColumn::make('ativo')->label('Ativo')->boolean(),
+                TextColumn::make('titulo')->label(__('ui_98a5efa60beb'))->searchable()->sortable(),
+                TextColumn::make('atalho')->label(__('ui_fd3728e73db3'))->badge()->searchable(),
+                TextColumn::make('corpo')->label(__('ui_eaffb6306dc5'))->limit(60)->wrap(),
+                IconColumn::make('ativo')->label(__('ui_8263fde6ccc4'))->boolean(),
             ])
             ->defaultSort('titulo')
             ->recordActions([EditAction::make(), DeleteAction::make()])
-            ->emptyStateHeading('Nenhum modelo ainda')
-            ->emptyStateDescription('Modelos aparecem no compositor do atendimento, para responder em um clique.');
+            ->emptyStateHeading(__('ui_b7ed7161f101'))
+            ->emptyStateDescription(__('ui_405c5bd44b4b'));
     }
 }

@@ -75,7 +75,7 @@ class MetaInstagramEnviador implements Enviador
         $attachmentId = (string) data_get($r, 'attachment_id');
 
         if ($attachmentId === '') {
-            throw new \RuntimeException('o Instagram aceitou o arquivo mas nao devolveu attachment_id.');
+            throw new \RuntimeException(__('ui_65d99f05142e'));
         }
 
         return $this->enviarMensagem($canal, $destinoId, [

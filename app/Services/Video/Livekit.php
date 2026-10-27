@@ -206,7 +206,7 @@ class Livekit
     private function chamar(string $metodo, array $corpo, ?string $sala = null, bool $tolerarSumida = false): array
     {
         if (! $this->configurado()) {
-            throw new RuntimeException('Vídeo não configurado: faltam as credenciais do servidor de mídia.');
+            throw new RuntimeException(__('ui_5a9feb078677'));
         }
 
         $resposta = Http::withToken($this->jwtDeAdmin($sala))
@@ -225,7 +225,7 @@ class Livekit
         }
 
         throw new RuntimeException(
-            'Servidor de vídeo recusou '.$metodo.': '.($dados['msg'] ?? $resposta->status()),
+            __('ui_49bb20970f46').$metodo.': '.($dados['msg'] ?? $resposta->status()),
         );
     }
 

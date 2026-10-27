@@ -89,7 +89,7 @@ it('nega o acesso direto pela URL a quem nao e operador', function () {
     // A tela mora no painel 'revenda' (admin.virtus.chat), dominio proprio — e nao mais
     // em /admin/clientes.
     $this->actingAs($this->adminDeCliente)
-        ->get('http://admin.virtus.chat/clientes')
+        ->get('https://agenda.virtus.chat/gestao/clientes')
         ->assertForbidden();
 });
 
@@ -185,7 +185,7 @@ it('manda o convite e devolve o link', function () {
     $r = app(CriarCliente::class)->criar(dadosDeCliente());
 
     expect($r['email_enviado'])->toBeTrue()
-        ->and($r['link'])->toContain('password-reset');
+        ->and($r['link'])->toContain('/admin/login');
 
     Notification::assertSentTo($r['responsavel'], ConviteDeAcesso::class);
 });
@@ -208,7 +208,7 @@ it('devolve o link mesmo quando o envio de e-mail falha', function () {
 
     expect($r['email_enviado'])->toBeFalse()
         ->and($r['falha_de_email'])->not->toBeNull()
-        ->and($r['link'])->toContain('password-reset');
+        ->and($r['link'])->toContain('/admin/login');
 
     // E, apesar da falha, o cliente EXISTE e o usuario dele tambem.
     expect(Tenant::where('slug', 'padaria-aurora')->exists())->toBeTrue()
@@ -223,7 +223,7 @@ it('reenvia o convite para quem ja existe', function () {
     $r = app(CriarCliente::class)->criar(dadosDeCliente());
     $novo = app(CriarCliente::class)->convidar($r['responsavel']);
 
-    expect($novo['link'])->toContain('password-reset');
+    expect($novo['link'])->toContain('/admin/login');
 
     Notification::assertSentToTimes($r['responsavel'], ConviteDeAcesso::class, 2);
 });
@@ -236,7 +236,7 @@ it('reenvia pela tela para o responsavel de outro cliente', function () {
 
     Livewire::actingAs($this->operador)->test(Tela::class)
         ->call('reenviar', $r['cliente']->id)
-        ->assertSee('password-reset');
+        ->assertSee('/admin/login');
 
     Notification::assertSentToTimes($r['responsavel'], ConviteDeAcesso::class, 2);
 });
@@ -285,7 +285,7 @@ it('cria pela tela e mostra o link do convite', function () {
         ->call('criar')
         ->assertHasNoErrors()
         ->assertSet('clienteCriado', 'Clinica Sol')
-        ->assertSee('password-reset');
+        ->assertSee('/admin/login');
 
     expect(Tenant::where('slug', 'clinica-sol')->exists())->toBeTrue();
 });

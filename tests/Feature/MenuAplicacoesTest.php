@@ -14,6 +14,7 @@ function usuarioApps(string $slug, bool $admin = true): User
         'tenant_id' => $t->id, 'name' => 'U', 'email' => "u@{$slug}.test",
         'password' => 'segredo123', 'admin' => $admin,
     ]);
+    $u->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
     TenantContext::forget();
 
     return $u;
@@ -91,6 +92,8 @@ it('Campanhas deixou de ser tela reservada', function () {
         'tenant_id' => $conta->id, 'name' => 'A', 'email' => 'a@menu-camp.test',
         'password' => 'segredo123', 'admin' => true,
     ]);
+
+    $admin->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     $this->actingAs($admin)->get('/admin/campanhas')
         ->assertSuccessful()

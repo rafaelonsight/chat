@@ -17,6 +17,8 @@ use UnitEnum;
 
 class ContactFieldResource extends Resource
 {
+    use \App\Filament\TraduzirResource;
+
     protected static ?string $model = ContactField::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedListBullet;

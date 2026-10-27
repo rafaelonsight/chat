@@ -11,7 +11,8 @@ use Filament\Support\Icons\Heroicon;
 // painel. E um app de atendimento — a primeira tela e a conversa, nao widgets.
 class Atendimento extends BaseDashboard
 {
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChatBubbleLeftRight;
+    use \App\Filament\TraduzirNavegacao;
+    protected static string|BackedEnum|null $navigationIcon = 'tabler-message-2-heart';
 
     protected static ?string $navigationLabel = 'Atendimento';
 
@@ -52,11 +53,21 @@ class Atendimento extends BaseDashboard
      * carrega, entao id de conversa alheia simplesmente nao acha nada. Conferir de novo aqui
      * seria uma segunda copia da regra para manter em sincronia.
      */
+    #[\Livewire\Attributes\Locked]
+    public ?int $conversaInicial = null;
+
+    public string $baldeInicial = 'novos';
+
     public function mount(): void
     {
-        if ($id = request()->integer('conversa')) {
-            $this->js('$dispatch("abrir-conversa", { conversationId: '.$id.' })');
-        }
+        $id = request()->integer('conversa');
+        $conversa = $id ? \App\Models\Conversation::find($id) : null;
+        if (! $conversa) return;
+        $this->conversaInicial = $conversa->id;
+        $this->baldeInicial = $conversa->contact?->tipo === \App\Models\Contact::GRUPO ? 'grupos'
+            : ($conversa->status === \App\Models\Conversation::ARQUIVADA ? 'arquivadas'
+            : ($conversa->atendente_id === auth()->id() ? 'meus'
+            : ($conversa->atendente_id ? 'outros' : 'novos')));
     }
 
     public function getWidgets(): array

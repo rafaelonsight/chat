@@ -35,7 +35,7 @@ class SiteEnviador implements Enviador
      */
     public function midia(Channel $canal, string $destino, array $arquivo, ?array $citar = null): array
     {
-        throw new RuntimeException('O chat do site ainda não recebe arquivo. Mande o link, ou peça o WhatsApp da pessoa.');
+        throw new RuntimeException(__('ui_135c4ba723ba'));
     }
 
     /** Quem le e o proprio visitante, na tela dele: nao ha o que marcar em provedor nenhum. */

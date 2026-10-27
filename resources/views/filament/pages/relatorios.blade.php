@@ -1,7 +1,7 @@
 <x-filament-panels::page>
     {{-- periodo --}}
     <div class="flex items-center gap-2">
-        <span class="text-sm text-gray-500 dark:text-gray-400">Periodo:</span>
+        <span class="text-sm text-gray-500 dark:text-gray-400">{{ __('ui_6993ec6931a8') }}</span>
         @foreach ([7 => '7 dias', 30 => '30 dias', 90 => '90 dias'] as $d => $rotulo)
             <button type="button" wire:key="per-{{ $d }}" wire:click="periodo({{ $d }})"
                     class="rounded px-3 py-1.5 text-xs font-medium transition
@@ -12,19 +12,20 @@
             </button>
         @endforeach
 
+        <label class="text-xs">{{ __('ui_e03e3996dc23') }}<select wire:model.live="equipe" class="rounded border border-gray-300 p-2"><option value="">{{ __('ui_f2645f822bc1') }}</option>@foreach(\App\Models\Team::orderBy('nome')->get() as $team)<option value="{{ $team->id }}">{{ $team->nome }}</option>@endforeach</select></label>
+        <label class="text-xs">{{ __('ui_1642e770673d') }}<select wire:model.live="atendente" class="rounded border border-gray-300 p-2"><option value="">{{ __('ui_043ca37e441a') }}</option>@foreach(\App\Models\User::where('perfil','!=','auditor')->orderBy('name')->get() as $user)<option value="{{ $user->id }}">{{ $user->name }}</option>@endforeach</select></label>
         @if ($etiquetas->isNotEmpty())
             {{-- Recorte por etiqueta: vale para TODOS os numeros da pagina, nao so para
                  a tabela de etiquetas. Filtro que pega em parte da tela faria o gestor
                  comparar conversas de um recorte com mensagens de outro. --}}
-            <span class="ml-4 text-sm text-gray-500 dark:text-gray-400">Etiqueta:</span>
+            <span class="ml-4 text-sm text-gray-500 dark:text-gray-400">{{ __('ui_30a3e4d3e02a') }}</span>
             <select wire:model.live="etiqueta"
                     class="rounded border border-gray-300 px-2 py-1.5 text-xs text-gray-700 dark:border-white/20 dark:bg-gray-800 dark:text-gray-200">
-                <option value="">Todas</option>
-                @foreach ($etiquetas as $et)
-                    <option value="{{ $et->id }}">{{ $et->nome }}</option>
-                @endforeach
+                <option value="">{{ __('ui_8a3c3440366a') }}</option>
+                @foreach ($etiquetas->groupBy('contexto') as $contexto=>$grupo)<optgroup label="{{ $contexto==='contato'?'Etiquetas do contato':'Etiquetas do atendimento' }}">@foreach($grupo as $et)<option value="{{ $et->id }}">{{ $et->nome }}</option>@endforeach</optgroup>@endforeach
             </select>
 
+            @if ($etiquetaEscolhida?->contexto === 'contato')<small>{{ __('ui_7c873bddd51b') }}</small>@endif
             @if ($etiquetaEscolhida)
                 <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ring-1 {{ $etiquetaEscolhida->classes() }}">
                     <span class="h-1.5 w-1.5 rounded-full {{ $etiquetaEscolhida->pontinho() }}"></span>
@@ -87,17 +88,14 @@
 
     @unless ($emHorarioUtil)
         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-gray-300">
-            O tempo de primeira resposta está contando <strong>relógio de parede</strong>. Configure o
-            <a href="/admin/horario-atendimento" class="underline">horário de atendimento</a> para que a noite,
-            o fim de semana e os feriados deixem de entrar na conta.
+            {{ __('ui_4e41168217ad') }} <strong>{{ __('ui_ae4b16ba3b5d') }}</strong>{{ __('ui_d0b55954b95b') }}
+            <a href="/admin/horario-atendimento" class="underline">{{ __('ui_eb302bdd1369') }}</a> {{ __('ui_7897066b7616') }}
         </div>
     @endunless
 
     @if ($primeiraResposta['sem_resposta'] > 0)
         <div class="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-            <strong>{{ $primeiraResposta['sem_resposta'] }}</strong> conversa(s) do periodo receberam mensagem
-            do cliente e <strong>nunca foram respondidas</strong>. Elas ficam fora da media acima de
-            proposito — entrariam como zero e esconderiam o problema.
+            <strong>{{ $primeiraResposta['sem_resposta'] }}</strong> {{ __('ui_9695dc980c9e') }} <strong>{{ __('ui_070df253b667') }}</strong>{{ __('ui_3ea592872d03') }}
         </div>
     @endif
 
@@ -109,14 +107,14 @@
                     {{ $titulo }}
                 </div>
                 @if ($linhas->isEmpty())
-                    <p class="p-4 text-sm text-gray-500 dark:text-gray-400">Nada no periodo.</p>
+                    <p class="p-4 text-sm text-gray-500 dark:text-gray-400">{{ __('ui_dce0cbc9c203') }}</p>
                 @else
                     <table class="w-full text-sm">
                         <thead class="text-xs text-gray-500 dark:text-gray-400">
                             <tr>
                                 <th class="px-4 py-2 text-left font-medium">{{ ucfirst($campo) }}</th>
-                                <th class="px-4 py-2 text-right font-medium">Conversas</th>
-                                <th class="px-4 py-2 text-right font-medium">Encerradas</th>
+                                <th class="px-4 py-2 text-right font-medium">{{ __('ui_86d0e6f30c0e') }}</th>
+                                <th class="px-4 py-2 text-right font-medium">{{ __('ui_8bd3b20f6a25') }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-white/5">
@@ -137,18 +135,18 @@
              unico corte em que uma conversa cabe em mais de uma linha. --}}
         <div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900">
             <div class="border-b border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 dark:border-white/10 dark:text-gray-200">
-                Por etiqueta
+                {{ __('ui_cc1287209395') }}
             </div>
 
             @if ($porEtiqueta->isEmpty() && $semEtiqueta === 0)
-                <p class="p-4 text-sm text-gray-500 dark:text-gray-400">Nada no periodo.</p>
+                <p class="p-4 text-sm text-gray-500 dark:text-gray-400">{{ __('ui_dce0cbc9c203') }}</p>
             @else
                 <table class="w-full text-sm">
                     <thead class="text-xs text-gray-500 dark:text-gray-400">
                         <tr>
-                            <th class="px-4 py-2 text-left font-medium">Etiqueta</th>
-                            <th class="px-4 py-2 text-right font-medium">Conversas</th>
-                            <th class="px-4 py-2 text-right font-medium">Encerradas</th>
+                            <th class="px-4 py-2 text-left font-medium">{{ __('ui_07287eda176e') }}</th>
+                            <th class="px-4 py-2 text-right font-medium">{{ __('ui_86d0e6f30c0e') }}</th>
+                            <th class="px-4 py-2 text-right font-medium">{{ __('ui_8bd3b20f6a25') }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 dark:divide-white/5">
@@ -172,7 +170,7 @@
                                 <td class="px-4 py-2 text-gray-500 dark:text-gray-400">
                                     <span class="inline-flex items-center gap-1.5">
                                         <span class="h-2 w-2 rounded-full bg-gray-300 dark:bg-white/20"></span>
-                                        sem etiqueta
+                                        {{ __('ui_4db34548a8e4') }}
                                     </span>
                                 </td>
                                 <td class="px-4 py-2 text-right text-gray-500 dark:text-gray-400">{{ $semEtiqueta }}</td>
@@ -183,9 +181,8 @@
                 </table>
 
                 <p class="border-t border-gray-100 px-4 py-2 text-xs text-gray-500 dark:border-white/5 dark:text-gray-400">
-                    A etiqueta fica no contato, não na conversa: conta quem tem a etiqueta
-                    <strong>hoje</strong>. Contato com duas etiquetas aparece nas duas, então a
-                    soma passa do total.
+                    {{ __('ui_7d02c007c791') }}
+                    <strong>hoje</strong>{{ __('ui_cc0b85b6ae13') }}
                 </p>
             @endif
         </div>

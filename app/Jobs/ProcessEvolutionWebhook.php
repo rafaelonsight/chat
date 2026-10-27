@@ -60,6 +60,10 @@ class ProcessEvolutionWebhook implements ShouldQueue
                 };
                 $evento->update(['processado_em' => now(), 'erro' => null]);
             } catch (\Throwable $e) {
+                if (config('agenda.edition')) {
+                    $evento->update(['erro' => 'INBOX_PROCESSING_FAILED']);
+                    throw new \RuntimeException('INBOX_PROCESSING_FAILED');
+                }
                 // Payload inesperado nao pode derrubar a fila: registra e segue.
                 $evento->update(['processado_em' => now(), 'erro' => $e->getMessage()]);
             }
@@ -163,6 +167,12 @@ class ProcessEvolutionWebhook implements ShouldQueue
         // levar segundos, e transacao aberta esse tempo todo prende conexao.
         if ($conteudo['tipo'] !== 'text' && $mensagem->wasRecentlyCreated) {
             $this->baixarMidia($canal, $mensagem, $externalId);
+        }
+
+        if(config('agenda.edition')) {
+            AgendaFlowMessage::dispatch($mensagem->id)->onQueue('agenda-inbox');
+            if($mensagem->wasRecentlyCreated)broadcast(new MessageStored($mensagem->refresh()));
+            return; // Agenda: human inbox only; do not run inherited sequences, chatbot or AI.
         }
 
         // SEQUENCIAS. Duas coisas de uma vez, e a ordem importa:
@@ -606,6 +616,9 @@ class ProcessEvolutionWebhook implements ShouldQueue
         ])->saveQuietly();
 
         // O payload de connection.update nao traz o numero. Quando a conexao
+        if(config('agenda.edition')) {
+            \App\Models\AgendaChannelConnection::where('channel_id',$canal->id)->update(['status'=>$estado==='open'?'conectado':'desconectado','validated_at'=>$estado==='open'?now():null]);
+        }
         // abre, perguntamos a Evolution qual e — para o painel mostrar de qual
         // chip cada canal se trata.
         if ($estado === 'open' && ! $canal->telefone_e164) {

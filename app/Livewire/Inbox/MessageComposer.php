@@ -22,6 +22,42 @@ class MessageComposer extends Component
     public ?int $conversationId = null;
 
     public string $corpo = '';
+    public string $acaoEscrita = 'corrigir';
+    public string $idiomaEscrita = 'pt_BR';
+    #[\Livewire\Attributes\Locked] public string $sugestaoEscrita = '';
+    #[\Livewire\Attributes\Locked] public string $rascunhoEscrita = '';
+    #[\Livewire\Attributes\Locked] public ?int $conversaEscrita = null;
+    public string $erroEscrita = '';
+    public function updatedIdiomaEscrita(): void { $this->descartarEscrita(); }
+    public function sugerirEscrita(): void {
+        abort_if(config('agenda.edition'),403);
+        $this->descartarEscrita();
+        abort_unless(!$this->nota && !auth()->user()->ehAuditor(),403);
+        $c=Conversation::find($this->conversationId);abort_unless($c,403);
+        abort_unless($c->tenant_id===\App\Support\TenantContext::get() && auth()->user()->podeVer($c),403);
+        try {
+            $this->sugestaoEscrita=app(\App\Services\AssistenteEscrita::class)->sugerir($c,auth()->user(),$this->corpo,$this->acaoEscrita,\App\Support\Idiomas::valido($this->idiomaEscrita));
+            $this->rascunhoEscrita=$this->corpo;$this->conversaEscrita=$c->id;
+        } catch(\RuntimeException $e) {$this->erroEscrita=$e->getMessage();}
+        catch(\Illuminate\Http\Client\ConnectionException $e) {$this->erroEscrita='A IA demorou para responder. Seu rascunho foi preservado. Tente novamente.';}
+    }
+    public function sugerirResposta(): void {
+        abort_if(config('agenda.edition'),403);
+        $this->descartarEscrita();abort_unless(!$this->nota && !auth()->user()->ehAuditor(),403);
+        $c=Conversation::find($this->conversationId);abort_unless($c,403);
+        abort_unless($c->tenant_id===\App\Support\TenantContext::get() && auth()->user()->podeVer($c),403);
+        try {$this->sugestaoEscrita=app(\App\Services\AssistenteEscrita::class)->responderConversa($c,auth()->user(),\App\Support\Idiomas::valido($this->idiomaEscrita));$this->rascunhoEscrita=$this->corpo;$this->conversaEscrita=$c->id;}
+        catch(\RuntimeException $e){$this->erroEscrita=$e->getMessage();}
+        catch(\Illuminate\Http\Client\ConnectionException $e){$this->erroEscrita='A IA demorou para responder. Seu rascunho foi preservado. Tente novamente.';}
+    }
+    public function aplicarEscrita(): void {
+        abort_unless(!auth()->user()->ehAuditor(),403);
+        $c=Conversation::find($this->conversationId);abort_unless($c,403);abort_unless($c->tenant_id===\App\Support\TenantContext::get() && auth()->user()->podeVer($c),403);
+        if($this->nota || $this->conversaEscrita!==$this->conversationId || $this->corpo!==$this->rascunhoEscrita || !$this->sugestaoEscrita){$this->descartarEscrita();$this->erroEscrita='O rascunho mudou. Gere uma nova sugestão para preservar sua edição.';return;}
+        $this->corpo=$this->sugestaoEscrita;$this->descartarEscrita();
+    }
+    public function descartarEscrita(): void {$this->sugestaoEscrita='';$this->rascunhoEscrita='';$this->conversaEscrita=null;$this->erroEscrita='';}
+
 
     public $anexo = null;
 
@@ -65,6 +101,8 @@ class MessageComposer extends Component
     public function mount(?int $conversationId = null): void
     {
         $this->conversationId = $conversationId;
+        $t=\App\Models\Tenant::find(\App\Support\TenantContext::get());
+        $this->idiomaEscrita=$t?\App\Support\Idiomas::comunicacoes($t):'pt_BR';
     }
 
     public function getListeners(): array
@@ -85,6 +123,7 @@ class MessageComposer extends Component
         $this->respondendoA = null;
         $this->anotandoMensagem = null;
 
+        $this->descartarEscrita();
         $this->conversationId = $conversationId;
         $this->reset(['corpo', 'anexo', 'nota', 'templateId', 'valoresTemplate', 'mencionados', 'mencionadosWhatsapp']);
     }
@@ -194,11 +233,7 @@ class MessageComposer extends Component
             return $texto;
         }
 
-        $nome = trim((string) auth()->user()?->name);
-
-        // O asterisco e negrito no WhatsApp. Primeiro nome so: "Ana Paula Rodrigues da Silva"
-        // ocupando uma linha inteira antes de cada resposta cansa em cinco mensagens.
-        $primeiro = $nome === '' ? '' : explode(' ', $nome)[0];
+        $primeiro = auth()->user()?->nomePublico() ?? '';
 
         return $primeiro === '' ? $texto : '*'.$primeiro.'*'.PHP_EOL.$texto;
     }
@@ -232,6 +267,7 @@ class MessageComposer extends Component
 
     public function enviar(): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $this->resetErrorBag();
 
         if ($this->nota && trim($this->corpo) === '') {
@@ -471,6 +507,7 @@ class MessageComposer extends Component
 
             // Fora da janela, a tela troca de modo: em vez de deixar escrever algo que vai
             // falhar, oferece o unico caminho que funciona.
+            'destinatarioTemplate' => $conversa?->contact?->nome ?: $conversa?->contact?->telefone_e164,
             'templatesDisponiveis' => $this->templatesDisponiveis($conversa),
             'templateEscolhido'    => $this->templateId
                 ? MetaTemplate::enviaveis()->find($this->templateId)
@@ -480,7 +517,9 @@ class MessageComposer extends Component
 
     public function escolherTemplate(int $id): void
     {
-        $modelo = MetaTemplate::enviaveis()->find($id);
+        $conversa = Conversation::findOrFail($this->conversationId);
+        abort_unless(auth()->user()?->podeVer($conversa) && !auth()->user()->ehAuditor(), 403);
+        $modelo = MetaTemplate::enviaveis()->where('meta_waba_id', (string) $conversa->channel->meta_waba_id)->find($id);
 
         // enviaveis() e nao find() puro: template em analise ou de formato que nao sabemos
         // montar nao pode nem ser escolhido. Barrar na escolha, e nao no envio, poupa o
@@ -502,10 +541,12 @@ class MessageComposer extends Component
 
     public function enviarTemplate(): void
     {
+        abort_if(auth()->user()?->ehAuditor(), 403, 'O perfil Auditor permite somente consulta.');
         $this->resetErrorBag();
 
         $conversa = Conversation::findOrFail($this->conversationId);
-        $modelo = MetaTemplate::enviaveis()->find($this->templateId);
+        abort_unless(auth()->user()?->podeVer($conversa), 403);
+        $modelo = MetaTemplate::enviaveis()->where('meta_waba_id', (string) $conversa->channel->meta_waba_id)->find($this->templateId);
 
         if (! $modelo) {
             $this->addError('template', 'Escolha um template disponível.');
@@ -517,6 +558,11 @@ class MessageComposer extends Component
             fn ($valor) => trim((string) $valor),
             array_values($this->valoresTemplate),
         );
+
+        if (count($valores) !== (int) $modelo->variaveis) {
+            $this->addError('template', __('Preencha todos os campos do template.'));
+            return;
+        }
 
         foreach ($valores as $i => $valor) {
             // A Meta recusa parametro vazio. Dizer aqui QUAL falta e melhor do que a

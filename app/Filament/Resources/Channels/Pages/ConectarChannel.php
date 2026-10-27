@@ -22,6 +22,8 @@ use Illuminate\Contracts\Support\Htmlable;
  */
 class ConectarChannel extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     // Sem este trait o Filament nao sabe que esta pagina fala de UM registro: o getUrl()
     // serializa o modelo inteiro dentro da URL, e o resolveRecord — que e quem aplica o
     // escopo da conta — nunca roda. Ou seja, faltava o trait E a defesa entre contas.
@@ -60,15 +62,15 @@ class ConectarChannel extends Page
     {
         return [
             Action::make('recriar')
-                ->label('Recomeçar a conexão')
+                ->label(__('ui_dedcdd4429af'))
                 ->icon('heroicon-o-arrow-path')
                 ->color('gray')
                 // O caso real: a sessao ficou num estado ruim e o QR nao aparece mais. Recriar
                 // a instancia resolve, e sem este botao a saida seria apagar o canal — que
                 // levaria o chatbot junto, como ja aconteceu aqui.
                 ->requiresConfirmation()
-                ->modalHeading('Recomeçar do zero?')
-                ->modalDescription('Descarta a sessão atual e gera um QR Code novo. O histórico de conversas não é afetado.')
+                ->modalHeading(__('ui_0959ef4e54e6'))
+                ->modalDescription(__('ui_293c41cf9857'))
                 ->action(function () {
                     try {
                         $evolution = app(EvolutionService::class);

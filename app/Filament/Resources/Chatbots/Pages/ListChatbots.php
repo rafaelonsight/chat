@@ -1,53 +1,31 @@
 <?php
-
 namespace App\Filament\Resources\Chatbots\Pages;
-
 use App\Filament\Resources\Chatbots\ChatbotResource;
-use App\Models\Chatbot;
-use App\Services\ChatbotFluxo;
+use App\Filament\Resources\Chatbots\Schemas\ChatbotForm;
+use App\Services\ChatbotModelos;
 use Filament\Actions\Action;
-use Filament\Actions\CreateAction;
-use Filament\Notifications\Notification;
+use Filament\Forms\Components\Radio;
 use Filament\Resources\Pages\ListRecords;
-
-class ListChatbots extends ListRecords
-{
-    protected static string $resource = ChatbotResource::class;
-
-    protected function getHeaderActions(): array
-    {
-        return [
-            CreateAction::make(),
-
-            // Comecar de uma arvore vazia e a parte mais dificil de configurar um
-            // bot. Comecar de uma plausivel e trocar textos.
-            Action::make('exemplo')
-                ->label('Criar fluxo de exemplo')
-                ->icon('heroicon-o-sparkles')
-                ->color('gray')
-                ->requiresConfirmation()
-                ->modalDescription('Cria um fluxo de exemplo já montado (Financeiro, Suporte com submenu, Horário), desativado, para você editar.')
-                ->action(function () {
-                    // O exemplo tem que nascer no formato que o motor percorre.
-                    // Antes montava a arvore antiga, que virou codigo morto.
-                    $bot = Chatbot::create([
-                        'nome'                  => 'Recepção',
-                        'ativo'                 => false,
-                        'mensagem_nao_entendi'  => 'Não entendi. Escolha uma das opções:',
-                        'mensagem_transferindo' => 'Um momento, já vou te encaminhar.',
-                        'mensagem_boas_vindas'  => 'Olá!',
-                    ]);
-
-                    app(ChatbotFluxo::class)->criarExemplo($bot);
-
-                    Notification::make()
-                        ->success()
-                        ->title('Fluxo de exemplo criado')
-                        ->body('Está em rascunho e desativado. Ajuste os textos, ligue as pontas e publique.')
-                        ->send();
-
-                    return redirect(ChatbotResource::getUrl('fluxo', ['record' => $bot]));
-                }),
-        ];
-    }
+class ListChatbots extends ListRecords {
+ protected static string $resource = ChatbotResource::class;
+ protected function getHeaderActions(): array {
+  return [
+   Action::make('criarChatbot')->label(__('ui_d8bd9aad069b'))->icon('heroicon-o-plus')
+    ->modalHeading(__('ui_5438e5df0ee0'))->modalSubmitActionLabel(__('ui_02c1df6e70e2'))
+    ->schema([
+      Radio::make('modelo')->label(__('ui_5353f11b05cb'))->options(fn () => \App\Support\Idiomas::opcoes(ChatbotModelos::NOMES))
+        ->descriptions(['zero'=>'Canvas vazio para montar seu atendimento.',
+         'recepcao'=>'Boas-vindas e menu com Financeiro, Suporte e Comercial.',
+         'suporte'=>'Menu de problemas, perguntas básicas e encaminhamento técnico.',
+         'financeiro'=>'Segunda via, pagamento e cobrança, com encaminhamento.',
+         'comercial'=>'Coleta interesse e localidade antes de encaminhar para vendas.'])
+        ->default('zero')->required()->columns(2),
+      ...ChatbotForm::creationFields(),
+    ])
+    ->action(function(array $data) {
+      $bot=app(ChatbotModelos::class)->criar($data);
+      return redirect(ChatbotResource::getUrl('fluxo',['record'=>$bot]));
+    }),
+  ];
+ }
 }

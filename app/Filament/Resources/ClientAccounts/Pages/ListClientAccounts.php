@@ -12,6 +12,6 @@ class ListClientAccounts extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Novo cliente')];
+        return [CreateAction::make()->label(__('ui_a0cf533c2cba'))];
     }
 }

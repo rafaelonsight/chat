@@ -42,11 +42,11 @@ class ContactForm
                      * de um clique e um clique cobrado sem motivo.
                      */
                     ToggleButtons::make('natureza')
-                        ->label('Tipo de cadastro')
-                        ->options([
+                        ->label(__('ui_d05b1d66b91f'))
+                        ->options(fn () => \App\Support\Idiomas::opcoes([
                             Contact::FISICA => 'Pessoa física',
                             Contact::JURIDICA => 'Pessoa jurídica',
-                        ])
+                        ]))
                         ->icons([
                             Contact::FISICA => 'heroicon-o-user',
                             Contact::JURIDICA => 'heroicon-o-building-office-2',
@@ -64,11 +64,11 @@ class ContactForm
                      * o historico de conversa fica partido entre duas fichas, que e o pior dos dois.
                      */
                     Select::make('papeis')
-                        ->label('Tipo de pessoa')
+                        ->label(__('ui_15b66b9bf5a9'))
                         ->multiple()
-                        ->options(Contact::PAPEIS)
+                        ->options(fn () => \App\Support\Idiomas::opcoes(Contact::PAPEIS))
                         ->columnSpanFull()
-                        ->helperText('Pode marcar mais de um: quem compra de você também pode te fornecer.'),
+                        ->helperText(__('ui_2f8c4f3d50b0')),
 
                     /*
                      * O DOCUMENTO, E O PREENCHIMENTO PELA RECEITA.
@@ -96,22 +96,22 @@ class ContactForm
                             : null),
 
                     DatePicker::make('nascimento')
-                        ->label('Nascimento')
+                        ->label(__('ui_bfaa8e41cdc2'))
                         ->maxDate(now())
                         ->visible(fn (Get $get) => $get('natureza') !== Contact::JURIDICA),
 
                     TextInput::make('razao_social')
-                        ->label('Razão social')
+                        ->label(__('ui_e20fa88c92d0'))
                         ->maxLength(160)
                         ->columnSpanFull()
                         ->visible(fn (Get $get) => $get('natureza') === Contact::JURIDICA),
 
                     TextInput::make('nome_fantasia')
-                        ->label('Nome fantasia')
+                        ->label(__('ui_92d22e2084db'))
                         ->maxLength(160)
                         ->columnSpanFull()
                         ->visible(fn (Get $get) => $get('natureza') === Contact::JURIDICA)
-                        ->helperText('É por ele que o cliente se reconhece — e é ele que aparece no atendimento.'),
+                        ->helperText(__('ui_13d72c56eeef')),
 
                     /*
                      * OBRIGATORIO SO QUANDO NAO HA OUTRO NOME.
@@ -122,7 +122,7 @@ class ContactForm
                      * cadastro que, na pratica, esta completo.
                      */
                     TextInput::make('nome')
-                        ->label('Nome')
+                        ->label(__('ui_13030dd962f4'))
                         ->required(fn (Get $get) => blank($get('nome_fantasia')) && blank($get('razao_social')))
                         ->maxLength(120)
                         ->columnSpanFull()
@@ -134,12 +134,12 @@ class ContactForm
                     // quebraria o vinculo com o historico. Editavel so na criacao.
                     // Grupo nao tem telefone: o campo desaparece para ele.
                     Placeholder::make('tipo_info')
-                        ->label('Tipo')
+                        ->label(__('ui_6cc6198d9e75'))
                         ->content(fn ($record) => $record?->eGrupo() ? 'Grupo de WhatsApp' : 'Pessoa')
                         ->visibleOn('edit'),
 
                     TextInput::make('telefone_e164')
-                        ->label('Telefone')
+                        ->label(__('ui_04e0410282ed'))
                         ->tel()
                         // Telefone OU documento: quem chega por conversa tem numero, quem chega
                         // por cadastro tem CPF ou CNPJ. Exigir os dois de todos so produziria
@@ -200,24 +200,24 @@ class ContactForm
                         }),
 
                     TextInput::make('email')
-                        ->label('E-mail')
+                        ->label(__('ui_0d01e2e86669'))
                         ->email()
                         ->maxLength(160),
 
                     TextInput::make('instagram')
-                        ->label('Instagram')
+                        ->label(__('ui_5721bbef40b2'))
                         ->prefix('@')
                         ->maxLength(60)
                         // Cola a url inteira e o modelo guarda so o usuario.
                         ->dehydrateStateUsing(fn ($state) => Contact::normalizarInstagram($state))
-                        ->helperText('Pode colar o @, o usuário ou a url do perfil.'),
+                        ->helperText(__('ui_543b1cbe1225')),
                 ]),
 
             Section::make('Endereço')
                 ->columns(6)
                 ->schema([
                     TextInput::make('cep')
-                        ->label('CEP')
+                        ->label(__('ui_2cbe9f1f9067'))
                         ->columnSpan(2)
                         ->maxLength(9)
                         // Busca ao DIGITAR, com meio segundo de folga. O que evita
@@ -228,35 +228,35 @@ class ContactForm
                         ->live(debounce: 500)
                         ->afterStateUpdated(self::preencherPeloCep())
                         ->dehydrateStateUsing(fn ($state) => ConsultaCep::digitos($state) ?: null)
-                        ->helperText('Digite os 8 dígitos e o endereço se preenche sozinho.'),
+                        ->helperText(__('ui_c59a9be39587')),
 
                     TextInput::make('logradouro')
-                        ->label('Logradouro')
+                        ->label(__('ui_6f26397a6564'))
                         ->columnSpan(4)
                         ->maxLength(160),
 
                     TextInput::make('numero')
-                        ->label('Número')
+                        ->label(__('ui_1d91f4b8d8d6'))
                         ->columnSpan(2)
                         ->maxLength(20),
 
                     TextInput::make('complemento')
-                        ->label('Complemento')
+                        ->label(__('ui_ba75e2e6719b'))
                         ->columnSpan(4)
                         ->maxLength(160),
 
                     TextInput::make('bairro')
-                        ->label('Bairro')
+                        ->label(__('ui_49f7179a65c6'))
                         ->columnSpan(3)
                         ->maxLength(120),
 
                     TextInput::make('cidade')
-                        ->label('Cidade')
+                        ->label(__('ui_1a3285047365'))
                         ->columnSpan(2)
                         ->maxLength(120),
 
                     TextInput::make('uf')
-                        ->label('UF')
+                        ->label(__('ui_e81f7a385039'))
                         ->columnSpan(1)
                         ->maxLength(2)
                         ->dehydrateStateUsing(fn ($state) => $state ? mb_strtoupper($state) : null),
@@ -271,27 +271,27 @@ class ContactForm
                     // mandar essa pessoa a outra tela faz o cadastro pela metade.
                     Actions::make([
                         Action::make('novoCampo')
-                            ->label('Novo campo personalizado')
+                            ->label(__('ui_046fe26bb10f'))
                             ->icon('heroicon-o-plus')
                             ->link()
-                            ->modalHeading('Adicionar novo campo personalizado')
-                            ->modalSubmitActionLabel('Salvar')
+                            ->modalHeading(__('ui_726deb8d3921'))
+                            ->modalSubmitActionLabel(__('ui_93bf2d32ec33'))
                             ->schema([
                                 TextInput::make('nome')
-                                    ->label('Nome do campo')
+                                    ->label(__('ui_7a6dd3377d75'))
                                     ->required()
                                     ->maxLength(60),
 
                                 Select::make('tipo')
-                                    ->label('Tipo')
-                                    ->options(ContactField::TIPOS)
+                                    ->label(__('ui_6cc6198d9e75'))
+                                    ->options(fn () => \App\Support\Idiomas::opcoes(ContactField::TIPOS))
                                     ->default(ContactField::TEXTO_CURTO)
                                     ->required()
                                     ->native(false)
                                     ->live(),
 
                                 Repeater::make('opcoes')
-                                    ->label('Opções')
+                                    ->label(__('ui_4c8df52c061d'))
                                     ->simple(TextInput::make('opcao')->required())
                                     ->visible(fn (Get $get) => in_array(
                                         $get('tipo'), ContactField::COM_OPCOES, true
@@ -309,7 +309,7 @@ class ContactForm
 
                                 Notification::make()
                                     ->success()
-                                    ->title('Campo criado')
+                                    ->title(__('ui_f17efce6f462'))
                                     ->send();
 
                                 // Recarrega a tela: o formulario e montado a partir
@@ -358,8 +358,8 @@ class ContactForm
 
             if ($repetido) {
                 Notification::make()->warning()
-                    ->title('Esse CNPJ já está cadastrado')
-                    ->body('Em "'.$repetido->nomeExibicao().'". Vale editar aquela ficha em vez de criar outra.')
+                    ->title(__('ui_bddbdae3dd4b'))
+                    ->body(__('ui_bf481e5d2e32').$repetido->nomeExibicao().'". Vale editar aquela ficha em vez de criar outra.')
                     ->persistent()
                     ->send();
             }
@@ -368,7 +368,7 @@ class ContactForm
 
             if (! $resultado['ok']) {
                 Notification::make()->warning()
-                    ->title('CNPJ não preencheu')
+                    ->title(__('ui_2dcbdbd62c7e'))
                     ->body($resultado['erro'])
                     ->send();
 
@@ -394,7 +394,7 @@ class ContactForm
             $sePreencher('telefone_e164', $dados['telefone'] ?? null);
 
             Notification::make()->success()
-                ->title('Dados da Receita preenchidos')
+                ->title(__('ui_9583df459866'))
                 ->body(trim(implode(' · ', array_filter([
                     $dados['razao_social'] ?? null,
                     $dados['situacao_cadastral'] ?? null,
@@ -414,7 +414,7 @@ class ContactForm
 
             if (! $resultado['ok']) {
                 Notification::make()->warning()
-                    ->title('CEP não preencheu')
+                    ->title(__('ui_599087512f5c'))
                     ->body($resultado['erro'])
                     ->send();
 

@@ -337,7 +337,7 @@ it('finalizar no painel encerra o widget e exige nova conversa explicita', funct
 
     Livewire::actingAs($atendente)
         ->test(ConversationWindow::class, ['conversationId' => $conversa->id])
-        ->call('encerrar');
+        ->set('assuntoEncerramento','Atendimento')->set('resumoEncerramento','Orientações fornecidas ao cliente.')->call('encerrar');
 
     expect($conversa->fresh()->status)->toBe(Conversation::ARQUIVADA);
     TenantContext::forget();

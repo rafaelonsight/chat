@@ -82,7 +82,7 @@ it('Meus traz so as minhas em atendimento', function () {
 
 // A clausula "ou atendente nulo" e o que fecha o furo: conversa conduzida por
 // automacao tem status em atendimento sem humano e desapareceria da tela.
-it('Outros traz as de colega E as sem atendente em atendimento', function () {
+it('Outros traz colega e Novos recebe automação sem atendente', function () {
     [, $eu, $outro, $c] = cenarioBalde('bd3');
 
     $doColega = conv($c, '5584911111111@s.whatsapp.net', ['status' => Conversation::EM_ATENDIMENTO, 'atendente_id' => $outro->id]);
@@ -91,7 +91,8 @@ it('Outros traz as de colega E as sem atendente em atendimento', function () {
     TenantContext::forget();
 
     lista($eu, 'outros')->assertViewHas('conversas',
-        fn ($cs) => ids($cs) === collect([$doColega->id, $daAutomacao->id])->sort()->values()->all());
+        fn ($cs) => ids($cs) === [$doColega->id]);
+    lista($eu, 'novos')->assertViewHas('conversas', fn ($cs) => ids($cs) === [$daAutomacao->id])->assertViewHas('badges', fn ($b) => $b['novos'] === 1);
 });
 
 it('Grupos traz so grupo, e nao os arquivados', function () {

@@ -1,5 +1,10 @@
 <?php
 
+if (config('agenda.edition')) {
+    require __DIR__.'/agenda-console.php';
+    return;
+}
+
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -38,3 +43,12 @@ Schedule::job(new \App\Jobs\ProcurarSumidos)->hourly();
 Schedule::job(new \App\Jobs\FecharConsumoDoMes)->monthlyOn(1, '00:10');
 
 Schedule::command('virtus:task-notices')->everyMinute()->withoutOverlapping();
+
+Schedule::command('virtus:alertar-qualidade')->everyMinute()->withoutOverlapping();
+
+// Reconsulta somente combinações de país e moeda já solicitadas no painel.
+Artisan::command('virtus:atualizar-tarifas-meta', function () {
+    \App\Models\MetaTarifa::query()->select('mercado','moeda')->distinct()->get()
+        ->each(fn($tarifa)=>\App\Jobs\AtualizarTarifasMeta::dispatch($tarifa->mercado,$tarifa->moeda));
+})->purpose('Atualizar as tarifas públicas da Meta utilizadas no painel');
+Schedule::command('virtus:atualizar-tarifas-meta')->dailyAt('06:00')->withoutOverlapping();

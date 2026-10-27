@@ -29,11 +29,11 @@ class PesquisaDeSatisfacao
         .'Responda só com o número.';
 
     /** Manda a pergunta, se a conta pediu. Chamado ao encerrar o atendimento. */
-    public function perguntar(Conversation $conversa): void
+    public function perguntar(Conversation $conversa, bool $solicitada = false): void
     {
         $conta = Tenant::find($conversa->tenant_id);
 
-        if (! $conta?->pesquisa_ativa) {
+        if (! $conta || (! $conta->pesquisa_ativa && ! $solicitada && ! $conta->pesquisa_obrigatoria)) {
             return;
         }
 
@@ -44,7 +44,9 @@ class PesquisaDeSatisfacao
             return;
         }
 
-        $texto = trim((string) $conta->pesquisa_texto) ?: self::TEXTO_PADRAO;
+        $fecho=\Illuminate\Support\Facades\DB::table('encerramentos_atendimento')->where('conversation_id',$conversa->id)->where('tenant_id',$conversa->tenant_id)->orderByDesc('id')->first();
+        if($fecho?->pesquisa_message_id) return;
+        $texto = trim((string) $conta->pesquisa_texto) ?: (\App\Support\Idiomas::comunicacoes($conta)==='en_GB' ? 'Thank you for contacting us! On a scale of 1 to 5, how would you rate our service? Please reply with the number only.' : self::TEXTO_PADRAO);
 
         $mensagem = Message::create([
             'tenant_id'       => $conversa->tenant_id,
@@ -59,8 +61,9 @@ class PesquisaDeSatisfacao
             'status'          => Message::STATUS_QUEUED,
         ]);
 
-        $conversa->forceFill(['pesquisa_enviada_em' => now()])->save();
+        $conversa->forceFill(['pesquisa_enviada_em' => now(),'satisfacao'=>null,'satisfacao_em'=>null])->save();
 
+        \Illuminate\Support\Facades\DB::table('encerramentos_atendimento')->where('conversation_id',$conversa->id)->where('tenant_id',$conversa->tenant_id)->where('id',function($q)use($conversa){$q->selectRaw('MAX(id)')->from('encerramentos_atendimento')->where('conversation_id',$conversa->id)->where('tenant_id',$conversa->tenant_id);})->update(['pesquisa_message_id'=>$mensagem->id,'pesquisa_enviada_em'=>now(),'updated_at'=>now()]);
         SendTextMessage::dispatch($mensagem->id);
     }
 
@@ -84,6 +87,7 @@ class PesquisaDeSatisfacao
         $encerrada = Conversation::withoutGlobalScope('tenant')
             ->where('tenant_id', $mensagem->tenant_id)
             ->where('contact_id', $conversa->contact_id)
+            ->where('channel_id', $conversa->channel_id)
             ->whereNotNull('pesquisa_enviada_em')
             ->whereNull('satisfacao')
             ->where('pesquisa_enviada_em', '>=', now()->subHours(self::HORAS))
@@ -96,6 +100,9 @@ class PesquisaDeSatisfacao
             return false;
         }
 
+        $fim=\Illuminate\Support\Facades\DB::table('encerramentos_atendimento')->where('tenant_id',$mensagem->tenant_id)->where('conversation_id',$encerrada->id)->whereNotNull('pesquisa_enviada_em')->whereNull('satisfacao')->where('pesquisa_enviada_em','>=',now()->subHours(self::HORAS))->orderByDesc('pesquisa_enviada_em')->first();
+        if($fim) \Illuminate\Support\Facades\DB::table('encerramentos_atendimento')->where('id',$fim->id)->whereNull('satisfacao')->update(['satisfacao'=>$nota,'satisfacao_em'=>now(),'updated_at'=>now()]);
+        if($fim && $nota<=2){try{app(\App\Services\AlertasQualidade::class)->avisar($fim->id);}catch(\Throwable $e){\Illuminate\Support\Facades\Log::warning('Aviso de qualidade será reconciliado',['encerramento_id'=>$fim->id,'exception'=>$e::class]);}}
         $encerrada->forceFill([
             'satisfacao'    => $nota,
             'satisfacao_em' => now(),

@@ -17,6 +17,8 @@ use UnitEnum;
 
 class TeamResource extends Resource
 {
+    use \App\Filament\TraduzirResource;
+
     protected static ?string $model = Team::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUserGroup;

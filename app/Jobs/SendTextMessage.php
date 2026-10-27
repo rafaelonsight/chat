@@ -18,7 +18,16 @@ class SendTextMessage implements ShouldQueue
 
     public array $backoff = [5, 15, 60];
 
-    public function __construct(public int $messageId) {}
+    public ?int $maxExceptions = null;
+
+    public function __construct(public int $messageId, public ?array $interactive = null)
+    {
+        if (config('agenda.edition')) {
+            // Lock contention is not an HTTP attempt. The durable delivery counter caps HTTP at three.
+            $this->tries = 30;
+            $this->maxExceptions = 3;
+        }
+    }
 
     // Sem serializar por conversa, duas mensagens enviadas em sequencia podem
     // chegar trocadas no aparelho do cliente.
@@ -26,11 +35,17 @@ class SendTextMessage implements ShouldQueue
     {
         $m = Message::withoutGlobalScope('tenant')->find($this->messageId);
 
-        return [(new WithoutOverlapping('conversa:'.($m?->conversation_id ?? 0)))->releaseAfter(5)];
+        $lock = (new WithoutOverlapping('conversa:'.($m?->conversation_id ?? 0)))->releaseAfter(5);
+        if (config('agenda.edition')) $lock->shared()->expireAfter(120);
+        return [$lock];
     }
 
     public function handle(\App\Services\Canais\Enviadores $enviadores): void
     {
+        if (config('agenda.edition')) {
+            app(\App\Services\AgendaMessageDelivery::class)->handle($this);
+            return;
+        }
         $mensagem = Message::withoutGlobalScope('tenant')->find($this->messageId);
 
         if (! $mensagem || $mensagem->status !== Message::STATUS_QUEUED) {
@@ -38,7 +53,14 @@ class SendTextMessage implements ShouldQueue
         }
 
         TenantContext::runAs($mensagem->tenant_id, function () use ($mensagem, $enviadores) {
+            if (!app(\App\Services\RelatorioCampanha::class)->permitirEnvio($mensagem)) return;
             $canal = $mensagem->conversation->channel;
+            if(config('agenda.edition') && \Illuminate\Support\Facades\Schema::hasTable('agenda_flow_inputs') && \Illuminate\Support\Facades\DB::table('agenda_flow_inputs')->where('output_id',$mensagem->id)->exists()) {
+                $cfg=app(\App\Services\AgendaGuidedFlow::class)->settings($canal->id);
+                if(!$cfg?->enabled || $mensagem->conversation->atendente_id || $canal->status!=='open') {
+                    $mensagem->update(['status'=>Message::STATUS_FAILED,'erro'=>'Resposta automática suspensa: fluxo pausado, canal desligado ou atendimento humano.']);return;
+                }
+            }
 
             // Resposta a comentario do Instagram NAO tem janela: e um comentario
             // publico pendurado no outro (MetaInstagramEnviador::texto() manda para
@@ -74,13 +96,10 @@ class SendTextMessage implements ShouldQueue
                 // de nao ir: o vinculo continua registrado aqui dentro.
                 $citar = $mensagem->respondeA?->paraCitacao();
 
-                $r = $enviadores->para($canal)->texto(
-                    $canal,
-                    $destino,
-                    (string) $mensagem->corpo,
-                    $citar,
-                    $mensagem->mencionados ?? [],
-                );
+                $driver=$enviadores->para($canal);
+                $r=$this->interactive && $driver instanceof \App\Services\Canais\MetaCloudEnviador
+                    ? $driver->interativo($canal,$destino,$this->interactive)
+                    : $driver->texto($canal,$destino,(string)$mensagem->corpo,$citar,$mensagem->mencionados??[]);
 
                 $mensagem->update([
                     'external_id' => Arr::get($r, 'external_id'),
@@ -91,7 +110,7 @@ class SendTextMessage implements ShouldQueue
             } catch (\Throwable $e) {
                 $mensagem->update([
                     'status' => Message::STATUS_FAILED,
-                    'erro'   => mb_substr($e->getMessage(), 0, 500),
+                    'erro'   => config('agenda.edition') ? 'Não foi possível enviar. Verifique a conexão do WhatsApp e tente novamente.' : mb_substr($e->getMessage(), 0, 500),
                 ]);
 
                 // Relanca duas coisas, por razoes opostas:
@@ -112,5 +131,9 @@ class SendTextMessage implements ShouldQueue
                 broadcast(new MessageStored($mensagem->refresh()));
             }
         });
+    }
+    public function failed(?\Throwable $exception): void
+    {
+        if (config('agenda.edition')) app(\App\Services\AgendaMessageDelivery::class)->exhausted($this->messageId);
     }
 }

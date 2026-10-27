@@ -5,6 +5,7 @@ namespace App\Services\Canais;
 use App\Models\Channel;
 use App\Models\MetaTemplate;
 use App\Support\TenantContext;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Traz os templates da Meta para o banco.
@@ -28,9 +29,15 @@ class SincronizarTemplatesMeta
             return ['ok' => false, 'erro' => $r['erro'] ?? 'falha ao listar templates'];
         }
 
+        foreach ($r['templates'] as $bruto) {
+            if (!is_array($bruto) || empty($bruto['name']) || empty($bruto['language']) || empty($bruto['id'])) {
+                return ['ok' => false, 'erro' => 'A Meta devolveu um template incompleto. A lista local foi preservada.'];
+            }
+        }
+
         // runAs porque isto tambem vai rodar em job, e job nao tem usuario logado: sem
         // contexto de tenant o escopo global nao acha nem grava nada.
-        return TenantContext::runAs($canal->tenant_id, function () use ($canal, $r) {
+        return TenantContext::runAs($canal->tenant_id, fn () => DB::transaction(function () use ($canal, $r) {
             $novos = 0;
             $naoSuportados = 0;
             $vistos = [];
@@ -68,6 +75,7 @@ class SincronizarTemplatesMeta
             // escolheria e o envio falharia com "template does not exist" — erro que
             // parece nosso e nao e. Some daqui tambem.
             $apagados = MetaTemplate::where('meta_waba_id', (string) $canal->meta_waba_id)
+                ->where('status', '!=', 'DRAFT')
                 ->whereNotIn('id', $vistos ?: [0])
                 ->delete();
 
@@ -78,6 +86,6 @@ class SincronizarTemplatesMeta
                 'nao_suportados' => $naoSuportados,
                 'apagados'       => $apagados,
             ];
-        });
+        }));
     }
 }

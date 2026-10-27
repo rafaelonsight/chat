@@ -112,7 +112,7 @@ class MetaInstagramSignup
         $contaId = (string) data_get($r, 'user_id');
 
         if ($token === '' || $contaId === '') {
-            throw new \RuntimeException('o Instagram nao devolveu access_token ou user_id.');
+            throw new \RuntimeException(__('ui_4abf7d6c6344'));
         }
 
         return [$token, $contaId];
@@ -132,7 +132,7 @@ class MetaInstagramSignup
         $token = (string) data_get($r, 'access_token');
 
         if ($token === '') {
-            throw new \RuntimeException('o Instagram nao devolveu o token de longa duracao.');
+            throw new \RuntimeException(__('ui_1bfebffe92c8'));
         }
 
         return $token;

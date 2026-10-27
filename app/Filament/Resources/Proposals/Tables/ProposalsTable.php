@@ -23,12 +23,12 @@ class ProposalsTable
              */
             ->modifyQueryUsing(fn ($query) => $query->withCount('visualizacoes'))
             ->columns([
-                TextColumn::make('numero')->label('Número')->searchable()->sortable(),
+                TextColumn::make('numero')->label(__('ui_1d91f4b8d8d6'))->searchable()->sortable(),
 
-                TextColumn::make('cliente_nome')->label('Cliente')->searchable()->wrap(),
+                TextColumn::make('cliente_nome')->label(__('ui_c5c7d5ee3d61'))->searchable()->wrap(),
 
                 TextColumn::make('status')
-                    ->label('Estado')
+                    ->label(__('ui_87cf2a843e2e'))
                     ->badge()
                     // Vencida nao e status guardado: e a data. Mostrar aqui evita a proposta
                     // aparecer como "enviada" tres meses depois de ter perdido a validade.
@@ -43,7 +43,7 @@ class ProposalsTable
                     }),
 
                 TextColumn::make('visualizacoes_count')
-                    ->label('Aberturas')
+                    ->label(__('ui_7ea512b9e6a9'))
                     ->badge()
                     ->color(fn ($state) => $state > 0 ? 'warning' : 'gray')
                     // O numero de aberturas e o sinal de venda: tres aberturas sem resposta e
@@ -53,16 +53,16 @@ class ProposalsTable
                         : 'Ainda não abriu'),
 
                 TextColumn::make('total_unico')
-                    ->label('Uma vez')
+                    ->label(__('ui_49b5ee7982c7'))
                     ->money('BRL')
                     ->alignEnd(),
 
                 TextColumn::make('total_recorrente')
-                    ->label('Mensal')
+                    ->label(__('ui_6cb71f655e29'))
                     ->money('BRL')
                     ->alignEnd(),
 
-                TextColumn::make('validade')->label('Válida até')->date('d/m/Y')->sortable(),
+                TextColumn::make('validade')->label(__('ui_cd9bd651be81'))->date('d/m/Y')->sortable(),
             ])
             ->defaultSort('id', 'desc')
             ->recordActions([
@@ -75,7 +75,7 @@ class ProposalsTable
                  * ainda em rascunho.
                  */
                 Action::make('link')
-                    ->label('Copiar link')
+                    ->label(__('ui_0076334aa0bf'))
                     ->icon(Heroicon::OutlinedLink)
                     ->color('gray')
                     ->action(function (Proposal $record) {
@@ -83,7 +83,7 @@ class ProposalsTable
 
                         Notification::make()
                             ->success()
-                            ->title('Link copiado')
+                            ->title(__('ui_854056980fa2'))
                             ->body(route('proposta', $record->token))
                             ->send();
                     })
@@ -92,7 +92,7 @@ class ProposalsTable
                     ]),
 
                 Action::make('abrir')
-                    ->label('Ver')
+                    ->label(__('ui_49b372294f6b'))
                     ->icon(Heroicon::OutlinedEye)
                     ->color('gray')
                     ->url(fn (Proposal $record) => route('proposta', $record->token))
@@ -109,7 +109,7 @@ class ProposalsTable
                  */
                 DeleteAction::make()->hidden(fn (Proposal $record) => $record->enviada_em !== null),
             ])
-            ->emptyStateHeading('Nenhuma proposta ainda')
-            ->emptyStateDescription('A proposta é uma página com link: você vê quando o cliente abriu e ele aceita ali mesmo.');
+            ->emptyStateHeading(__('ui_3141f55541a0'))
+            ->emptyStateDescription(__('ui_a3cfd45a9715'));
     }
 }

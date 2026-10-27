@@ -12,12 +12,12 @@ class MetaTemplatesTable
     {
         return $table
             ->columns([
-                TextColumn::make('nome')->label('Nome')->searchable()->weight('medium'),
+                TextColumn::make('nome')->label(__('ui_13030dd962f4'))->searchable()->weight('medium'),
 
-                TextColumn::make('idioma')->label('Idioma')->badge()->color('gray'),
+                TextColumn::make('idioma')->label(__('ui_009433886003'))->badge()->color('gray'),
 
                 TextColumn::make('categoria')
-                    ->label('Categoria')
+                    ->label(__('ui_5966b0ce8b7e'))
                     ->badge()
                     ->formatStateUsing(fn (?string $state) => match ($state) {
                         'UTILITY'        => 'utilidade',
@@ -30,9 +30,10 @@ class MetaTemplatesTable
                     ->color(fn (?string $state) => $state === 'MARKETING' ? 'warning' : 'gray'),
 
                 TextColumn::make('status')
-                    ->label('Na Meta')
+                    ->label(__('ui_bbbaa52e0472'))
                     ->badge()
                     ->formatStateUsing(fn (?string $state) => match ($state) {
+                        'DRAFT' => __('Rascunho'),
                         'APPROVED' => 'aprovado',
                         'PENDING'  => 'em análise',
                         'REJECTED' => 'reprovado',
@@ -48,7 +49,7 @@ class MetaTemplatesTable
                     }),
 
                 TextColumn::make('variaveis')
-                    ->label('Variáveis')
+                    ->label(__('ui_eea9c8c273d5'))
                     ->badge()
                     ->color('gray')
                     ->formatStateUsing(fn (int $state) => $state === 0 ? 'nenhuma' : $state),
@@ -56,7 +57,7 @@ class MetaTemplatesTable
                 // A coluna que importa: da para usar, e se nao da, POR QUE. "Indisponivel"
                 // sem motivo vira pergunta para o suporte no dia seguinte.
                 TextColumn::make('suportado')
-                    ->label('Envio pelo '.config('app.name'))
+                    ->label(__('ui_a69ddabe8755').config('app.name'))
                     ->badge()
                     ->formatStateUsing(fn ($state, MetaTemplate $record) => $record->podeEnviar()
                         ? 'disponível'
@@ -65,19 +66,33 @@ class MetaTemplatesTable
                     ->wrap(),
 
                 TextColumn::make('corpo')
-                    ->label('Texto')
+                    ->label(__('ui_6eeba656c0f3'))
                     ->limit(60)
                     ->tooltip(fn (MetaTemplate $record) => $record->corpo)
                     ->toggleable(),
 
                 TextColumn::make('sincronizado_em')
-                    ->label('Sincronizado')
+                    ->label(__('ui_21d92e7758e5'))
                     ->since()
                     ->placeholder('—')
                     ->toggleable(),
             ])
+            ->recordActions([
+                \Filament\Actions\EditAction::make()->visible(fn(MetaTemplate $record) => $record->status === 'DRAFT'),
+                \Filament\Actions\Action::make('solicitar')->label(__('Solicitar aprovação'))->icon('heroicon-o-paper-airplane')
+                    ->visible(fn(MetaTemplate $record) => $record->status === 'DRAFT')->requiresConfirmation()
+                    ->modalHeading(__('Solicitar aprovação da Meta'))
+                    ->modalDescription(__('O conteúdo será enviado à Meta para análise. Salvar ou solicitar não significa aprovação.'))
+                    ->action(function(MetaTemplate $record) {
+                        $r = app(\App\Services\Canais\CriarTemplateMeta::class)->solicitar($record);
+                        \Filament\Notifications\Notification::make()->status($r['ok'] ? 'success' : 'danger')
+                            ->title($r['ok'] ? __('Solicitação confirmada pela Meta') : __('Solicitação não confirmada'))
+                            ->body($r['ok'] ? __('Sincronize para acompanhar o estado da análise.') : ($r['erro'] ?? __('Verifique a conexão e tente novamente.')))->persistent()->send();
+                    }),
+                \Filament\Actions\DeleteAction::make()->visible(fn(MetaTemplate $record) => $record->status === 'DRAFT'),
+            ])
             ->defaultSort('nome')
-            ->emptyStateHeading('Nenhum template sincronizado')
-            ->emptyStateDescription('Os templates sao criados no painel da Meta. Clique em Sincronizar para traze-los.');
+            ->emptyStateHeading(__('ui_c8169eacf488'))
+            ->emptyStateDescription(__('ui_6d0691101aef'));
     }
 }

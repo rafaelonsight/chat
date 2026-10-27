@@ -156,7 +156,7 @@ it('encerrar pelo atalho arquiva a conversa', function () {
 
     Livewire::actingAs($this->pessoa)
         ->test(ConversationWindow::class, ['conversationId' => $c->id])
-        ->call('finalizar');
+        ->call('finalizar')->set('assuntoEncerramento','Atendimento')->set('resumoEncerramento','Orientações fornecidas ao cliente.')->call('encerrar');
 
     expect($c->fresh()->status)->toBe(Conversation::ARQUIVADA);
 });

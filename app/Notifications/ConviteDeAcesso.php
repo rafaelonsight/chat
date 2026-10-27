@@ -26,17 +26,24 @@ class ConviteDeAcesso extends Notification
     {
         // O nome do produto vem do APP_NAME e nao esta escrito aqui: ele ainda vai mudar.
         $produto = config('app.name');
-        $minutos = (int) config('auth.passwords.users.expire', 60);
 
+        if ($notifiable->preferredLocale()==='en_GB') {
+            return (new MailMessage)->mailer(config('acesso.mailer'))
+                ->subject('Your access to '.$produto)->greeting('Hello, '.$notifiable->name.'!')
+                ->line('Your account is ready. Set your password to sign in with your email address.')
+                ->action('Set password',$this->link)
+                ->line('This link expires in sixty minutes and can only be used once.')
+                ->line('If you were not expecting this email, please ignore it.')
+                ->salutation('— The '.$produto.' team');
+        }
         return (new MailMessage)
-            ->subject('Seu acesso ao '.$produto)
-            ->greeting('Olá, '.$notifiable->name.'!')
-            ->line('A conta da sua empresa no '.$produto.' está criada. Falta só você escolher a sua senha.')
-            ->action('Definir minha senha', $this->link)
-            // Dizer o prazo evita o pior caso do link expirado: a pessoa achar que o sistema
-            // esta quebrado em vez de pedir outro.
-            ->line('Este link vale por '.$minutos.' minutos. Se ele expirar, use "Esqueci minha senha" na tela de entrada — ou peça um novo convite.')
-            ->line('Se você não esperava este e-mail, pode ignorá-lo: sem definir a senha, ninguém entra.')
-            ->salutation('— Equipe '.$produto);
+            ->mailer(config('acesso.mailer'))
+            ->subject(__('ui_c93958b88724').$produto)
+            ->greeting(__('ui_d79eb7b9e43a').$notifiable->name.'!')
+            ->line('Sua conta no '.$produto.' está criada. Defina sua senha para entrar com seu e-mail.')
+            ->action('Definir senha', $this->link)
+            ->line('Este link expira em sessenta minutos e pode ser usado uma única vez.')
+            ->line(__('ui_df2679b2d341'))
+            ->salutation(__('ui_6f3aac4aa145').$produto);
     }
 }

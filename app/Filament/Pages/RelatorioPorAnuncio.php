@@ -21,6 +21,8 @@ use UnitEnum;
  */
 class RelatorioPorAnuncio extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedMegaphone;
 
     protected static string|UnitEnum|null $navigationGroup = 'Relatórios';
@@ -39,7 +41,7 @@ class RelatorioPorAnuncio extends Page
 
     public static function canAccess(): bool
     {
-        return (bool) auth()->user()?->admin;
+        return (bool) auth()->user()?->consultaRelatorios();
     }
 
     public function periodo(int $dias): void
@@ -51,7 +53,7 @@ class RelatorioPorAnuncio extends Page
     {
         return [
             Action::make('exportar')
-                ->label('Exportar CSV')
+                ->label(__('ui_555da043aae8'))
                 ->icon('heroicon-o-arrow-down-tray')
                 ->action(fn () => $this->exportar()),
         ];

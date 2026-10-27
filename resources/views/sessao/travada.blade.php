@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -55,11 +55,11 @@
 
         <div class="avatar">{{ $iniciais }}</div>
         <p class="nome">{{ $nome }}</p>
-        <p class="aviso">Sessão bloqueada. Digite sua senha para voltar.</p>
+        <p class="aviso">{{ __('ui_4c930d705165') }}</p>
 
         <form method="POST" action="{{ route('sessao.destravar') }}">
             @csrf
-            <label for="senha">Senha</label>
+            <label for="senha">{{ __('ui_deba0172511d') }}</label>
             {{-- autofocus e autocomplete current-password: o gerenciador de senhas
                  preenche, e destravar volta a ser um gesto de dois segundos. --}}
             <input type="password" name="senha" id="senha" autofocus required
@@ -67,13 +67,13 @@
 
             @error('senha') <p class="erro">{{ $message }}</p> @enderror
 
-            <button type="submit">Destravar</button>
+            <button type="submit">{{ __('ui_0afaabe8d8e5') }}</button>
         </form>
 
         {{-- Sair de verdade continua possivel: bloqueio nao pode virar armadilha. --}}
         <form method="POST" action="{{ route('filament.admin.auth.logout') }}">
             @csrf
-            <button type="submit" class="sair">Sair da conta</button>
+            <button type="submit" class="sair">{{ __('ui_79c7443231cc') }}</button>
         </form>
     </div>
 

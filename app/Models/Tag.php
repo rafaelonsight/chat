@@ -10,6 +10,14 @@ class Tag extends Model
 {
     use BelongsToTenant;
 
+    protected static function booted(): void {
+        static::updating(function(Tag $tag){
+            if($tag->isDirty('contexto')) throw \Illuminate\Validation\ValidationException::withMessages(['data.contexto'=>'A finalidade da etiqueta não pode ser alterada. Crie outra na seção desejada.']);
+        });
+        static::creating(function(Tag $tag){
+            if(static::where('tenant_id',$tag->tenant_id)->where('contexto',$tag->contexto)->whereRaw('lower(nome)=lower(?)',[trim($tag->nome)])->exists()) throw \Illuminate\Validation\ValidationException::withMessages(['data.nome'=>'Já existe uma etiqueta com este nome nesta seção.']);
+        });
+    }
     /** Onde esta etiqueta pode ser posta. */
     public const CONTATO = 'contato';
 
@@ -46,6 +54,7 @@ class Tag extends Model
         return $q->where('contexto', self::TICKET);
     }
 
+    public function conversations(): BelongsToMany {return $this->belongsToMany(Conversation::class,'conversation_tag')->withPivot(['origem','aplicado_por','created_at']);}
     public function boardItems(): BelongsToMany
     {
         return $this->belongsToMany(BoardItem::class)

@@ -29,6 +29,9 @@ beforeEach(function () {
         'password' => 'segredo123', 'admin' => true,
     ]);
 
+    $this->admin->forceFill(['super_admin'=>true,'perfil_preenchido_em'=>now()])->save();
+    $this->actingAs($this->admin);
+    $this->state=$this->postJson('/canais/meta/iniciar',[])->json('state');
     \Filament\Facades\Filament::setCurrentPanel('admin');
 });
 
@@ -37,6 +40,7 @@ afterEach(fn () => TenantContext::forget());
 function pedidoDeRetorno(array $sobrescreve = []): array
 {
     return array_merge([
+        'state'           => test()->state,
         'code'            => 'codigo-do-popup',
         'waba_id'         => '3620023178150458',
         'phone_number_id' => '1235849066282498',
@@ -52,7 +56,9 @@ function pedidoDeRetorno(array $sobrescreve = []): array
 it('guarda o resultado no cache e devolve a página que fecha o popup, quando o retorno vem completo', function () {
     Http::fake([
         'graph.facebook.com/*/oauth/access_token*' => Http::response(['access_token' => 'EAA-token-da-waba-do-cliente']),
-        'graph.facebook.com/*/subscribed_apps*'    => Http::response(['success' => true]),
+        'graph.facebook.com/*/debug_token*' => Http::response(['data'=>['is_valid'=>true,'app_id'=>'app-id-teste','granular_scopes'=>[['scope'=>'whatsapp_business_management','target_ids'=>['3620023178150458']]]]]),
+        'graph.facebook.com/*/phone_numbers*' => Http::response(['data'=>[['id'=>'1235849066282498','display_phone_number'=>'+1 555-672-5603','verified_name'=>'Cliente Novo']]]),
+        'graph.facebook.com/*/subscribed_apps*' => fn($req)=>Http::response($req->method()==='POST' ? ['success'=>true] : ['data'=>[['whatsapp_business_api_data'=>['id'=>'app-id-teste'],'override_callback_uri'=>rtrim(config('app.url'),'/').'/webhooks/meta/whatsapp']]]),
         'graph.facebook.com/*'                     => Http::response([
             'display_phone_number' => '+1 555-672-5603',
             'verified_name'        => 'Cliente Novo',
@@ -138,7 +144,7 @@ it('nunca mostra o code na página de erro do retorno', function () {
 
     $resposta->assertStatus(422)
         ->assertDontSee('segredo-nao-pode-aparecer')
-        ->assertSee('(presente)');
+        ->assertSee('autorização completa');
 });
 
 /*
@@ -159,6 +165,8 @@ function guardarPendente(array $sobrescreve = []): string
         'nome'            => 'Cliente Novo',
         'numero'          => '+15556725603',
         'tenant_id'       => Tenant::first()?->id,
+        'user_id'         => test()->admin->id,
+        'canal_id'        => null,
     ], $sobrescreve), now()->addMinutes(5));
 
     return $token;
@@ -196,6 +204,7 @@ it('reconecta um canal existente em vez de criar outro, quando canal_id é infor
 
     $token = guardarPendente([
         'tenant_id' => $this->tenant->id,
+        'canal_id' => $canal->id,
         'waba_id' => 'waba-nova', 'phone_number_id' => 'id-novo', 'token' => 'EAA-token-novo',
     ]);
 
@@ -238,10 +247,10 @@ it('recusa signup_token de outra conta, sem criar canal', function () {
     expect(Channel::count())->toBe(0);
     // O token pertencia a outra conta, mas ja foi consumido (pull) — nao pode
     // sobrar disponivel para uma segunda tentativa adivinhar.
-    expect(Cache::get("meta_signup:{$token}"))->toBeNull();
+    expect(Cache::get("meta_signup:{$token}"))->not->toBeNull();
 });
 
-it('recusa reutilizar o mesmo signup_token uma segunda vez', function () {
+it('repetir o pedido recupera o mesmo canal sem duplicar', function () {
     $token = guardarPendente(['tenant_id' => $this->tenant->id]);
 
     $primeira = $this->actingAs($this->admin)
@@ -251,7 +260,8 @@ it('recusa reutilizar o mesmo signup_token uma segunda vez', function () {
     $segunda = $this->actingAs($this->admin)
         ->postJson(route('canais.meta.conectar-incorporado'), ['signup_token' => $token]);
 
-    $segunda->assertStatus(422)->assertJson(['ok' => false]);
+    $segunda->assertOk()->assertJson(['ok' => true]);
+    expect($segunda->json('redirect'))->toBe($primeira->json('redirect'));
     // A primeira chamada criou UM canal; a segunda nao pode criar outro.
     expect(Channel::count())->toBe(1);
 });

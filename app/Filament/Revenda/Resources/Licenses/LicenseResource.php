@@ -15,9 +15,11 @@ use Filament\Tables\Table;
 
 class LicenseResource extends Resource
 {
+    use \App\Filament\TraduzirResource;
+
     protected static ?string $model = License::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedKey;
+    protected static string|BackedEnum|null $navigationIcon = 'tabler-key';
 
     protected static ?string $navigationLabel = 'Licenças';
 

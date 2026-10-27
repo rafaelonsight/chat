@@ -26,12 +26,22 @@ class CampaignRecipient extends Model
     public const PULADA = 'pulada';
 
     protected $fillable = [
-        'campaign_id', 'contact_id', 'message_id', 'status', 'motivo', 'enviada_em',
+        'campaign_id', 'contact_id', 'message_id', 'status', 'motivo', 'enviada_em', 'classificacao',
     ];
 
     protected $casts = ['enviada_em' => 'datetime'];
 
     protected $attributes = ['status' => self::PENDENTE];
+
+    public function message(): BelongsTo
+    {
+        return $this->belongsTo(Message::class);
+    }
+
+    public function resposta(): BelongsTo
+    {
+        return $this->belongsTo(Message::class, 'resposta_id');
+    }
 
     public function campaign(): BelongsTo
     {

@@ -1,239 +1,81 @@
 <x-filament-panels::page>
-    @error('campanha')
-        <div class="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">{{ $message }}</div>
-    @enderror
-
-    @if (! $formAberto)
-        <div class="flex justify-end">
-            <x-filament::button wire:click="novaCampanha" icon="heroicon-o-plus">Nova campanha</x-filament::button>
-        </div>
+<div class="vc-campaign" wire:poll.15s.visible>
+<style>
+.vc-campaign{--vc-purple:#7047eb;--vc-line:#e5e7eb;--vc-muted:#667085;color:#172033}.vc-campaign .vc-card{background:#fff;border:1px solid var(--vc-line);border-radius:16px;padding:24px;margin-bottom:20px}.vc-campaign .vc-row{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.vc-campaign .vc-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.vc-campaign h2{font-size:24px;font-weight:650;letter-spacing:-.5px}.vc-campaign h3{font-size:17px;font-weight:600;margin-bottom:16px}.vc-campaign p,.vc-campaign small{color:var(--vc-muted)}.vc-campaign p{font-size:13px;line-height:1.6}.vc-campaign .vc-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}.vc-campaign label{display:block;font-size:13px;font-weight:500}.vc-campaign input:not([type=checkbox]),.vc-campaign select,.vc-campaign textarea{display:block;width:100%;border:1px solid #d0d5dd;border-radius:9px;padding:10px 12px;font-size:14px;background:#fff;color:#172033;margin-top:7px}.vc-campaign input:focus,.vc-campaign select:focus,.vc-campaign textarea:focus{outline:2px solid #b4a1f8;outline-offset:2px}.vc-campaign .vc-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0;border-bottom:1px solid var(--vc-line);padding-bottom:12px}.vc-campaign .vc-tabs button{padding:8px 14px;border-radius:8px;font-size:13px}.vc-campaign .vc-active{background:#f0ebff;color:#6037cf;font-weight:600}.vc-campaign .vc-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--vc-line);border-radius:12px;overflow:hidden;margin:20px 0}.vc-campaign .vc-metrics button{text-align:left;padding:18px;border-right:1px solid var(--vc-line);background:#fafbfc}.vc-campaign .vc-metrics strong{display:block;font-size:27px;letter-spacing:-1px;margin:8px 0}.vc-campaign .vc-metrics span,.vc-campaign .vc-metrics small{font-size:12px}.vc-campaign .vc-preview{white-space:pre-wrap;background:#f4f0ff;border:1px solid #e1d7ff;padding:22px;border-radius:14px;font-size:14px;line-height:1.7}.vc-campaign .vc-notice{padding:14px 16px;border-radius:10px;background:#fff8e8;color:#865500;font-size:13px;margin:16px 0}.vc-campaign .vc-footer{border-top:1px solid var(--vc-line);padding-top:20px;margin-top:24px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.vc-campaign .vc-table{overflow:auto}.vc-campaign table{width:100%;border-collapse:collapse;font-size:13px}.vc-campaign th{text-align:left;color:var(--vc-muted);font-weight:500;font-size:12px}.vc-campaign td,.vc-campaign th{padding:16px 12px;border-bottom:1px solid var(--vc-line);vertical-align:middle}.vc-campaign .vc-badge{display:inline-flex;padding:5px 9px;background:#f2f4f7;border-radius:20px;font-size:12px;white-space:nowrap}.vc-campaign .vc-badge[data-state=pausada],.vc-campaign .vc-badge[data-state=fila]{background:#fff3d6;color:#8d5d00}.vc-campaign .vc-badge[data-state=failed]{background:#fff0ef;color:#b42318}.vc-campaign .vc-badge[data-state=read],.vc-campaign .vc-badge[data-state=concluida]{background:#eaf8f1;color:#08724b}.vc-campaign .vc-history{border-left:2px solid #e1d7ff;padding:0 0 20px 20px;margin-left:6px}.vc-campaign .vc-errors{padding:16px;background:#fff0ef;color:#b42318;border-radius:12px;margin-bottom:20px}.vc-campaign .vc-radio{display:flex;gap:8px;align-items:center}.vc-campaign .vc-full{grid-column:1/-1}.dark .vc-campaign{color:#e5e7eb;--vc-line:#374151;--vc-muted:#a7b0c0}.dark .vc-campaign .vc-card,.dark .vc-campaign input:not([type=checkbox]),.dark .vc-campaign select,.dark .vc-campaign textarea{background:#182131;color:#e5e7eb}.dark .vc-campaign .vc-metrics button{background:#202b3e}.dark .vc-campaign .vc-preview{background:#292342}.dark .vc-campaign .vc-active{background:#322653;color:#d0bdff}
+@media(max-width:700px){.vc-campaign .vc-card{padding:16px}.vc-campaign .vc-fields{grid-template-columns:1fr}.vc-campaign .vc-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.vc-campaign .vc-metrics button{border-bottom:1px solid var(--vc-line)}.vc-campaign .vc-table table,.vc-campaign .vc-table tbody,.vc-campaign .vc-table tr,.vc-campaign .vc-table td{display:block}.vc-campaign .vc-table thead{display:none}.vc-campaign .vc-table tr{border-bottom:1px solid var(--vc-line);padding:12px 0}.vc-campaign .vc-table td{padding:6px 0;border:0}.vc-campaign .vc-table td:before{content:attr(data-label);display:inline-block;min-width:95px;color:var(--vc-muted);font-size:12px}.vc-campaign .vc-table td:first-child:before{display:none}.vc-campaign h2{font-size:21px}}
+</style>
+@if($errors->any())<div class="vc-errors" role="alert">@foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach</div>@endif
+@if($formAberto)
+ <div class="vc-card">
+  <div class="vc-row"><div><h2>{{ $editando?__('Editar campanha'):__('Nova campanha') }}</h2><p>{{ __('Prepare o público, reveja a mensagem e confirme o envio.') }}</p></div><x-filament::button color="gray" wire:click="$set('formAberto',false)">{{ __('Fechar') }}</x-filament::button></div>
+  <nav class="vc-tabs" aria-label="{{ __('Etapas da campanha') }}">@foreach([1=>'Público',2=>'Mensagem',3=>'Programação',4=>'Revisão'] as $n=>$label)<span class="{{ $etapa===$n?'vc-active':'' }}" style="padding:10px 14px;border-radius:8px">{{ $n }} · {{ __($label) }}</span>@endforeach</nav>
+  @if($etapa===1)
+   <div class="vc-fields">
+    <label>{{ __('Nome da campanha') }}<input wire:model="nome" maxlength="80" placeholder="{{ __('Ex.: atualização cadastral') }}"></label>
+    <label>{{ __('Canal') }}<select wire:model.live="channel_id"><option value="">{{ __('Escolha') }}</option>@foreach($canais as $ch)<option value="{{ $ch->id }}">{{ $ch->nome }}</option>@endforeach</select></label>
+    <label>{{ __('Público') }}<select wire:model.live="publico"><option value="etiqueta">{{ __('Por etiqueta') }}</option><option value="todos">{{ __('Todos os contatos elegíveis') }}</option><option value="lista">{{ __('Lista ou planilha CSV') }}</option></select></label>
+    @if($publico==='etiqueta')<label>{{ __('Incluir etiqueta') }}<select wire:model.live="tag_id"><option value="">{{ __('Escolha') }}</option>@foreach($etiquetas as $t)<option value="{{ $t->id }}">{{ $t->nome }}</option>@endforeach</select></label>@endif
+    <label>{{ __('Excluir etiqueta') }}<select wire:model.live="excluir_tag_id"><option value="">{{ __('Nenhuma') }}</option>@foreach($etiquetas as $t)<option value="{{ $t->id }}">{{ $t->nome }}</option>@endforeach</select></label>
+    @if($publico==='lista')
+    <label class="vc-full">{{ __('Números com código do país, um por linha') }}<textarea rows="5" wire:model.live.debounce.500ms="lista" placeholder="+447000000000"></textarea><small>{{ __('A lista seleciona contatos já cadastrados no CRM. Números repetidos entram uma única vez.') }}</small></label>
+    <div class="vc-full"><label>{{ __('Importar CSV ou TXT') }}<input type="file" wire:model="planilha" accept=".csv,.txt"></label><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px"><x-filament::button color="gray" wire:click="importar" wire:loading.attr="disabled">{{ __('Ler planilha') }}</x-filament::button><x-filament::button tag="a" color="gray" icon="heroicon-o-arrow-down-tray" href="{{ asset('modelos/modelo-campanha.csv') }}" download="modelo-campanha.csv">{{ __('Baixar modelo CSV') }}</x-filament::button></div><small style="display:block;margin-top:8px">{{ __('Substitua os exemplos por números com código do país, um por linha. No Excel, mantenha a coluna como Texto para preservar o sinal +. Os contatos precisam estar cadastrados no CRM.') }}</small></div>
     @endif
-
-    {{-- ------------------------------------------------------------ o formulario --}}
-    @if ($formAberto)
-        <x-filament::section>
-            <x-slot name="heading">{{ $editando ? 'Editar campanha' : 'Nova campanha' }}</x-slot>
-
-            <div class="space-y-4">
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <label class="block">
-                        <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Nome (só você vê)</span>
-                        <input type="text" wire:model="nome" placeholder="Promoção de agosto"
-                               class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                        @error('nome') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                    </label>
-
-                    <label class="block">
-                        <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Por qual canal</span>
-                        <select wire:model.live="channel_id"
-                                class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                            @foreach ($canais as $c)
-                                <option value="{{ $c->id }}">{{ $c->nome }}</option>
-                            @endforeach
-                        </select>
-                    </label>
-                </div>
-
-                {{-- O aviso mais importante desta tela. Disparo em massa pelo canal por QR e o
-                     gatilho mais rapido de banimento, e um numero banido leva junto o
-                     atendimento inteiro — nao so a campanha. --}}
-                @if ($canalPorQr)
-                    <div class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-                        <p class="font-semibold">Este é um canal conectado por QR code.</p>
-                        <p class="mt-1">
-                            Disparo em massa é o motivo número um de banimento de número no WhatsApp.
-                            O ritmo abaixo existe para reduzir esse risco — <strong>não para eliminá-lo</strong>.
-                            Se este número também é o do seu atendimento, um banimento leva as duas coisas.
-                        </p>
-                    </div>
-                @endif
-
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <label class="block">
-                        <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Para quem</span>
-                        <select wire:model.live="publico"
-                                class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                            <option value="etiqueta">Contatos com uma etiqueta</option>
-                            <option value="todos">Todos os contatos</option>
-                        </select>
-                    </label>
-
-                    @if ($publico === 'etiqueta')
-                        <label class="block">
-                            <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Qual etiqueta</span>
-                            <select wire:model.live="tag_id"
-                                    class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                                <option value="">escolha</option>
-                                @foreach ($etiquetas as $e)
-                                    <option value="{{ $e->id }}">{{ $e->nome }}</option>
-                                @endforeach
-                            </select>
-                            @error('tag_id') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                        </label>
-                    @endif
-                </div>
-
-                {{-- OS DOIS NUMEROS. "482 contatos, 41 fora" faz perguntar por que; "441"
-                     sozinho não faz perguntar nada. --}}
-                @if ($previa)
-                    <div class="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-700 dark:bg-white/5 dark:text-gray-300">
-                        <strong>{{ $previa['final'] }}</strong> {{ $previa['final'] === 1 ? 'pessoa recebe' : 'pessoas recebem' }}
-                        @if ($previa['fora'] > 0)
-                            · <strong>{{ $previa['fora'] }}</strong> {{ $previa['fora'] === 1 ? 'fica' : 'ficam' }} de fora
-                            (pediram para sair, estão bloqueados, arquivados, ou são grupos)
-                        @endif
-                    </div>
-                @endif
-
-                @if ($exigeTemplate)
-                    <div>
-                        <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Template aprovado</span>
-                        <p class="mb-1 text-[11px] text-gray-500">
-                            No canal oficial, campanha só sai por template aprovado pela Meta —
-                            fora da janela de 24 horas ela recusa texto livre, e numa campanha a
-                            janela está fechada para quase todo mundo.
-                        </p>
-                        <select wire:model.live="meta_template_id"
-                                class="w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                            <option value="">escolha</option>
-                            @foreach ($templates as $t)
-                                <option value="{{ $t->id }}">{{ $t->nome }}</option>
-                            @endforeach
-                        </select>
-                        @error('meta_template_id') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
-                    </div>
-                @else
-                    <label class="block">
-                        <span class="text-xs font-medium text-gray-600 dark:text-gray-300">A mensagem</span>
-                        <textarea wire:model="corpo" rows="4"
-                                  class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800"></textarea>
-                        <span class="text-[11px] text-gray-500">
-                            Quem responder <strong>PARAR</strong> sai da lista automaticamente e não
-                            recebe mais campanha nenhuma. Vale a pena dizer isso na mensagem.
-                        </span>
-                        @error('corpo') <span class="block text-xs text-red-600">{{ $message }}</span> @enderror
-                    </label>
-                @endif
-
-                <div class="grid gap-4 sm:grid-cols-3">
-                    <label class="block">
-                        <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Por minuto</span>
-                        <input type="number" wire:model="por_minuto" min="1" max="30"
-                               class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                        <span class="text-[11px] text-gray-500">6 é conservador. 30 é o teto.</span>
-                        @error('por_minuto') <span class="block text-xs text-red-600">{{ $message }}</span> @enderror
-                    </label>
-
-                    <label class="block">
-                        <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Só a partir das</span>
-                        <input type="number" wire:model="hora_inicio" min="0" max="23"
-                               class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                    </label>
-
-                    <label class="block">
-                        <span class="text-xs font-medium text-gray-600 dark:text-gray-300">E até as</span>
-                        <input type="number" wire:model="hora_fim" min="1" max="23"
-                               class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                        @error('hora_fim') <span class="block text-xs text-red-600">{{ $message }}</span> @enderror
-                    </label>
-                </div>
-
-                <p class="text-[11px] text-gray-500">
-                    O que não couber na janela de hoje continua amanhã no mesmo horário. Disparo
-                    de madrugada não é só falta de educação — é assédio de consumo no CDC.
-                </p>
-
-                <div class="flex gap-2">
-                    <x-filament::button wire:click="salvar">Salvar</x-filament::button>
-                    <x-filament::button color="gray" wire:click="$set('formAberto', false)">Cancelar</x-filament::button>
-                </div>
-            </div>
-        </x-filament::section>
-    @endif
-
-    {{-- ------------------------------------------------------------- a lista --}}
-    <x-filament::section>
-        <x-slot name="heading">Suas campanhas</x-slot>
-
-        @if ($campanhas->isEmpty())
-            <p class="py-6 text-center text-sm text-gray-500">
-                Nenhuma campanha ainda. A primeira coisa a fazer é etiquetar os contatos que
-                devem receber.
-            </p>
-        @else
-            <div class="space-y-3">
-                @foreach ($campanhas as $c)
-                    @php
-                        $total = $c->recipients_count;
-                        $feitas = $c->enviadas_count + $c->puladas_count + $c->falharam_count;
-                        $pct = $total > 0 ? (int) round($feitas * 100 / $total) : 0;
-                    @endphp
-
-                    <div wire:key="camp-{{ $c->id }}"
-                         class="rounded-xl border border-gray-200 p-4 dark:border-white/10">
-                        <div class="flex flex-wrap items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-2">
-                                    <span class="font-medium text-gray-900 dark:text-gray-100">{{ $c->nome }}</span>
-                                    <span @class([
-                                        'rounded-full px-2 py-0.5 text-[11px] font-medium',
-                                        'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300' => in_array($c->status, ['rascunho','cancelada']),
-                                        'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300' => in_array($c->status, ['enviando','agendada']),
-                                        'bg-amber-100 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300' => $c->status === 'pausada',
-                                        'bg-sky-100 text-sky-800 dark:bg-sky-500/20 dark:text-sky-300' => $c->status === 'concluida',
-                                    ])>{{ \App\Models\Campaign::ROTULOS[$c->status] }}</span>
-                                </div>
-
-                                <p class="mt-0.5 text-xs text-gray-500">
-                                    {{ $c->channel?->nome }}
-                                    @if ($c->tag) · etiqueta {{ $c->tag->nome }} @endif
-                                    · {{ $c->por_minuto }}/min · das {{ $c->hora_inicio }}h às {{ $c->hora_fim }}h
-                                </p>
-                            </div>
-
-                            <div class="flex shrink-0 flex-wrap gap-1">
-                                @if ($c->editavel())
-                                    <x-filament::button size="xs" color="gray" wire:click="editar({{ $c->id }})">Editar</x-filament::button>
-                                    <x-filament::button size="xs" wire:click="iniciar({{ $c->id }})"
-                                        wire:confirm="Começar a disparar agora?">Disparar</x-filament::button>
-                                @endif
-
-                                @if ($c->status === 'enviando')
-                                    <x-filament::button size="xs" color="warning" wire:click="pausar({{ $c->id }})">Pausar</x-filament::button>
-                                @endif
-
-                                @if ($c->status === 'pausada')
-                                    <x-filament::button size="xs" wire:click="retomar({{ $c->id }})">Retomar</x-filament::button>
-                                @endif
-
-                                @if ($c->rodando() || $c->status === 'pausada')
-                                    <x-filament::button size="xs" color="danger" wire:click="cancelar({{ $c->id }})"
-                                        wire:confirm="Cancelar? O que já saiu não volta.">Cancelar</x-filament::button>
-                                @endif
-
-                                @if ($c->enviadas_count === 0)
-                                    <x-filament::button size="xs" color="gray" wire:click="excluir({{ $c->id }})">Excluir</x-filament::button>
-                                @endif
-                            </div>
-                        </div>
-
-                        @if ($total > 0)
-                            <div class="mt-3">
-                                <div class="h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-white/10">
-                                    <div class="h-full rounded-full bg-emerald-500" style="width: {{ $pct }}%"></div>
-                                </div>
-                                <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                                    <strong>{{ $c->enviadas_count }}</strong> de {{ $total }} enviadas
-                                    @if ($c->puladas_count > 0) · {{ $c->puladas_count }} puladas @endif
-                                    @if ($c->falharam_count > 0)
-                                        · <span class="text-red-600 dark:text-red-400">{{ $c->falharam_count }} falharam</span>
-                                    @endif
-                                </p>
-                            </div>
-                        @endif
-                    </div>
-                @endforeach
-            </div>
-        @endif
-    </x-filament::section>
+   </div>
+   @if($previa)<div class="vc-notice"><strong>{{ $previa['final'] }} {{ __('destinatários elegíveis') }}</strong> · {{ $previa['fora'] }} {{ __('excluídos por bloqueio, saída, arquivo ou grupo') }}@if($publico==='lista')<br>{{ max(0,data_get($rascunho->configuracao,'informados',0)-$previa['bruto']) }} {{ __('números não encontrados no público do CRM') }}@endif</div>@endif
+  @elseif($etapa===2)
+   <div class="vc-fields"><div>
+   @if($exigeTemplate)
+    <label>{{ __('Template aprovado') }}<select wire:model.live="meta_template_id"><option value="">{{ __('Escolha') }}</option>@foreach($templates as $t)<option value="{{ $t->id }}">{{ $t->nome }} · {{ $t->idioma }} · {{ $t->categoria }}</option>@endforeach</select></label>
+    @if($template)@for($i=0;$i<$template->variaveis;$i++)<label style="margin-top:16px">{{ __('Variável') }} {{ $template->nomesParametros()[$i]??($i+1) }}<input wire:model.live.debounce.400ms="template_valores.{{ $i }}" maxlength="500"></label>@endfor @endif
+   @else<label>{{ __('Mensagem') }}<textarea wire:model.live.debounce.400ms="corpo" rows="7" maxlength="1000"></textarea></label>@endif
+   <div style="margin-top:20px"><label>{{ __('Número para teste') }}<input wire:model="numeroTeste" placeholder="+447000000000"></label><p>{{ __('O teste envia uma mensagem real para um contato do CRM e pode gerar cobrança Meta.') }}</p><x-filament::button color="gray" wire:click="enviarTeste" wire:confirm="{{ __('Enviar uma mensagem real de teste para o número informado?') }}" wire:loading.attr="disabled">{{ __('Enviar teste') }}</x-filament::button></div><p style="margin-top:12px">{{ __('O conteúdo é enviado no idioma escolhido no template. Alterar a interface não traduz a campanha.') }}</p>
+   </div><div><h3>{{ __('Prévia da mensagem') }}</h3><div class="vc-preview">{{ $textoPrevia?:__('Escolha uma mensagem para visualizar.') }}</div>@if($template?->rodape)<p>{{ $template->rodape }}</p>@endif</div></div>
+  @elseif($etapa===3)
+   <div class="vc-fields">
+    <label>{{ __('Início do envio') }}<select wire:model.live="inicio"><option value="agora">{{ __('Após confirmar') }}</option><option value="agendar">{{ __('Agendar') }}</option></select></label>
+    <label>{{ __('Fuso horário') }}<select wire:model.live="timezone"><option value="America/Sao_Paulo">São Paulo</option><option value="Europe/London">London</option><option value="UTC">UTC</option></select></label>
+    @if($inicio==='agendar')<label>{{ __('Data e hora') }}<input type="datetime-local" wire:model="agendamento"></label>@endif
+    <label>{{ __('Ao receber resposta') }}<select wire:model.live="respostaModo"><option value="padrao">{{ __('Seguir configuração do canal') }}</option><option value="equipe">{{ __('Encaminhar à equipe sem chatbot') }}</option><option value="chatbot">{{ __('Iniciar chatbot escolhido') }}</option></select></label>
+    @if($respostaModo==='chatbot')<label>{{ __('Chatbot publicado') }}<select wire:model="chatbot_id"><option value="">{{ __('Escolha') }}</option>@foreach($chatbots as $bot)<option value="{{ $bot->id }}">{{ $bot->nome }}</option>@endforeach</select><small>{{ __('O agente de IA pode ser incluído no fluxo deste chatbot.') }}</small></label>@endif
+    <label>{{ __('Equipe para as respostas') }}<select wire:model="team_id"><option value="">{{ __('Triagem padrão') }}</option>@foreach($equipes as $team)<option value="{{ $team->id }}">{{ $team->nome }}</option>@endforeach</select><small>{{ __('Atendimentos já atribuídos mantêm o responsável.') }}</small></label>
+    <label>{{ __('Envios por minuto') }}<input type="number" wire:model="por_minuto" min="1" max="30"></label>
+    <label>{{ __('Enviar a partir das') }}<input type="number" wire:model="hora_inicio" min="0" max="23"></label>
+    <label>{{ __('Encerrar os envios às') }}<input type="number" wire:model="hora_fim" min="1" max="23"></label>
+    <div class="vc-full"><label>{{ __('Dias permitidos') }}</label><div class="vc-actions" style="margin-top:12px">@foreach([0=>'Dom',1=>'Seg',2=>'Ter',3=>'Qua',4=>'Qui',5=>'Sex',6=>'Sáb'] as $n=>$day)<label class="vc-radio"><input type="checkbox" wire:model="dias" value="{{ $n }}">{{ __($day) }}</label>@endforeach</div></div>
+   </div>
+  @else
+   <div class="vc-fields"><div><h3>{{ __('Revisão do envio') }}</h3><p><strong>{{ $nome }}</strong><br>{{ $canais->firstWhere('id',$channel_id)?->nome }}</p><p>{{ $previa['final']??0 }} {{ __('destinatários elegíveis') }} · {{ $por_minuto }}/min<br>{{ $inicio==='agendar'?$agendamento:__('Após confirmar') }} · {{ $timezone }}<br>{{ $hora_inicio }}h–{{ $hora_fim }}h</p><div class="vc-notice">{{ __('Estimativa Meta') }}: <strong>{{ $estimativa!==null?'USD '.number_format($estimativa,4):__('Indisponível') }}</strong><br>{{ __('A estimativa depende de tarifas verificadas e da cobrança aplicável. Não substitui a fatura.') }}</div><p>{{ __('A lista será congelada ao confirmar. Contatos bloqueados ou que pedirem saída serão conferidos novamente antes do envio.') }}</p></div><div><h3>{{ __('Mensagem final') }}</h3><div class="vc-preview">{{ $textoPrevia }}</div></div></div>
+  @endif
+  <div class="vc-footer"><x-filament::button color="gray" wire:click="{{ $etapa>1?'$set(\'etapa\','.($etapa-1).')':'$set(\'formAberto\',false)' }}">{{ $etapa>1?__('Voltar'):__('Cancelar') }}</x-filament::button><div class="vc-actions">@if($etapa<4)<x-filament::button wire:click="avancar">{{ __('Continuar') }}</x-filament::button>@else<x-filament::button color="gray" wire:click="salvar" wire:loading.attr="disabled">{{ __('Salvar rascunho') }}</x-filament::button><x-filament::button wire:click="salvar(true)" wire:loading.attr="disabled" wire:confirm="{{ __('Confirmar o envio para o público apresentado?') }}">{{ $inicio==='agendar'?__('Confirmar e agendar'):__('Confirmar e enviar') }}</x-filament::button>@endif</div></div>
+ </div>
+@elseif($campanha)
+ <div class="vc-card"><div class="vc-row"><div><button wire:click="$set('selecionada',null)" style="font-size:12px;color:var(--vc-purple)">← {{ __('Todas as campanhas') }}</button><h2>{{ $campanha->nome }}</h2><p>{{ $campanha->channel?->nome }} · <span class="vc-badge" data-state="{{ $campanha->status }}">{{ __(\App\Models\Campaign::ROTULOS[$campanha->status]) }}</span></p></div><div class="vc-actions">
+ <x-filament::button color="gray" wire:click="duplicar({{ $campanha->id }})" icon="heroicon-o-document-duplicate">{{ __('Duplicar') }}</x-filament::button>
+ @if($campanha->status==='rascunho')<x-filament::button wire:click="editar({{ $campanha->id }})">{{ __('Rever e confirmar') }}</x-filament::button>@endif
+ @if($campanha->rodando())<x-filament::button color="gray" wire:click="pausar({{ $campanha->id }})">{{ __('Pausar') }}</x-filament::button>@endif
+ @if($campanha->status==='pausada')<x-filament::button wire:click="retomar({{ $campanha->id }})" wire:confirm="{{ __('Retomar somente os envios pendentes?') }}">{{ __('Retomar envios') }}</x-filament::button>@endif
+ @if($campanha->rodando()||$campanha->status==='pausada')<x-filament::button color="danger" wire:click="cancelar({{ $campanha->id }})" wire:confirm="{{ __('Cancelar os envios pendentes? Mensagens já aceites pelo provedor podem chegar depois.') }}">{{ __('Cancelar envio') }}</x-filament::button>@endif
+ </div></div>
+ @if($campanha->motivo_pausa)<div class="vc-notice">{{ __($campanha->motivo_pausa) }}</div>@endif
+ <nav class="vc-tabs">@foreach(['resultados'=>'Resultados','destinatarios'=>'Destinatários','historico'=>'Histórico'] as $key=>$label)<button wire:click="$set('aba','{{ $key }}')" class="{{ $aba===$key?'vc-active':'' }}">{{ __($label) }}</button>@endforeach</nav>
+ @if($aba==='resultados')
+ <p>{{ __('Os estados são confirmados pelo provedor. Concluída significa que o processamento terminou; recibos podem chegar depois.') }}</p>
+ <div class="vc-metrics">@foreach(['fila'=>'Na fila','sent'=>'Enviadas','delivered'=>'Entregues','read'=>'Lidas'] as $key=>$label)<button wire:click="filtrar('{{ $key }}')"><span>{{ __($label) }}</span><strong>{{ $resumo[$key] }}</strong><small>{{ $resumo['total']?round($resumo[$key]*100/$resumo['total']):0 }}% · {{ __('de') }} {{ $resumo['total'] }}</small></button>@endforeach</div>
+ <div class="vc-row"><div><h3>{{ __('Respostas à campanha') }}</h3><p>{{ __('Primeira resposta em até 7 dias, atribuída à campanha mais recente deste canal. Resposta não comprova recibo de leitura.') }}</p></div><x-filament::button wire:click="filtrar('responderam')">{{ $resumo['responderam'] }} {{ __('responderam') }} · {{ $resumo['total']?round($resumo['responderam']*100/$resumo['total']):0 }}%</x-filament::button></div>
+ <div class="vc-actions" style="margin-top:20px">@foreach(['failed'=>'Falhas','pulada'=>'Excluídas','cancelada'=>'Canceladas'] as $key=>$label)<button class="vc-badge" data-state="{{ $key }}" wire:click="filtrar('{{ $key }}')">{{ $resumo[$key] }} {{ __($label) }}</button>@endforeach</div>
+ <div class="vc-fields" style="margin-top:28px"><div><h3>{{ __('Mensagem da campanha') }}</h3><div class="vc-preview">{{ $campanha->template?$campanha->template->renderizar((array)$campanha->template_valores):$campanha->corpo }}</div></div><div><h3>{{ __('Configuração do envio') }}</h3><p>{{ __('Criada por') }}: {{ $campanha->criadaPor?->name }}<br>{{ __('Fuso horário') }}: {{ data_get($campanha->configuracao,'timezone',config('app.timezone')) }}<br>{{ __('Agendada para') }}: {{ $campanha->agendada_para?->timezone(data_get($campanha->configuracao,'timezone',config('app.timezone')))->format('d/m/Y H:i')??'—' }}<br>{{ $campanha->por_minuto }}/min · {{ $campanha->hora_inicio }}h–{{ $campanha->hora_fim }}h</p><a href="{{ url('/admin/precos-consumo-meta') }}" style="font-size:13px;color:var(--vc-purple)">{{ __('Consultar consumo Meta') }} ↗</a></div></div>
+ @elseif($aba==='destinatarios')
+ <div class="vc-fields"><label>{{ __('Procurar cliente ou número') }}<input wire:model.live.debounce.400ms="busca"></label><label>{{ __('Situação') }}<select wire:model.live="filtro"><option value="">{{ __('Todas') }}</option>@foreach(\App\Services\RelatorioCampanha::SITUACOES+['responderam'=>'Responderam'] as $key=>$label)<option value="{{ $key }}">{{ __($label) }}</option>@endforeach</select></label><label>{{ __('Classificação') }}<select wire:model.live="classificacao"><option value="">{{ __('Todas') }}</option>@foreach(\App\Services\RelatorioCampanha::CLASSIFICACOES as $key=>$label)<option value="{{ $key }}">{{ __($label) }}</option>@endforeach</select></label><div class="vc-actions"><x-filament::button color="gray" wire:click="exportar" icon="heroicon-o-arrow-down-tray">{{ __('Exportar CSV') }}</x-filament::button><small>{{ $destinatarios->total() }} {{ __('destinatários') }}</small></div></div>
+ <div class="vc-table"><table><thead><tr><th>{{ __('Cliente') }}</th><th>{{ __('Situação') }}</th><th>{{ __('Classificação') }}</th><th>{{ __('Conversa') }}</th></tr></thead><tbody>
+ @forelse($destinatarios as $r)<tr wire:key="recipient-{{ $r->id }}"><td><strong>{{ $r->contact?->nome?:__('Contato sem nome') }}</strong><br><small>{{ $r->contact?->telefone_e164 }}</small></td><td data-label="{{ __('Situação') }}"><span class="vc-badge" data-state="{{ $r->situacao }}">{{ __(\App\Services\RelatorioCampanha::SITUACOES[$r->situacao]??$r->situacao) }}</span>@if($r->resposta_id)<span class="vc-badge">{{ __('Respondeu') }}</span>@endif<br><small>{{ $r->confirmada_em?\Carbon\Carbon::parse($r->confirmada_em)->timezone(data_get($campanha->configuracao,'timezone',config('app.timezone')))->format('d/m H:i'):'—' }}</small>@if($r->erro||$r->motivo)<p>{{ $r->motivo?:$r->erro }}</p>@endif</td><td data-label="{{ __('Classificação') }}"><select aria-label="{{ __('Classificação') }}" wire:change="classificar({{ $r->id }},$event.target.value)"><option value="">{{ __('Sem classificação') }}</option>@foreach(\App\Services\RelatorioCampanha::CLASSIFICACOES as $key=>$label)<option value="{{ $key }}" @selected($r->classificacao===$key)>{{ __($label) }}</option>@endforeach</select></td><td data-label="{{ __('Conversa') }}">@if($r->message?->conversation)<x-filament::button tag="a" href="{{ url('/admin?conversa='.($r->resposta?->conversation_id??$r->conversation_id)) }}" color="gray" size="sm" icon="heroicon-o-chat-bubble-left-right">{{ __('Abrir conversa') }}</x-filament::button>@else<small>—</small>@endif</td></tr>@empty<tr><td colspan="4"><p>{{ __('Nenhum destinatário neste filtro.') }}</p></td></tr>@endforelse
+ </tbody></table></div><div style="margin-top:20px">{{ $destinatarios->links() }}</div>
+ @else
+ @forelse($historico as $event)<div class="vc-history"><strong>{{ __(ucfirst($event->acao)) }}</strong><p>{{ $event->detalhe }}</p><small>{{ $event->name?:__('Sistema') }} · {{ \Carbon\Carbon::parse($event->created_at)->timezone(data_get($campanha->configuracao,'timezone',config('app.timezone')))->format('d/m/Y H:i') }}</small></div>@empty<p>{{ __('Não há eventos registrados. Campanhas antigas não têm histórico retroativo.') }}</p>@endforelse
+ @endif
+ </div>
+@else
+ <div class="vc-card"><div class="vc-row"><div><h2>{{ __('Campanhas') }}</h2><p>{{ __('Organize os envios e acompanhe cada resposta.') }}</p></div><x-filament::button wire:click="novaCampanha" icon="heroicon-o-plus">{{ __('Nova campanha') }}</x-filament::button></div><div class="vc-fields" style="margin-top:20px"><label>{{ __('Procurar campanha') }}<input wire:model.live.debounce.400ms="buscaCampanha"></label><label>{{ __('Situação') }}<select wire:model.live="statusCampanha"><option value="">{{ __('Todas') }}</option>@foreach(\App\Models\Campaign::ROTULOS as $key=>$label)<option value="{{ $key }}">{{ __($label) }}</option>@endforeach</select></label></div>
+ <div class="vc-table"><table><thead><tr><th>{{ __('Campanha') }}</th><th>{{ __('Canal') }}</th><th>{{ __('Destinatários') }}</th><th>{{ __('Situação') }}</th><th></th></tr></thead><tbody>@forelse($campanhas as $c)<tr><td><button wire:click="abrir({{ $c->id }})" style="font-weight:600;color:var(--vc-purple)">{{ $c->nome }}</button><br><small>{{ $c->created_at->format('d/m/Y') }}</small></td><td data-label="{{ __('Canal') }}">{{ $c->channel?->nome }}</td><td data-label="{{ __('Destinatários') }}">{{ $c->recipients_count }}</td><td data-label="{{ __('Situação') }}"><span class="vc-badge" data-state="{{ $c->status }}">{{ __(\App\Models\Campaign::ROTULOS[$c->status]) }}</span></td><td><x-filament::button color="gray" size="sm" wire:click="abrir({{ $c->id }})">{{ __('Ver campanha') }}</x-filament::button></td></tr>@empty<tr><td colspan="5"><p style="padding:30px 0">{{ __('Nenhuma campanha encontrada. Crie a primeira para preparar um envio.') }}</p></td></tr>@endforelse</tbody></table></div></div>
+@endif
+</div>
 </x-filament-panels::page>

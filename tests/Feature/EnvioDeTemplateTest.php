@@ -246,3 +246,14 @@ it('falha da Meta RETENTA, porque pode dar certo depois', function () {
 
     expect($m->fresh()->status)->toBe(Message::STATUS_FAILED);
 });
+
+
+it('envia parâmetros nomeados com o nome exigido pela Meta', function () {
+    $modelo = templateSalvo(['corpo' => 'Hello {{nome}}, order {{pedido}}', 'variaveis' => 2]);
+    $mensagem = mensagemDeTemplate($modelo, ['Rafael', 'ABC']);
+    despachar($mensagem, $modelo, ['Rafael', 'ABC']);
+    Http::assertSent(fn ($req) => data_get($req->data(), 'template.components.0.parameters') === [
+        ['type' => 'text', 'text' => 'Rafael', 'parameter_name' => 'nome'],
+        ['type' => 'text', 'text' => 'ABC', 'parameter_name' => 'pedido'],
+    ]);
+});

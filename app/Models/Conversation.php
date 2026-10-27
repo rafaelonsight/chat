@@ -22,6 +22,12 @@ class Conversation extends Model
      */
     protected static function booted(): void
     {
+        static::creating(function (Conversation $conversa) {
+            $tenantId = $conversa->tenant_id ?: \App\Support\TenantContext::get();
+            if (!$conversa->protocolo) {
+                $conversa->protocolo = app(\App\Services\ProtocoloAtendimento::class)->gerar((int) $tenantId, $conversa->created_at);
+            }
+        });
         static::addGlobalScope(new \App\Models\Scopes\Acesso('channel_id', 'team_id'));
 
         /*

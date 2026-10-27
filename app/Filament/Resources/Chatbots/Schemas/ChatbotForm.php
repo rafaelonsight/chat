@@ -12,110 +12,120 @@ use Filament\Schemas\Schema;
 
 class ChatbotForm
 {
+    public static function creationFields(): array
+    {
+        return [
+            TextInput::make('nome')->label(__('ui_5c04d57f21fd'))->required()->maxLength(60),
+            Select::make('channel_ids')->label(__('ui_5f86be3deae7'))->multiple()->searchable()->preload()
+                ->options(fn () => Channel::pluck('nome', 'id')->all())
+                ->required()->minItems(1)
+                ->helperText(__('ui_00ba5a3a7531'))
+                ->hintAction(\Filament\Actions\Action::make('cadastrarCanal')->label(__('ui_c4ead6f4d9f5'))->url('/admin/channels/create')),
+        ];
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
             Section::make('Identificação')
                 ->schema([
                     TextInput::make('nome')
-                        ->label('Nome do fluxo')
+                        ->label(__('ui_07da7e1cf97b'))
                         ->required()
                         ->maxLength(60)
-                        ->helperText('Só para você se organizar. O cliente não vê.'),
+                        ->helperText(__('ui_5b56724f1d13')),
 
-                    Select::make('channel_id')
-                        ->label('Canal')
+                    Select::make('channel_ids')->label(__('ui_5f86be3deae7'))->multiple()->searchable()->preload()
                         ->options(fn () => Channel::pluck('nome', 'id')->all())
-                        ->placeholder('Todos os canais')
-                        ->helperText('Deixe vazio para valer em todos. Um fluxo de canal específico tem prioridade sobre o geral.'),
-
-                    Toggle::make('ativo')
-                        ->label('Ativo')
-                        ->helperText('Só um fluxo pode estar ativo por canal. Ativar este desliga o outro automaticamente. Enquanto nenhum está ativo, o atendimento funciona exatamente como hoje.'),
+                        ->required()->minItems(1)
+                        ->afterStateHydrated(function ($component, $state, $record) {
+                            if ($state === null && $record) $component->state($record->channel_id ? [$record->channel_id] : Channel::pluck('id')->all());
+                        })
+                        ->helperText(__('ui_e27ebe97c367')),
                 ])
                 ->columns(2),
 
             Section::make('Mensagens')
                 ->schema([
                     Textarea::make('mensagem_boas_vindas')
-                        ->label('Primeira mensagem')
+                        ->label(__('ui_0b42ed594a1c'))
                         ->required()
                         ->rows(3)
-                        ->helperText('As opções do menu são acrescentadas automaticamente abaixo deste texto, na mesma mensagem.'),
+                        ->helperText(__('ui_a3c25b03013a')),
 
                     Textarea::make('mensagem_nao_entendi')
-                        ->label('Quando não entender')
+                        ->label(__('ui_9bf0247a2a45'))
                         ->required()
                         ->rows(2),
 
                     Textarea::make('mensagem_transferindo')
-                        ->label('Ao encaminhar para uma pessoa')
+                        ->label(__('ui_a5a4a6986459'))
                         ->rows(2)
-                        ->placeholder('Um momento, já vou te encaminhar para um atendente.'),
+                        ->placeholder(__('ui_a3d7c72cbb20')),
 
                     Textarea::make('mensagem_fora_horario')
-                        ->label('Fora do horário de atendimento')
+                        ->label(__('ui_2d36e3680ad0'))
                         ->rows(2)
-                        ->helperText('Se preencher, fora do horário o bot manda só isto e encerra — sem mostrar o menu. Se deixar vazio, o bot atende 24h normalmente.'),
+                        ->helperText(__('ui_c433864acc45')),
                 ]),
 
             Section::make('Comportamento')
                 ->schema([
                     TextInput::make('max_tentativas')
-                        ->label('Tentativas antes de chamar uma pessoa')
+                        ->label(__('ui_f2ab8a233672'))
                         ->numeric()
                         ->minValue(1)
                         ->maxValue(5)
                         ->default(2)
                         ->required()
-                        ->helperText('Prender o cliente num robô que não entende é o pior resultado possível.'),
+                        ->helperText(__('ui_efad817106b2')),
 
                     TextInput::make('palavra_escape')
-                        ->label('Palavra para falar com uma pessoa')
+                        ->label(__('ui_be4831bbd554'))
                         ->maxLength(30)
                         ->default('atendente')
                         ->dehydrateStateUsing(fn ($state) => trim((string) $state) === '' ? null : trim((string) $state))
-                        ->helperText('Opcional. Deixe vazio para desativar o comando e o aviso no menu. Os encaminhamentos por setor continuam funcionando.'),
+                        ->helperText(__('ui_7dcc81fabd01')),
                 ])
                 ->columns(2),
 
             Section::make('Ritmo da conversa')
-                ->description('Como o bot lida com quem escreve rápido demais, e com quem não responde.')
+                ->description(__('ui_128782664eef'))
                 ->schema([
                     TextInput::make('tolerancia_segundos')
-                        ->label('Tolerância (segundos)')
+                        ->label(__('ui_fd8ded9e1ff7'))
                         ->numeric()
                         ->minValue(0)
                         ->maxValue(60)
                         ->default(8)
                         ->required()
-                        ->helperText('Tempo de espera para juntar mensagens seguidas do cliente. Quem escreve "oi", "bom dia" e o problema em três mensagens é lido de uma vez, em vez de levar "não entendi" e gastar as tentativas. 0 desliga. Vale só enquanto o bot aguarda resposta — a saudação continua imediata.'),
+                        ->helperText(__('ui_65196eb85f8c')),
 
                     TextInput::make('espera_segundos')
-                        ->label('Tempo limite de espera (segundos)')
+                        ->label(__('ui_3a73e340ac92'))
                         ->numeric()
                         ->minValue(0)
                         ->maxValue(86400)
                         ->default(0)
                         ->required()
-                        ->helperText('Quanto esperar por uma resposta que não vem. 0 desliga, e é o padrão: passar a encerrar conversa por inatividade é decisão de atendimento, não ajuste técnico. Referência: 600 = 10 minutos.'),
+                        ->helperText(__('ui_695c99bbbbe3')),
 
                     Select::make('espera_acao')
-                        ->label('Quando o tempo limite estourar')
-                        ->options([
+                        ->label(__('ui_ae393bbcc0c9'))
+                        ->options(fn () => \App\Support\Idiomas::opcoes([
                             'atendente' => 'Encaminhar para um atendente',
                             'concluir'  => 'Encerrar a conversa',
-                        ])
+                        ]))
                         ->default('atendente')
                         ->native(false)
                         ->required()
-                        ->helperText('Encaminhar é o padrão: quem parou de responder pode ter ficado sem sinal, não sem interesse.'),
+                        ->helperText(__('ui_02efcf1f1ee7')),
 
                     Textarea::make('mensagem_sem_resposta')
-                        ->label('Aviso antes de encerrar a espera')
+                        ->label(__('ui_8d2c394820dd'))
                         ->rows(2)
                         ->maxLength(500)
-                        ->helperText('Opcional. Em branco, o bot age sem avisar — o que é aceitável para encerrar, mas ruim para encaminhar: o cliente veria a conversa mudar de mão sem entender.')
+                        ->helperText(__('ui_dad1801faea2'))
                         ->columnSpanFull(),
                 ])
                 ->columns(3),

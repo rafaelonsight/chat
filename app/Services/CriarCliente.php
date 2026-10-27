@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Notifications\ConviteDeAcesso;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Throwable;
 
@@ -51,8 +50,7 @@ class CriarCliente
                 'tenant_id' => $cliente->id,
                 'name'      => trim($dados['responsavel_nome']),
                 'email'     => mb_strtolower(trim($dados['responsavel_email'])),
-                // Senha aleatoria e descartada: ninguem, nem eu, sabe qual e. Quem define a
-                // senha do cliente e o proprio cliente, pelo link do convite.
+                // Campo legado obrigatório: o acesso da v2 usa somente código por e-mail.
                 'password'  => Str::password(40),
                 'admin'     => true,
             ]);
@@ -61,19 +59,11 @@ class CriarCliente
             // licenca nenhuma, e o middleware que confere acesso trataria "sem licenca"
             // como bloqueado — o cadastro pareceria ter dado certo e a pessoa nao
             // conseguiria entrar.
-            //
-            // Procura SO por tenant_id e sem o escopo global: o Tenant::created ja criou uma
-            // licenca para esta conta, e o contexto aqui ainda e o do operador. Buscar pelos
-            // quatro campos (com now() incluso) nunca achava a existente e tentava inserir
-            // uma segunda, batendo no unique de tenant_id.
-            License::withoutGlobalScope('tenant')->updateOrCreate(
-                ['tenant_id' => $cliente->id],
-                [
-                    'status'    => License::TRIAL,
-                    'inicia_em' => now(),
-                    'vence_em'  => now()->addDays(self::DIAS_DE_TRIAL),
-                ],
-            );
+            License::updateOrCreate(['tenant_id' => $cliente->id], [
+                'status'     => License::TRIAL,
+                'inicia_em'  => now(),
+                'vence_em'   => now()->addDays(self::DIAS_DE_TRIAL),
+            ]);
 
             return [$cliente, $responsavel];
         });
@@ -94,7 +84,7 @@ class CriarCliente
     }
 
     /**
-     * Gera o link de definir senha e tenta mandar por e-mail.
+     * Gera o link de entrada por código e tenta mandar por e-mail.
      *
      * Devolve o link SEMPRE, tenha o e-mail saido ou nao. E o que garante que uma configuracao
      * de e-mail quebrada atrase a entrega do acesso em vez de impedi-la: o operador copia o
@@ -104,9 +94,12 @@ class CriarCliente
      */
     public function convidar(User $usuario): array
     {
-        $token = Password::broker()->createToken($usuario);
+        $token = \Illuminate\Support\Facades\Password::broker()->createToken($usuario);
         $link = Filament::getPanel('admin')->getResetPasswordUrl($token, $usuario);
 
+        if (in_array(config('mail.default'), ['log', 'array'], true)) {
+            return ['link' => $link, 'enviado' => false, 'falha' => 'SMTP não configurado nesta instalação.'];
+        }
         try {
             $usuario->notify(new ConviteDeAcesso($link));
 

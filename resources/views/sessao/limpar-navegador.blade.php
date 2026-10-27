@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="robots" content="noindex">
@@ -12,7 +12,7 @@
     </style>
 </head>
 <body>
-    <p>Limpando os dados deste navegador…</p>
+    <p>{{ __('ui_956feaad5c54') }}</p>
 
     <script>
         // O que isto limpa: preferencias guardadas NESTE navegador — tema, barra
@@ -38,8 +38,8 @@
     </script>
 
     <noscript>
-        <p>Este navegador está com JavaScript desligado, então não há dados locais para limpar.
-            <a href="{{ $voltarPara }}">Voltar ao painel</a>.</p>
+        <p>{{ __('ui_bf22a7f00766') }}
+            <a href="{{ $voltarPara }}">{{ __('ui_5a6f47673597') }}</a>.</p>
     </noscript>
 </body>
 </html>

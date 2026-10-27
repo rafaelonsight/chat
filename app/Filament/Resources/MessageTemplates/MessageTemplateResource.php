@@ -17,6 +17,8 @@ use UnitEnum;
 
 class MessageTemplateResource extends Resource
 {
+    use \App\Filament\TraduzirResource;
+
     protected static ?string $model = MessageTemplate::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChatBubbleBottomCenterText;

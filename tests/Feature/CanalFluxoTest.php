@@ -29,6 +29,7 @@ beforeEach(function () {
         'tenant_id' => $this->conta->id, 'name' => 'Admin',
         'email' => 'admin@canal.test', 'password' => 'segredo123', 'admin' => true,
     ]);
+    $this->admin->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     $this->actingAs($this->admin);
 
@@ -60,11 +61,12 @@ it('o tipo escolhido chega preenchido no formulario', function () {
 
 // ================================================================== o aviso
 
-it('o formulario avisa que o numero sai do aplicativo do WhatsApp', function () {
+it('o formulario diferencia coexistencia e migracao do WhatsApp', function () {
     // O aviso mais importante do fluxo, e ele nao existia.
     $this->get(ChannelResource::getUrl('create').'?tipo='.Channel::META_CLOUD)
         ->assertSuccessful()
-        ->assertSee('deixa de funcionar no aplicativo do WhatsApp', false);
+        ->assertSee('Na coexistência oferecida pela Meta')
+        ->assertSee('Se houver migração, confira o impacto no aplicativo');
 });
 
 it('o aviso NAO aparece no caminho do QR Code', function () {

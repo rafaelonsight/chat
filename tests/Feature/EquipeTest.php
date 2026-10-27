@@ -12,8 +12,11 @@ function cenarioEquipe(string $slug): array
     $t = Tenant::create(['nome' => strtoupper($slug), 'slug' => $slug]);
     TenantContext::set($t->id);
     $admin = User::create(['tenant_id' => $t->id, 'name' => 'Admin', 'email' => "ad@{$slug}.test", 'password' => 'segredo123', 'admin' => true]);
+    $admin->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
     $ana = User::create(['tenant_id' => $t->id, 'name' => 'Ana', 'email' => "an@{$slug}.test", 'password' => 'segredo123']);
+    $ana->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
     $bruno = User::create(['tenant_id' => $t->id, 'name' => 'Bruno', 'email' => "br@{$slug}.test", 'password' => 'segredo123']);
+    $bruno->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
     $c = Channel::create(['nome' => 'C']);
     $c->refresh();
 

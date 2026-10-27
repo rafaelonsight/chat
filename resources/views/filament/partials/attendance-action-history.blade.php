@@ -1,0 +1,4 @@
+<div class="space-y-3">
+<p class="text-sm text-gray-500">{{ __('Últimos 20 registros. Dados enviados e credenciais não ficam armazenados neste histórico.') }}</p>
+@forelse($runs as $run)<div class="rounded-xl border border-gray-200 p-3 text-sm dark:border-white/10"><div class="flex flex-wrap justify-between gap-2"><strong>{{ $run->autor ?: __('Usuário removido') }}</strong><span>{{ __(['sucesso'=>'Concluída','falha'=>'Falha','executando'=>'Em execução','preparada'=>'Página preparada','pendente'=>'Aguardando confirmação','recusada'=>'Recusada'][$run->status]??$run->status) }}</span></div><p class="mt-1 text-xs text-gray-500">{{ \Illuminate\Support\Carbon::parse($run->created_at)->format('d/m/Y H:i') }} · {{ __('Conversa') }} #{{ $run->conversation_id }}</p></div>@empty<p class="py-6 text-sm text-gray-500">{{ __('Nenhuma execução registrada.') }}</p>@endforelse
+</div>

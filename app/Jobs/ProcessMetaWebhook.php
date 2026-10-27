@@ -455,11 +455,7 @@ class ProcessMetaWebhook implements ShouldQueue
 
             // Resposta de botao ou de lista: para o chatbot, e o texto escolhido que
             // importa — e assim o menu do fluxo continua casando.
-            'interactive' => ['tipo' => 'text', 'corpo' => (string) (
-                data_get($b, 'interactive.button_reply.title')
-                ?? data_get($b, 'interactive.list_reply.title')
-                ?? ''
-            )],
+            'interactive' => ['tipo'=>'text','corpo'=>self::textoInterativo($b)],
 
             'image', 'video', 'audio', 'document', 'sticker' => [
                 'tipo'    => $tipo === 'sticker' ? 'image' : $tipo,
@@ -474,4 +470,10 @@ class ProcessMetaWebhook implements ShouldQueue
             default => null,
         };
     }
+    private static function textoInterativo(array $body): string {
+        $id=(string)(data_get($body,'interactive.button_reply.id')??data_get($body,'interactive.list_reply.id')??'');
+        if(str_starts_with($id,'vc:'))return substr($id,3);
+        return (string)(data_get($body,'interactive.button_reply.title')??data_get($body,'interactive.list_reply.title')??'');
+    }
+
 }

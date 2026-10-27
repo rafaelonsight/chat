@@ -19,6 +19,7 @@ function usuarioConf(string $slug, bool $admin = true): User
         'tenant_id' => $t->id, 'name' => 'U', 'email' => "u@{$slug}.test",
         'password' => 'segredo123', 'admin' => $admin,
     ]);
+    $u->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
     TenantContext::forget();
 
     return $u;

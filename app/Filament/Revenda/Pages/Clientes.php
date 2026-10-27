@@ -26,7 +26,9 @@ use Illuminate\Support\Collection;
  */
 class Clientes extends Page
 {
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingOffice2;
+    use \App\Filament\TraduzirNavegacao;
+
+    protected static string|BackedEnum|null $navigationIcon = 'tabler-building';
 
     protected static ?string $navigationLabel = 'Clientes';
 
@@ -38,6 +40,15 @@ class Clientes extends Page
 
     protected string $view = 'filament.revenda.pages.clientes';
 
+    public int $etapaCadastro = 1;
+    public function avancarCadastro(): void {
+        if ($this->etapaCadastro === 1) $this->validate(['nome'=>'required|string|max:120','documento'=>['nullable','string','max:32',$this->regraDocumento()],'email'=>'nullable|email']);
+        if ($this->etapaCadastro === 2) $this->validate(['fuso_horario'=>'required|timezone','receita.cep'=>'nullable|regex:/^\d{5}-?\d{3}$/']);
+        $this->etapaCadastro = min(3, $this->etapaCadastro + 1);
+    }
+    public function voltarCadastro(): void { $this->etapaCadastro = max(1, $this->etapaCadastro - 1); }
+
+    public string $email_resumos = '';
     public string $nome = '';
 
     public string $documento = '';
@@ -84,9 +95,20 @@ class Clientes extends Page
     }
 
     /** Igual ao Cadastro: CNPJ completo dispara a consulta sozinho, CPF fica quieto. */
+    public function abrirConta(int $id): void {
+        abort_unless(auth()->user()?->operador && auth()->user()?->super_admin,403);
+        $conta=Tenant::findOrFail($id);
+        session()->put(\App\Support\TenantContext::CHAVE_SESSAO_SUPORTE,$conta->id);
+        $this->redirect('/admin');
+    }
+
     public function updatedDocumento(): void
     {
         $cnpj = ConsultaCnpj::digitos($this->documento);
+        if ($this->ultimo_cnpj_buscado && $cnpj !== $this->ultimo_cnpj_buscado) {
+            $this->receita = [];
+            $this->ultimo_cnpj_buscado = '';
+        }
 
         if (strlen($cnpj) !== 14 || $cnpj === $this->ultimo_cnpj_buscado) {
             return;
@@ -95,14 +117,30 @@ class Clientes extends Page
         $this->buscarCnpj();
     }
 
+    public function updatedReceita($value, $key): void
+    {
+        if ($key === 'cep' && \App\Services\ConsultaCep::valido((string) $value)) $this->buscarCep();
+    }
+
+    public function buscarCep(): void
+    {
+        $r = app(\App\Services\ConsultaCep::class)->consultar($this->receita['cep'] ?? '');
+        if (! $r['ok']) {
+            Notification::make()->warning()->title(__('ui_f29cc585ab9b'))->body($r['erro'])->send();
+            return;
+        }
+        foreach (['logradouro', 'bairro', 'cidade', 'uf'] as $campo) $this->receita[$campo] = $r['dados'][$campo] ?? '';
+        Notification::make()->success()->title(__('ui_2ca1166e38da'))->body(__('ui_27fee093459a'))->send();
+    }
+
     public function buscarCnpj(): void
     {
         $cnpj = ConsultaCnpj::digitos($this->documento);
 
         if (strlen($cnpj) !== 14) {
             Notification::make()->warning()
-                ->title('CNPJ incompleto')
-                ->body('São 14 dígitos. Para CPF não existe consulta pública.')
+                ->title(__('ui_787cc4e190a8'))
+                ->body(__('ui_7954a82c1189'))
                 ->send();
 
             return;
@@ -114,7 +152,7 @@ class Clientes extends Page
 
         if (! $resultado['ok']) {
             Notification::make()->danger()
-                ->title('Não deu para puxar os dados')
+                ->title(__('ui_2570b91d5fcb'))
                 ->body($resultado['erro'])
                 ->send();
 
@@ -137,8 +175,8 @@ class Clientes extends Page
         $this->telefone = trim($this->telefone) ?: (string) ($d['telefone'] ?? '');
 
         Notification::make()->success()
-            ->title('Dados da Receita preenchidos')
-            ->body('Confira e cadastre.')
+            ->title(__('ui_9583df459866'))
+            ->body(__('ui_3c26281667d7'))
             ->send();
     }
 
@@ -147,6 +185,7 @@ class Clientes extends Page
         $this->validate([
             'nome'              => 'required|string|max:120',
             'documento'         => ['nullable', 'string', 'max:32', $this->regraDocumento()],
+            'email_resumos'     => 'nullable|email|max:160',
             'email'             => 'nullable|email|max:160',
             'telefone'          => 'nullable|string|max:32',
             'fuso_horario'      => 'required|timezone',
@@ -172,7 +211,7 @@ class Clientes extends Page
             'fuso_horario'      => $this->fuso_horario,
             'responsavel_nome'  => $this->responsavel_nome,
             'responsavel_email' => $this->responsavel_email,
-            'receita'           => $this->receita,
+            'receita'           => array_merge($this->receita, ['email_resumos'=>$this->email_resumos ?: null]),
         ]);
 
         $this->clienteCriado = $r['cliente']->nome;
@@ -181,9 +220,10 @@ class Clientes extends Page
         $this->falhaDeEmail = $r['falha_de_email'];
 
         $this->limparFormulario();
+        $this->etapaCadastro = 1;
 
         Notification::make()->success()
-            ->title('Cliente cadastrado')
+            ->title(__('ui_cb17edcaf874'))
             ->body($r['email_enviado']
                 ? 'O convite foi enviado para '.$r['responsavel']->email.'.'
                 : 'O e-mail não saiu. Copie o link do convite abaixo.')
@@ -201,8 +241,8 @@ class Clientes extends Page
 
         if (! $responsavel) {
             Notification::make()->warning()
-                ->title('Este cliente não tem responsável')
-                ->body('Nenhum usuário administrador foi encontrado na conta.')
+                ->title(__('ui_90007872f377'))
+                ->body(__('ui_0ff33f5ab297'))
                 ->send();
 
             return;
@@ -216,7 +256,7 @@ class Clientes extends Page
         $this->falhaDeEmail = $convite['falha'];
 
         Notification::make()->success()
-            ->title('Convite gerado para '.$responsavel->email)
+            ->title(__('ui_305f206c4215').$responsavel->email)
             ->body($convite['enviado'] ? 'Enviado por e-mail.' : 'O e-mail não saiu; use o link.')
             ->send();
     }
@@ -249,6 +289,7 @@ class Clientes extends Page
 
     private function limparFormulario(): void
     {
+        $this->email_resumos = '';
         $this->nome = '';
         $this->documento = '';
         $this->email = '';

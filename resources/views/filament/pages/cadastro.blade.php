@@ -8,7 +8,7 @@
     <form wire:submit="salvar" class="max-w-2xl space-y-6">
         {{-- O CNPJ vem primeiro porque e ele que preenche o resto. --}}
         <div>
-            <label class="{{ $classeRotulo }}">CNPJ ou CPF</label>
+            <label class="{{ $classeRotulo }}">{{ __('ui_2b4731863e95') }}</label>
 
             <div class="flex items-start gap-2">
                 <div class="flex-1">
@@ -21,14 +21,13 @@
 
                 <x-filament::button type="button" color="gray" wire:click="buscarCnpj"
                                     wire:loading.attr="disabled" wire:target="buscarCnpj,documento">
-                    <span wire:loading.remove wire:target="buscarCnpj,documento">Buscar dados</span>
-                    <span wire:loading wire:target="buscarCnpj,documento">Buscando…</span>
+                    <span wire:loading.remove wire:target="buscarCnpj,documento">{{ __('ui_a674992a7629') }}</span>
+                    <span wire:loading wire:target="buscarCnpj,documento">{{ __('ui_9870b9e56922') }}</span>
                 </x-filament::button>
             </div>
 
             <p class="{{ $classeAjuda }}">
-                Digite o CNPJ e saia do campo: razão social, nome fantasia e endereço
-                vêm da Receita Federal sozinhos. Para CPF não existe consulta pública.
+                {{ __('ui_680193eb8b98') }}
             </p>
             @error('documento') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
@@ -39,21 +38,22 @@
                 ['razao_social', 'Razão social', 'text', 'Vem da Receita.'],
                 ['nome_fantasia', 'Nome fantasia', 'text', 'Vem da Receita, quando houver.'],
                 ['email', 'E-mail de contato', 'email', 'Opcional.'],
+                ['email_resumos', 'E-mail para receber resumos', 'email', 'Recebe os resumos e protocolos dos atendimentos. Se vazio, usamos o e-mail do administrador.'],
                 ['telefone', 'Telefone', 'text', 'Opcional.'],
             ];
         @endphp
 
         @foreach ($identidade as [$campo, $rotulo, $tipo, $ajuda])
             <div>
-                <label class="{{ $classeRotulo }}">{{ $rotulo }}</label>
+                <label class="{{ $classeRotulo }}">{{ __($rotulo) }}</label>
                 <input type="{{ $tipo }}" wire:model="{{ $campo }}" class="{{ $classeInput }}">
-                <p class="{{ $classeAjuda }}">{{ $ajuda }}</p>
+                <p class="{{ $classeAjuda }}">{{ __($ajuda) }}</p>
                 @error($campo) <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
             </div>
         @endforeach
 
         <div class="border-t border-gray-200 pt-6 dark:border-white/10">
-            <h3 class="mb-4 text-sm font-semibold text-gray-800 dark:text-gray-100">Endereço</h3>
+            <h3 class="mb-4 text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui_ef764c1db7f8') }}</h3>
 
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-6">
                 @php
@@ -70,7 +70,7 @@
 
                 @foreach ($endereco as [$campo, $rotulo, $colunas])
                     <div class="{{ $colunas }}">
-                        <label class="{{ $classeRotulo }}">{{ $rotulo }}</label>
+                        <label class="{{ $classeRotulo }}">{{ __($rotulo) }}</label>
                         <input type="text" wire:model="{{ $campo }}" class="{{ $classeInput }}">
                         @error($campo) <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                     </div>
@@ -82,13 +82,13 @@
         @if (filled($this->dadosReceita()))
             <div class="rounded-lg bg-gray-50 p-4 dark:bg-white/5">
                 <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-100">
-                    Dados da Receita Federal
+                    {{ __('ui_7e2b606acc29') }}
                 </h3>
 
                 <dl class="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
                     @foreach ($this->dadosReceita() as $rotulo => $valor)
                         <div class="flex justify-between gap-3 text-xs sm:block">
-                            <dt class="text-gray-500 dark:text-gray-400">{{ $rotulo }}</dt>
+                            <dt class="text-gray-500 dark:text-gray-400">{{ __($rotulo) }}</dt>
                             <dd class="font-medium text-gray-800 dark:text-gray-100">{{ $valor }}</dd>
                         </div>
                     @endforeach
@@ -97,22 +97,22 @@
         @endif
 
         <div>
-            <label class="{{ $classeRotulo }}">Fuso horário</label>
+            <label class="{{ $classeRotulo }}">{{ __('ui_e596aca45bd9') }}</label>
             <select wire:model="fuso_horario" class="{{ $classeInput }}">
                 @foreach ($this->fusos() as $valor => $rotulo)
-                    <option value="{{ $valor }}">{{ $rotulo }}</option>
+                    <option value="{{ $valor }}">{{ __($rotulo) }}</option>
                 @endforeach
             </select>
             <p class="{{ $classeAjuda }}">
-                Usado nos horários mostrados e, adiante, no horário de atendimento.
+                {{ __('ui_f9b09fb63c90') }}
             </p>
             @error('fuso_horario') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
 
         <div class="flex items-center gap-3 pt-2">
             <x-filament::button type="submit" wire:loading.attr="disabled">
-                <span wire:loading.remove wire:target="salvar">Salvar</span>
-                <span wire:loading wire:target="salvar">Salvando…</span>
+                <span wire:loading.remove wire:target="salvar">{{ __('ui_93bf2d32ec33') }}</span>
+                <span wire:loading wire:target="salvar">{{ __('ui_87ef46e99fb3') }}</span>
             </x-filament::button>
         </div>
     </form>

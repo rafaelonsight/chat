@@ -16,6 +16,8 @@ use UnitEnum;
 
 class TagResource extends Resource
 {
+    use \App\Filament\TraduzirResource;
+
     protected static ?string $model = Tag::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTag;
@@ -37,6 +39,9 @@ class TagResource extends Resource
         return (bool) auth()->user()?->admin;
     }
 
+    public static function canCreate(): bool {return static::canViewAny() && (bool)\App\Support\TenantContext::get();}
+    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool {return static::canViewAny();}
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool {return static::canViewAny();}
     public static function form(Schema $schema): Schema
     {
         return TagForm::configure($schema);

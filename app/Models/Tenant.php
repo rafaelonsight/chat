@@ -57,6 +57,7 @@ class Tenant extends Model
              * Trial sem prazo: o middleware LicencaValida aceita trial sem vence_em como
              * valido, ate a revenda definir uma data.
              */
+            if (config('agenda.edition')) return;
             License::withoutGlobalScope('tenant')->firstOrCreate(
                 ['tenant_id' => $conta->id],
                 [
@@ -69,14 +70,14 @@ class Tenant extends Model
     }
 
     protected $fillable = [
-        'nome', 'slug', 'razao_social', 'nome_fantasia', 'documento', 'email', 'telefone',
+        'email_resumos', 'nome', 'slug', 'razao_social', 'nome_fantasia', 'documento', 'email', 'telefone',
         'fuso_horario',
         'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
         'natureza_juridica', 'cnae_principal', 'situacao_cadastral', 'porte',
         'data_abertura', 'cnpj_consultado_em',
         'resposta_automatica_ativa', 'resposta_automatica_texto',
         'assinatura_ativa',
-        'pesquisa_ativa', 'pesquisa_texto',
+        'pesquisa_ativa', 'pesquisa_texto', 'pesquisa_obrigatoria',
         'trial_monitorado',
     ];
 
@@ -91,10 +92,15 @@ class Tenant extends Model
         'pesquisa_ativa'   => false,
     ];
 
+    protected $hidden = ['ia_config'];
+
     protected $casts = [
+        'ia_config' => 'encrypted:array',
+        'alertas_resposta' => 'array',
         'resposta_automatica_ativa' => 'boolean',
         'assinatura_ativa'          => 'boolean',
         'pesquisa_ativa'            => 'boolean',
+        'pesquisa_obrigatoria' => 'boolean',
         'trial_monitorado'           => 'boolean',
         'cnpj_consultado_em'        => 'datetime',
     ];

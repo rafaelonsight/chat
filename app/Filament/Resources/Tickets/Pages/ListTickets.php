@@ -12,6 +12,6 @@ class ListTickets extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Nova demanda')];
+        return [CreateAction::make()->label(__('ui_e6a28c6b8f46'))];
     }
 }

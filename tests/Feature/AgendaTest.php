@@ -31,11 +31,13 @@ beforeEach(function () {
         'tenant_id' => $this->conta->id, 'name' => 'Eu',
         'email' => 'eu@agenda.test', 'password' => 'segredo123', 'admin' => true,
     ]);
+    $this->eu->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     $this->colega = User::create([
         'tenant_id' => $this->conta->id, 'name' => 'Colega',
         'email' => 'colega@agenda.test', 'password' => 'segredo123',
     ]);
+    $this->colega->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     $this->actingAs($this->eu);
 });
@@ -101,6 +103,7 @@ it('nao mistura conta', function () {
         'tenant_id' => $outra->id, 'name' => 'Dela',
         'email' => 'dela@agenda.test', 'password' => 'segredo123',
     ]);
+    $dela->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     expect(Appointment::visivelPara($dela)->count())->toBe(0);
 });

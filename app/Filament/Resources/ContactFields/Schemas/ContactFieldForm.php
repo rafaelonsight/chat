@@ -16,25 +16,25 @@ class ContactFieldForm
     {
         return $schema->components([
             TextInput::make('nome')
-                ->label('Nome do campo')
+                ->label(__('ui_7a6dd3377d75'))
                 ->required()
                 ->maxLength(60)
                 ->unique(ignoreRecord: true)
-                ->helperText('É o rótulo que aparece no cadastro do contato. Ex.: Contrato, Plano, Vencimento.'),
+                ->helperText(__('ui_1f10d4cb84c5')),
 
             Select::make('tipo')
-                ->label('Tipo')
-                ->options(ContactField::TIPOS)
+                ->label(__('ui_6cc6198d9e75'))
+                ->options(fn () => \App\Support\Idiomas::opcoes(ContactField::TIPOS))
                 ->default(ContactField::TEXTO_CURTO)
                 ->required()
                 ->native(false)
                 ->live()
-                ->helperText('O tipo decide o que a tela desenha e o que é aceito. Mudar depois não converte o que já foi preenchido.'),
+                ->helperText(__('ui_1fe484f5bab9')),
 
             // Só aparece para os tipos que dependem de opcoes: lista vazia num
             // select deixaria um campo impossivel de preencher.
             Repeater::make('opcoes')
-                ->label('Opções')
+                ->label(__('ui_4c8df52c061d'))
                 ->simple(TextInput::make('opcao')->required()->maxLength(60))
                 ->visible(fn (Get $get) => in_array($get('tipo'), ContactField::COM_OPCOES, true))
                 ->required(fn (Get $get) => in_array($get('tipo'), ContactField::COM_OPCOES, true))
@@ -43,20 +43,20 @@ class ContactFieldForm
                 ->addActionLabel('Adicionar opção'),
 
             TextInput::make('ajuda')
-                ->label('Texto de ajuda')
+                ->label(__('ui_6019faa6dc2c'))
                 ->maxLength(120)
-                ->helperText('Opcional. Aparece embaixo do campo, para quem preenche.'),
+                ->helperText(__('ui_4edaf3352fd9')),
 
             Toggle::make('obrigatorio')
-                ->label('Obrigatório')
-                ->helperText('Contato não pode ser salvo sem este campo preenchido.'),
+                ->label(__('ui_5463a000147b'))
+                ->helperText(__('ui_52f87492ff53')),
 
             TextInput::make('ordem')
-                ->label('Ordem')
+                ->label(__('ui_bb15f40ef54b'))
                 ->numeric()
                 ->default(0)
                 ->required()
-                ->helperText('Menor aparece primeiro no cadastro.'),
+                ->helperText(__('ui_85bc7db02bc7')),
         ]);
     }
 }

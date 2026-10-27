@@ -20,17 +20,28 @@ class SendMediaMessage implements ShouldQueue
 
     public array $backoff = [10, 30, 120];
 
-    public function __construct(public int $messageId) {}
+    public ?int $maxExceptions = null;
+
+    public function __construct(public int $messageId)
+    {
+        if (config('agenda.edition')) { $this->tries=30; $this->maxExceptions=3; }
+    }
 
     public function middleware(): array
     {
         $m = Message::withoutGlobalScope('tenant')->find($this->messageId);
 
-        return [(new WithoutOverlapping('conversa:'.($m?->conversation_id ?? 0)))->releaseAfter(10)];
+        $lock=(new WithoutOverlapping('conversa:'.($m?->conversation_id ?? 0)))->releaseAfter(10);
+        if(config('agenda.edition'))$lock->shared()->expireAfter(120);
+        return [$lock];
     }
 
     public function handle(Enviadores $enviadores): void
     {
+        if(config('agenda.edition')) {
+            app(\App\Services\AgendaMessageDelivery::class)->handle($this);
+            return;
+        }
         $mensagem = Message::withoutGlobalScope('tenant')->find($this->messageId);
 
         if (! $mensagem || $mensagem->status !== Message::STATUS_QUEUED) {
@@ -96,5 +107,9 @@ class SendMediaMessage implements ShouldQueue
                 broadcast(new MessageStored($mensagem->refresh()));
             }
         });
+    }
+    public function failed(?\Throwable $exception): void
+    {
+        if(config('agenda.edition'))app(\App\Services\AgendaMessageDelivery::class)->exhausted($this->messageId);
     }
 }

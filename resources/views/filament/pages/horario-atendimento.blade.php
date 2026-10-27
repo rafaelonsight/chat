@@ -1,8 +1,7 @@
 <x-filament-panels::page>
     <p class="max-w-3xl text-sm text-gray-500 dark:text-gray-400">
-        Define quando sua empresa atende. Serve para dois fins: o relatório passa a contar
-        <strong>só o tempo dentro do horário</strong> — mensagem das 23h respondida às 8h35 deixa de
-        aparecer como 9h35 de espera — e a resposta automática sabe quando disparar.
+        {{ __('ui_5f8615b2102d') }}
+        <strong>{{ __('ui_caca900aa2ee') }}</strong> {{ __('ui_9a138f21b3ec') }}
     </p>
 
     @if ($abertoAgora !== null)
@@ -21,11 +20,11 @@
 
     {{-- de quem e esta grade --}}
     <div class="flex flex-wrap items-center gap-1.5">
-        <span class="mr-1 text-xs font-medium text-gray-500 dark:text-gray-400">Horário de</span>
+        <span class="mr-1 text-xs font-medium text-gray-500 dark:text-gray-400">{{ __('ui_7701492d9d7d') }}</span>
 
         <button type="button" wire:click="trocarEscopo('conta')"
                 class="rounded-full px-3 py-1 text-xs font-medium {{ $escopo === 'conta' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-white/10 dark:text-gray-300' }}">
-            Conta (padrão)
+            {{ __('ui_931fa6c0b21d') }}
         </button>
 
         @foreach ($equipes as $eq)
@@ -39,21 +38,20 @@
     @if ($escopo !== 'conta')
         @if ($herdando)
             <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-                Esta equipe <strong>herda o horário da conta</strong>. Os campos abaixo mostram o que ela usa hoje;
-                salvar cria uma grade própria para ela.
+                {{ __('ui_2814c431043d') }} <strong>{{ __('ui_2cf920f7f371') }}</strong>{{ __('ui_02f904d69ea2') }}
             </div>
         @else
             <div class="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200">
-                <span>Esta equipe tem <strong>grade própria</strong>, que prevalece sobre a da conta.</span>
+                <span>{{ __('ui_93daef836b93') }} <strong>{{ __('ui_e6ac859c7c5c') }}</strong>{{ __('ui_6b77954e3c7c') }}</span>
                 <button type="button" wire:click="limparEscopo"
                         class="rounded border border-emerald-300 px-2 py-0.5 font-medium hover:bg-emerald-100 dark:border-emerald-500/40 dark:hover:bg-emerald-500/20">
-                    voltar a herdar da conta
+                    {{ __('ui_64308dfb7afe') }}
                 </button>
             </div>
         @endif
 
         <p class="text-xs text-gray-500 dark:text-gray-400">
-            Fuso horário, resposta automática e exceções de data valem para a <strong>conta inteira</strong>, não por equipe.
+            {{ __('ui_1647c2b26678') }} <strong>{{ __('ui_36325387085c') }}</strong>{{ __('ui_f68532557d74') }}
         </p>
     @endif
 
@@ -63,12 +61,12 @@
             <table class="w-full text-sm">
                 <thead class="border-b border-gray-200 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
                     <tr>
-                        <th class="px-4 py-3 text-left font-medium">Dia da semana</th>
-                        <th class="px-3 py-3 text-left font-medium">Ativo</th>
-                        <th class="px-3 py-3 text-left font-medium">Início</th>
-                        <th class="px-3 py-3 text-left font-medium">Início do almoço</th>
-                        <th class="px-3 py-3 text-left font-medium">Fim do almoço</th>
-                        <th class="px-3 py-3 text-left font-medium">Fim</th>
+                        <th class="px-4 py-3 text-left font-medium">{{ __('ui_a0d5b0ef1d64') }}</th>
+                        <th class="px-3 py-3 text-left font-medium">{{ __('ui_8263fde6ccc4') }}</th>
+                        <th class="px-3 py-3 text-left font-medium">{{ __('ui_fc2c74003cb1') }}</th>
+                        <th class="px-3 py-3 text-left font-medium">{{ __('ui_9bc1b300b400') }}</th>
+                        <th class="px-3 py-3 text-left font-medium">{{ __('ui_a8a2e75826e8') }}</th>
+                        <th class="px-3 py-3 text-left font-medium">{{ __('ui_1b0369058b98') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-white/5">
@@ -94,20 +92,20 @@
                 <p class="border-t border-gray-200 px-4 py-2 text-xs text-red-600 dark:border-white/10">{{ $message }}</p>
             @enderror
             <p class="border-t border-gray-200 px-4 py-2 text-xs text-gray-500 dark:border-white/10 dark:text-gray-400">
-                Para um dia <strong>sem pausa</strong>, deixe início e fim do almoço iguais.
+                {{ __('ui_0d800af5856f') }} <strong>{{ __('ui_11e8b6c8cc1c') }}</strong>{{ __('ui_67c60c1ab801') }}
             </p>
         </div>
 
         {{-- fuso --}}
         <div class="max-w-sm">
-            <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">Fuso horário</label>
+            <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">{{ __('ui_e596aca45bd9') }}</label>
             <select wire:model="fuso_horario"
                     class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
                 @foreach ($fusos as $valor => $rotulo)
                     <option value="{{ $valor }}">{{ $rotulo }}</option>
                 @endforeach
             </select>
-            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">É o mesmo campo do Cadastro da conta.</p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ __('ui_98db1175a985') }}</p>
             @error('fuso_horario') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
         </div>
 
@@ -122,12 +120,9 @@
                 <input type="checkbox" wire:model="assinatura_ativa"
                        class="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600">
                 <span>
-                    <span class="block text-sm font-medium text-gray-800 dark:text-gray-100">Assinar as mensagens</span>
+                    <span class="block text-sm font-medium text-gray-800 dark:text-gray-100">{{ __('ui_e1aae871bf99') }}</span>
                     <span class="block text-xs text-gray-500 dark:text-gray-400">
-                        Põe o primeiro nome de quem respondeu em negrito, na primeira linha.
-                        O cliente vê <strong>um número só</strong> — sem isso, três pessoas
-                        diferentes respondendo parecem a mesma pessoa mudando de ideia.
-                        Não vale para nota interna nem para resposta automática.
+                        {{ __('ui_5aa9e340bcc0') }} <strong>{{ __('ui_d6af0c0b1af5') }}</strong> {{ __('ui_8fa3e9a51b05') }}
                     </span>
                 </span>
             </label>
@@ -139,17 +134,18 @@
                 <input type="checkbox" wire:model.live="pesquisa_ativa"
                        class="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600">
                 <span>
-                    <span class="block text-sm font-medium text-gray-800 dark:text-gray-100">Pesquisa de satisfação</span>
+                    <span class="block text-sm font-medium text-gray-800 dark:text-gray-100">{{ __('ui_6185d648895e') }}</span>
                     <span class="block text-xs text-gray-500 dark:text-gray-400">
-                        Pergunta a nota de 1 a 5 quando o atendimento é encerrado. A resposta
-                        do cliente <strong>não cria conversa nova</strong>: ela é guardada no
-                        atendimento que acabou e a média aparece nos Relatórios.
-                        Não pergunta quando a janela de 24h do canal oficial está fechada.
+                        {{ __('ui_69ca2a2a5cbb') }} <strong>{{ __('ui_cd25e826232e') }}</strong>{{ __('ui_af8fa5c09649') }}
                     </span>
                 </span>
             </label>
 
             @if ($pesquisa_ativa)
+                <label class="mt-4 flex items-start gap-3">
+                    <input type="checkbox" wire:model="pesquisa_obrigatoria" class="mt-1 h-4 w-4 rounded">
+                    <span><strong class="block text-sm">{{ __('ui_1047a351347c') }}</strong><span class="block text-xs text-gray-500">{{ __('ui_f470edb85a4c') }}</span></span>
+                </label>
                 <div class="mt-4">
                     <textarea wire:model="pesquisa_texto" rows="2"
                               class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100"></textarea>
@@ -164,12 +160,10 @@
                 <input type="checkbox" wire:model.live="resposta_ativa"
                        class="mt-1 h-4 w-4 rounded border-gray-300 text-emerald-600">
                 <span>
-                    <span class="block text-sm font-medium text-gray-800 dark:text-gray-100">Resposta automática</span>
+                    <span class="block text-sm font-medium text-gray-800 dark:text-gray-100">{{ __('ui_147192e4a679') }}</span>
                     <span class="block text-xs text-gray-500 dark:text-gray-400">
-                        Responde o cliente quando a mensagem chega fora do horário.
-                        Envia <strong>uma vez por conversa</strong> e rearma quando um atendente responder —
-                        cinco mensagens às 22h não geram cinco respostas.
-                        <strong>Nunca dispara em grupo.</strong>
+                        {{ __('ui_71e4427d79d8') }} <strong>{{ __('ui_df732a175b4c') }}</strong> {{ __('ui_56009ea7394d') }}
+                        <strong>{{ __('ui_f91ec989d3d5') }}</strong>
                     </span>
                 </span>
             </label>
@@ -190,18 +184,17 @@
         </div>
 
         <x-filament::button type="submit" wire:loading.attr="disabled">
-            <span wire:loading.remove wire:target="salvar">Salvar</span>
-            <span wire:loading wire:target="salvar">Salvando…</span>
+            <span wire:loading.remove wire:target="salvar">{{ __('ui_93bf2d32ec33') }}</span>
+            <span wire:loading wire:target="salvar">{{ __('ui_87ef46e99fb3') }}</span>
         </x-filament::button>
     </form>
 
     {{-- excecoes --}}
     <div class="rounded-xl border border-gray-200 bg-white dark:border-white/10 dark:bg-gray-900">
         <div class="border-b border-gray-200 px-4 py-3 dark:border-white/10">
-            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">Feriados e exceções</p>
+            <p class="text-sm font-medium text-gray-800 dark:text-gray-100">{{ __('ui_9da509cd55ff') }}</p>
             <p class="text-xs text-gray-500 dark:text-gray-400">
-                A grade semanal não sabe que 25/12 é Natal. Sem exceção, o sistema diria que está aberto
-                e o relatório puniria a equipe pelo feriado.
+                {{ __('ui_6d2f5325c237') }}
             </p>
         </div>
 
@@ -230,37 +223,37 @@
                 </tbody>
             </table>
         @else
-            <p class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">Nenhuma exceção cadastrada.</p>
+            <p class="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{{ __('ui_44015ab56e15') }}</p>
         @endif
 
         <div class="flex flex-wrap items-end gap-3 border-t border-gray-200 px-4 py-3 dark:border-white/10">
             <div>
-                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Data</label>
+                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">{{ __('ui_e5e429bcc9c2') }}</label>
                 <input type="date" wire:model="ex_data"
                        class="rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
                 @error('ex_data') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Descrição</label>
-                <input type="text" wire:model="ex_descricao" placeholder="Natal"
+                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">{{ __('ui_469768598e0f') }}</label>
+                <input type="text" wire:model="ex_descricao" placeholder="{{ __('ui_e21a148aea31') }}"
                        class="rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
             </div>
             <label class="flex items-center gap-2 pb-1.5 text-sm text-gray-700 dark:text-gray-200">
                 <input type="checkbox" wire:model.live="ex_fechado" class="h-4 w-4 rounded border-gray-300 text-emerald-600">
-                Fechado o dia todo
+                {{ __('ui_690068c474d8') }}
             </label>
             @unless ($ex_fechado)
                 <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Início</label>
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">{{ __('ui_fc2c74003cb1') }}</label>
                     <input type="time" wire:model="ex_inicio" class="w-28 rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
                 </div>
                 <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">Fim</label>
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-300">{{ __('ui_1b0369058b98') }}</label>
                     <input type="time" wire:model="ex_fim" class="w-28 rounded border border-gray-300 px-2 py-1.5 text-sm dark:border-white/20 dark:bg-gray-800 dark:text-gray-100">
                     @error('ex_fim') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
                 </div>
             @endunless
-            <x-filament::button type="button" color="gray" wire:click="adicionarExcecao">Adicionar</x-filament::button>
+            <x-filament::button type="button" color="gray" wire:click="adicionarExcecao">{{ __('ui_fadcf2d5a3d5') }}</x-filament::button>
         </div>
     </div>
 </x-filament-panels::page>

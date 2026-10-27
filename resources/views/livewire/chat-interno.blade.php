@@ -36,7 +36,7 @@
             <div class="vc-toolbar flex items-center gap-2 border-b px-3 py-2">
                 <button type="button" wire:click="voltar"
                         class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-white/10"
-                        title="Voltar para a lista">&larr;</button>
+                        title="{{ __('ui_1e78117de087') }}">&larr;</button>
 
                 <span class="relative grid h-8 w-8 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
                     {{ mb_strtoupper(mb_substr($falandoCom->name, 0, 1)) }}
@@ -73,7 +73,7 @@
                             <p class="whitespace-pre-wrap break-words">{{ \App\Support\TextoComLinks::render($recado->corpo) }}</p>
                             @if($recado->file_path)
                                 @if(str_starts_with($recado->file_mime??'','audio/') || in_array($recado->file_mime,['video/webm','video/mp4']))
-                                    <div x-data><audio x-ref="player" @play="document.querySelectorAll('audio').forEach(a=>{if(a!==$el)a.pause()})" controls preload="none" style="max-width:230px" src="{{ route('internal-media',$recado->id) }}"></audio><select aria-label="Velocidade do áudio {{ $recado->id }}" @change="$refs.player.playbackRate=Number($event.target.value)"><option value="1">1×</option><option value="1.5">1,5×</option><option value="2">2×</option></select></div>
+                                    <div x-data><audio x-ref="player" @play="document.querySelectorAll('audio').forEach(a=>{if(a!==$el)a.pause()})" controls preload="none" style="max-width:230px" src="{{ route('internal-media',$recado->id) }}"></audio><select aria-label="Velocidade do áudio {{ $recado->id }}" @change="$refs.player.playbackRate=Number($event.target.value)"><option value="1">{{ __('ui_af7b38532554') }}</option><option value="1.5">{{ __('ui_eaef8f00b1d3') }}</option><option value="2">{{ __('ui_26abeae5abe3') }}</option></select></div>
                                 @endif
                                 <a class="underline" href="{{ route('internal-media',$recado->id) }}" target="_blank" rel="noopener">{{ $recado->file_name }}</a>
                             @endif
@@ -91,24 +91,24 @@
 
             <div class="vc-toolbar border-t p-2" x-data="{rec:null,stream:null,chunks:[],url:null,blob:null,recording:false,error:'',timer:null,ticker:null,seconds:0,cancelled:false,async start(){if(this.recording)return;this.discard();this.cancelled=false;try{this.stream=await navigator.mediaDevices.getUserMedia({audio:true});this.chunks=[];this.rec=new MediaRecorder(this.stream);this.rec.ondataavailable=e=>{if(e.data.size)this.chunks.push(e.data)};this.rec.onstop=()=>{this.recording=false;this.stream.getTracks().forEach(t=>t.stop());if(this.cancelled)return;this.blob=new Blob(this.chunks,{type:this.rec.mimeType});this.url=URL.createObjectURL(this.blob);this.stream.getTracks().forEach(t=>t.stop());this.recording=false};this.rec.start();this.recording=true;this.seconds=0;this.ticker=setInterval(()=>this.seconds++,1000);this.timer=setTimeout(()=>this.stop(),300000)}catch(e){this.error='Não foi possível acessar o microfone. Verifique a permissão ou anexe um áudio.'}},stop(){clearTimeout(this.timer);clearInterval(this.ticker);if(this.rec?.state==='recording')this.rec.stop()},discard(){this.cancelled=true;this.stop();$wire.arquivo=null;if(this.url)URL.revokeObjectURL(this.url);this.url=null;this.blob=null},send(){if(!this.blob)return;let ext=this.blob.type.includes('mp4')?'m4a':(this.blob.type.includes('ogg')?'ogg':'webm');$wire.upload('arquivo',new File([this.blob],'audio.'+ext,{type:this.blob.type}),()=>{this.error='Áudio anexado. Clique em Enviar.'},()=>{this.error='Falha no upload. Tente novamente.'})},destroy(){clearTimeout(this.timer);clearInterval(this.ticker);if(this.stream)this.stream.getTracks().forEach(t=>t.stop());if(this.url)URL.revokeObjectURL(this.url)}}" @internal-media-sent.window="discard()">
                 <p x-show="recording" x-text="'Gravando: '+seconds+'s / 300s'" role="status"></p>
-                <input type="file" wire:model="arquivo" aria-label="Anexar arquivo ao chat" style="max-width:100%;font-size:11px">
-                <div style="display:flex;gap:10px;margin:6px 0"><button type="button" x-show="!recording" @click="start()">Gravar áudio</button><button type="button" x-show="recording" x-cloak @click="stop()">Parar gravação</button><button type="button" x-show="url" x-cloak @click="send()">Usar áudio</button><button type="button" x-show="url" x-cloak @click="discard()">Descartar</button></div>
+                <input type="file" wire:model="arquivo" aria-label="{{ __('ui_32799a17a00f') }}" style="max-width:100%;font-size:11px">
+                <div style="display:flex;gap:10px;margin:6px 0"><button type="button" x-show="!recording" @click="start()">{{ __('ui_eb8840e5fb9a') }}</button><button type="button" x-show="recording" x-cloak @click="stop()">{{ __('ui_4228588595d5') }}</button><button type="button" x-show="url" x-cloak @click="send()">{{ __('ui_2fa2096dc28c') }}</button><button type="button" x-show="url" x-cloak @click="discard()">{{ __('ui_63a77c77e07e') }}</button></div>
                 <audio x-show="url" x-cloak :src="url" controls style="max-width:100%"></audio><p x-text="error" style="font-size:11px" role="status"></p>
                 @if($arquivo)<p class="text-xs">Anexo pronto: {{ $arquivo->getClientOriginalName() }}</p>@endif
                 @error('arquivo')<p class="text-xs text-red-600">{{ $message }}</p>@enderror
             </div>
             <form wire:submit="enviar" class="vc-toolbar flex items-center gap-2 border-t p-2">
                 <input type="text" wire:model="texto" autocomplete="off"
-                       placeholder="Escreva um recado"
+                       placeholder="{{ __('ui_f398ef66b5e8') }}"
                        class="min-w-0 flex-1 rounded border border-slate-300 px-2.5 py-1.5 text-sm dark:border-white/10 dark:bg-gray-800 dark:text-gray-100">
                 <button type="submit" wire:loading.attr="disabled"
-                        class="rounded bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700">
-                    Enviar
+                        class="rounded bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-700">
+                    {{ __('ui_a91a95517c03') }}
                 </button>
             </form>
         @else
             <div class="vc-toolbar flex items-center justify-between border-b px-3 py-2">
-                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">Equipe</p>
+                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ __('ui_e03e3996dc23') }}</p>
                 <button type="button" wire:click="$set('aberto', false)"
                         class="rounded px-2 text-lg leading-none text-gray-400 hover:text-gray-700">&times;</button>
             </div>
@@ -117,7 +117,7 @@
                 <div class="border-b border-gray-100 px-3 py-2 dark:border-white/5">
                     <select wire:model.live="equipe"
                             class="w-full rounded-full border-0 bg-gray-100 py-1 pl-2 pr-6 text-xs font-medium text-gray-700 dark:bg-white/10 dark:text-gray-200">
-                        <option value="">Todas as equipes</option>
+                        <option value="">{{ __('ui_f2645f822bc1') }}</option>
                         @foreach ($equipes as $eq)
                             <option value="{{ $eq->id }}">{{ $eq->nome }}</option>
                         @endforeach
@@ -171,8 +171,8 @@
 
     {{-- ------------------------------------------------------------- a bolha --}}
     <button type="button" wire:click="$toggle('aberto')"
-            class="relative grid h-12 w-12 place-items-center rounded-2xl border border-emerald-400/30 bg-emerald-600 text-white shadow-[0_10px_30px_rgba(5,150,105,0.3)] transition duration-200 hover:-translate-y-0.5 hover:bg-emerald-700 hover:shadow-[0_14px_34px_rgba(5,150,105,0.38)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 motion-reduce:transform-none"
-            title="Chat da equipe" aria-label="Abrir chat da equipe">
+            class="relative grid h-12 w-12 place-items-center rounded-2xl border border-violet-400/30 bg-violet-600 text-white shadow-[0_10px_30px_rgba(99,56,246,0.3)] transition duration-200 hover:-translate-y-0.5 hover:bg-violet-700 hover:shadow-[0_14px_34px_rgba(99,56,246,0.38)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 motion-reduce:transform-none"
+            title="{{ __('ui_f609a9ad7694') }}" aria-label="{{ __('ui_41652714ed2f') }}">
 
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-6 w-6">
             <path stroke-linecap="round" stroke-linejoin="round"

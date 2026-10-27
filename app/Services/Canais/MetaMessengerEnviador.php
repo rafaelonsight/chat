@@ -57,7 +57,7 @@ class MetaMessengerEnviador implements Enviador
         $attachmentId = (string) data_get($r, 'attachment_id');
 
         if ($attachmentId === '') {
-            throw new \RuntimeException('a Meta aceitou o arquivo mas nao devolveu attachment_id.');
+            throw new \RuntimeException(__('ui_b34e9ad45ac9'));
         }
 
         return $this->enviarMensagem($canal, $destinoId, [

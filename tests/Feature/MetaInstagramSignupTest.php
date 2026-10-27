@@ -34,6 +34,7 @@ beforeEach(function () {
         'tenant_id' => $this->tenant->id, 'name' => 'U', 'email' => 'u@instagram-signup.test',
         'password' => 'segredo123', 'admin' => true,
     ]);
+    $this->admin->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     \Filament\Facades\Filament::setCurrentPanel('admin');
 });
@@ -254,6 +255,7 @@ it('recusa quem não é admin', function () {
         'tenant_id' => $this->tenant->id, 'name' => 'Sem admin', 'email' => 'semadmin@instagram-signup.test',
         'password' => 'segredo123', 'admin' => false,
     ]);
+    $semPermissao->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     $resposta = $this->actingAs($semPermissao)
         ->get(route('canais.instagram.callback', ['code' => 'codigo', 'state' => 'estado-abc']));

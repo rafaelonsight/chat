@@ -31,6 +31,7 @@ beforeEach(function () {
         'tenant_id' => $this->conta->id, 'name' => 'Tecnico',
         'email' => 'tecnico@reserva.test', 'password' => 'segredo123', 'admin' => true,
     ]);
+    $this->dono->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     // Segunda-feira, para os testes de faixa nao dependerem do dia em que rodam.
     $this->travelTo(Carbon::parse('2026-08-10 08:00:00'));
@@ -130,6 +131,7 @@ it('compromisso de outra pessoa nao tapa a minha agenda', function () {
         'tenant_id' => $this->conta->id, 'name' => 'Outro',
         'email' => 'outro@reserva.test', 'password' => 'segredo123',
     ]);
+    $outro->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     compromissoEm($this, '2026-08-10 10:00:00', 60, ['user_id' => $outro->id]);
 
@@ -376,6 +378,7 @@ it('a tela publica nao deixa a conta vazar para a proxima', function () {
         'tenant_id' => $outra->id, 'name' => 'Dela',
         'email' => 'dela@reserva.test', 'password' => 'segredo123',
     ]);
+    $delaDono->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     BookingPage::create([
         'tenant_id' => $outra->id, 'user_id' => $delaDono->id, 'slug' => 'consulta',

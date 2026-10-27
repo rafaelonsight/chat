@@ -89,7 +89,7 @@ class TranscriptionService
         return ['status' => $status, 'texto' => $texto, 'erro' => $erro];
     }
 
-    private function duracao(string $caminho): ?float
+    public function duracao(string $caminho): ?float
     {
         exec(sprintf(
             'ffprobe -v error -show_entries format=duration -of csv=p=0 %s',

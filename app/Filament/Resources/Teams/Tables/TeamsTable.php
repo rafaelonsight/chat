@@ -16,21 +16,21 @@ class TeamsTable
         return $table
             ->modifyQueryUsing(fn ($query) => $query->withCount('users'))
             ->columns([
-                TextColumn::make('nome')->label('Equipe')->searchable()->sortable(),
-                TextColumn::make('descricao')->label('Descrição')->placeholder('—')->wrap(),
+                TextColumn::make('nome')->label(__('ui_e03e3996dc23'))->searchable()->sortable(),
+                TextColumn::make('descricao')->label(__('ui_469768598e0f'))->placeholder('—')->wrap(),
 
                 TextColumn::make('users_count')
-                    ->label('Pessoas')
+                    ->label(__('ui_c9929703a8da'))
                     ->badge()
                     ->sortable(),
 
                 TextColumn::make('membros')
-                    ->label('Quem')
+                    ->label(__('ui_2af502b70a02'))
                     ->state(fn ($record) => $record->users->pluck('name')->join(', ') ?: '—')
                     ->wrap(),
 
                 TextColumn::make('na_fila')
-                    ->label('Na fila')
+                    ->label(__('ui_a3ecf1f4868b'))
                     ->state(fn ($record) => Conversation::where('team_id', $record->id)
                         ->where('status', Conversation::NOVA)
                         ->count())
@@ -53,7 +53,7 @@ class TeamsTable
                         ? 'Recebe as conversas novas. Não pode ser excluída.'
                         : null),
 
-                IconColumn::make('ativa')->label('Ativa')->boolean(),
+                IconColumn::make('ativa')->label(__('ui_f21c4ff2bbb3'))->boolean(),
             ])
             ->defaultSort('nome')
             ->recordActions([
@@ -63,7 +63,7 @@ class TeamsTable
                 // ser negado — oferecer e negar depois e pior que nao oferecer.
                 DeleteAction::make()->hidden(fn ($record) => (bool) $record->padrao),
             ])
-            ->emptyStateHeading('Nenhuma equipe ainda')
-            ->emptyStateDescription('Sem equipe, o atendimento funciona igual ao de hoje: todos veem tudo.');
+            ->emptyStateHeading(__('ui_0c2383cb24ca'))
+            ->emptyStateDescription(__('ui_a13a6f47ded7'));
     }
 }

@@ -1,0 +1,56 @@
+<x-filament-panels::page>
+@php($svc=app(\App\Services\AgendaOutreach::class))
+<div class="space-y-6">
+ <p class="text-sm text-gray-600 dark:text-gray-300">{{ $kind==='reminder'?'Lembre seu cliente do horário e permita confirmar, reagendar ou cancelar.':'Converse com os clientes que autorizaram receber suas campanhas.' }} Personalize a mensagem com o jeito do seu estabelecimento.</p>
+ <p class="text-sm">Disponível para o WhatsApp por QR Code. O WhatsApp oficial depende da homologação da integração e dos templates aprovados.</p>
+ @if($errors->any())<div role="alert" class="rounded-xl border p-4 text-red-700">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
+ <div class="grid gap-6 lg:grid-cols-2">
+ <x-filament::section :heading="$editing?'Editar mensagem':($kind==='reminder'?'Nova regra de lembrete':'Nova campanha')">
+ <form wire:submit="save" class="space-y-4">
+  <label class="block">Nome<input required maxlength="120" wire:model="form.name" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-900" placeholder="Ex.: confirmação antes do corte"></label>
+  <label class="block">WhatsApp<select required wire:model="form.channel_id" @disabled($editing && $kind==='campaign') class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-900"><option value="">Selecione o canal</option>@foreach($this->channels() as $channel)<option value="{{ $channel->id }}">{{ $channel->nome }} · {{ $channel->status==='open'?'Conectado':'Desconectado' }}</option>@endforeach</select></label>
+  @if($kind==='reminder')
+   <div class="grid gap-4 sm:grid-cols-2"><label>Enviar quantos minutos antes?<input type="number" min="5" max="10080" wire:model="form.minutes_before" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-900"></label><label>Finalidade<select wire:model="form.mode" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-900"><option value="confirmation">Pedir confirmação de presença</option><option value="reminder">Somente lembrar do horário</option></select></label></div>
+   <label class="flex items-center gap-2"><input type="checkbox" wire:model="form.enabled">Ativar esta regra</label>
+   <p class="text-sm text-gray-600">Uma regra nova começa a valer para os próximos prazos. Lembretes vencidos são ignorados. Pedidos de confirmação são enviados somente enquanto a presença estiver pendente.</p>
+  @else
+   <div class="grid gap-3 sm:grid-cols-3"><label>Mensagens por minuto<input type="number" min="1" max="30" wire:model="form.per_minute" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-900"></label><label>Enviar a partir de<input type="time" wire:model="form.window_start" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-900"></label><label>Até<input type="time" wire:model="form.window_end" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-900"></label></div>
+   <p class="text-sm">Horários no fuso do estabelecimento. Ritmo de envio não garante ausência de restrições pelo provedor.</p>
+  @endif
+  <label class="block">Mensagem<textarea required rows="5" wire:model.live.debounce.500ms="form.body" maxlength="2500" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-900"></textarea></label>
+  <p class="text-sm">Variáveis: <code>{nome}</code> <code>{empresa}</code>@if($kind==='reminder') <code>{servico}</code> <code>{profissional}</code> <code>{data}</code> <code>{hora}</code> <code>{dia_semana}</code>@endif</p>
+  @if($kind==='campaign' && !$editing)
+   <label class="block">Buscar clientes<input wire:model.live.debounce.400ms="search" placeholder="Nome ou telefone" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-900"></label>
+   <div class="max-h-56 space-y-2 overflow-auto rounded-xl border p-3">@forelse($this->people() as $person)<label class="flex items-center gap-2"><input type="checkbox" wire:model="contacts" value="{{ $person->id }}"><span>{{ $person->nome?:$person->telefone_e164 }} <small>· {{ $svc->eligible($person,'marketing')?'Autorizado':'Será excluído: sem autorização ou indisponível' }}</small></span></label>@empty<p>Nenhum cliente encontrado. Cadastre os clientes no CRM.</p>@endforelse</div>
+   <p class="text-sm">A busca mostra até 200 clientes. Selecionados sem autorização, bloqueados e indisponíveis aparecem como excluídos na revisão.</p>
+  @endif
+  <div class="flex flex-wrap gap-3"><x-filament::button type="submit">{{ $kind==='reminder'?'Salvar regra':'Salvar rascunho' }}</x-filament::button>@if($editing)<x-filament::button color="gray" wire:click="resetForm" type="button">Nova {{ $kind==='reminder'?'regra':'campanha' }}</x-filament::button>@endif</div>
+ </form>
+ </x-filament::section>
+ <div class="space-y-6">
+  <x-filament::section heading="Exemplo de mensagem"><p class="text-sm text-gray-500">Prévia fictícia para conferir a personalização.</p><div class="mt-3 whitespace-pre-wrap rounded-2xl border-l-4 border-purple-500 bg-gray-50 p-5 dark:bg-gray-900">{{ $this->preview() }}@if($kind==='reminder' && ($form['mode']??'')==='confirmation')<p class="mt-3">1 — Confirmar presença<br>2 — Reagendar<br>3 — Cancelar<br>ATENDENTE — falar com a equipe</p>@endif<p class="mt-3 text-sm">{{ $kind==='reminder'?'PARAR LEMBRETES — não receber novos lembretes':'SAIR — não receber campanhas' }}</p></div></x-filament::section>
+  <x-filament::section heading="Preferências do cliente">
+   <p class="mb-3 text-sm">Estar no CRM não significa autorizar mensagens. Registre somente uma autorização obtida do próprio cliente.</p>
+   <form wire:submit="savePreference" class="space-y-3"><label class="block">Cliente<select wire:model="preferenceContact" wire:change="loadPreference" required class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-900"><option value="">Selecione</option>@foreach($this->people() as $person)<option value="{{ $person->id }}">{{ $person->nome?:$person->telefone_e164 }}</option>@endforeach</select></label>
+    <label class="flex gap-2"><input type="checkbox" wire:model="marketing">Autorizou campanhas</label><label class="flex gap-2"><input type="checkbox" wire:model="reminders">Autorizou lembretes de agendamento</label>
+    <label class="block">Onde e quando o cliente autorizou?<input required minlength="5" maxlength="240" wire:model="source" placeholder="Ex.: pedido no balcão em 15/10/2026" class="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-900"></label><x-filament::button type="submit" color="gray">Registrar preferências</x-filament::button>
+   </form>
+  </x-filament::section>
+ </div>
+ </div>
+ <x-filament::section :heading="$kind==='reminder'?'Regras do estabelecimento':'Campanhas do estabelecimento'">
+  @if($kind==='campaign')<label class="mb-4 block">Data e horário para agendar (opcional)<input type="datetime-local" wire:model="scheduled" class="ml-2 rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-900"></label><p class="mb-4 text-sm">Deixe vazio para iniciar no próximo processamento dentro do período de envio. Envios pendentes expiram 24 horas após o horário programado. Revise o público antes de clicar em agendar.</p>@endif
+  <div class="space-y-3">@forelse($this->rows() as $row)<article class="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4"><div><strong>{{ $row->name }}</strong><p class="text-sm">{{ $kind==='reminder'?($row->enabled?'Ativa':'Pausada').' · '.$row->minutes_before.' minutos antes':(\App\Services\AgendaOutreach::STATES[$row->status]??$row->status) }}</p></div><div class="flex flex-wrap gap-2">
+   @if($kind==='reminder' || $row->status==='draft')<x-filament::button size="sm" color="gray" wire:click="edit({{ $row->id }})">Editar</x-filament::button>@endif
+   <x-filament::button size="sm" color="gray" wire:click="showReport({{ $row->id }})">{{ $kind==='reminder'?'Histórico':'Revisar público e envios' }}</x-filament::button>
+   @if($kind==='reminder' && $row->enabled)<x-filament::button size="sm" color="gray" wire:click="pauseRule({{ $row->id }})">Pausar</x-filament::button>@endif
+   @if($kind==='campaign')
+    @if(in_array($row->status,['draft','paused']))<x-filament::button size="sm" wire:confirm="Confirma o agendamento desta campanha para os clientes autorizados da lista revisada?" wire:click="action({{ $row->id }},'schedule')">{{ $row->status==='paused'?'Retomar pendentes':'Agendar envio' }}</x-filament::button>@endif
+    @if(in_array($row->status,['scheduled','running']))<x-filament::button size="sm" color="gray" wire:click="action({{ $row->id }},'pause')">Pausar</x-filament::button>@endif
+    @if(in_array($row->status,['scheduled','running','paused']))<x-filament::button size="sm" color="danger" wire:confirm="Cancelar os próximos envios? Mensagens já aceitas pelo provedor não podem ser retiradas." wire:click="action({{ $row->id }},'cancel')">Cancelar</x-filament::button>@endif
+   @endif
+  </div></article>@empty<p>{{ $kind==='reminder'?'Crie uma regra para lembrar os clientes do horário.':'Salve sua primeira campanha como rascunho para revisar os destinatários.' }}</p>@endforelse</div>
+ </x-filament::section>
+ @if($report)<x-filament::section heading="Revisão e histórico"><div wire:poll.15s class="space-y-4"><div class="flex flex-wrap gap-4">@foreach($this->counts() as $state=>$count)<p>{{ \App\Services\AgendaOutreach::STATES[$state]??$state }}: <strong>{{ $count }}</strong></p>@endforeach</div><p class="text-sm">Enviado significa aceito pelo provedor; entregue e lido dependem do recibo. Resultado desconhecido exige conferência no WhatsApp e não é reenviado automaticamente. Pausar não retira mensagens já em processamento.</p><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead><tr><th class="p-2">Cliente</th><th class="p-2">Situação</th><th class="p-2">Observação</th></tr></thead><tbody>@forelse($this->details() as $item)@php($state=$item->state==='skipped'?'skipped':($item->agenda_delivery_state==='uncertain'?'uncertain':($item->message_status??$item->state)))<tr class="border-t"><td class="p-2">{{ $item->nome?:'Cliente' }}</td><td class="p-2">{{ \App\Services\AgendaOutreach::STATES[$state]??$state }}</td><td class="p-2">{{ $item->reason??$item->delivery_error }}</td></tr>@empty<tr><td colspan="3" class="p-3">Nenhum envio registrado. Lembretes são preparados quando chega o prazo configurado.</td></tr>@endforelse</tbody></table></div><p class="text-sm">Mostrando os últimos 200 destinatários/envios.</p></div></x-filament::section>@endif
+</div>
+</x-filament-panels::page>

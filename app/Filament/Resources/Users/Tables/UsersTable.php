@@ -13,14 +13,14 @@ class UsersTable
     {
         return $table
             ->columns([
-                TextColumn::make('name')->label('Nome')->searchable()->sortable(),
-                TextColumn::make('email')->label('E-mail')->searchable()->copyable(),
-                IconColumn::make('admin')->label('Admin')->boolean(),
-                IconColumn::make('super_admin')->label('Super Admin')->boolean(),
-                TextColumn::make('created_at')->label('Criado em')->dateTime('d/m/Y H:i')->sortable(),
+                TextColumn::make('name')->label(__('ui_13030dd962f4'))->searchable()->sortable(),
+                TextColumn::make('email')->label(__('ui_0d01e2e86669'))->searchable()->copyable(),
+                TextColumn::make('perfil')->label(__('ui_d197d5671878'))->formatStateUsing(fn ($state) => \App\Models\User::PERFIS[$state] ?? 'Atendente')->badge(),
+                IconColumn::make('super_admin')->label(__('ui_7da1c9a46614'))->boolean(),
+                TextColumn::make('created_at')->label(__('ui_16379961e450'))->dateTime('d/m/Y H:i')->sortable(),
             ])
             ->defaultSort('name')
             ->recordActions([EditAction::make()])
-            ->emptyStateHeading('Nenhum usuario ainda');
+            ->emptyStateHeading(__('ui_1f7c3a7eed00'));
     }
 }

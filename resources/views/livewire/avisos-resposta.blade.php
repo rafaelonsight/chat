@@ -1,0 +1,15 @@
+<div wire:poll.30s="conferir" wire:init="conferir" x-data="{
+ avisos:[],ctx:null,
+ iniciar(){const liberar=()=>{try{this.ctx??=new (window.AudioContext||window.webkitAudioContext)();this.ctx.resume();}catch(e){}};window.addEventListener('pointerdown',liberar,{once:true});},
+ tocar(forcar=false){if(!forcar &amp;&amp; localStorage.getItem('virtus-alerta-som')!=='1')return;try{this.ctx??=new (window.AudioContext||window.webkitAudioContext)();this.ctx.resume().then(()=>{let som=localStorage.getItem('virtus-alerta-tom')??'suave',notas=({suave:[660],duplo:[660,660],sino:[880,1320],digital:[1046,784],ascendente:[523,659,784],descendente:[784,659,523],triplo:[660,660,660],grave:[330,440]})[som]??[660];for(let i=0;i&lt;notas.length;i++){let o=this.ctx.createOscillator(),g=this.ctx.createGain(),t=this.ctx.currentTime+i*0.25;o.type=som==='sino'?'triangle':'sine';o.frequency.value=notas[i];g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(Number(localStorage.getItem('virtus-alerta-volume')??0.4)*0.15,t+0.02);g.gain.exponentialRampToValueAtTime(0.001,t+0.2);o.connect(g);g.connect(this.ctx.destination);o.start(t);o.stop(t+0.22);}});}catch(e){}},
+ receber(lista){let novas=false;this.avisos=this.avisos.filter(a=>lista.some(b=>b.chave===a.chave));for(let a of lista){let k='virtus-aviso-{{ (int)auth()->id() }}-{{ (int)\App\Support\TenantContext::get() }}-'+a.chave;let ultima=Number(localStorage.getItem(k)??0);if(Date.now()-ultima&lt;a.repetir*60000)continue;localStorage.setItem(k,Date.now());if(!this.avisos.some(b=>b.chave===a.chave))this.avisos.push(a);novas=true;window.virtusNotificarEspera?.(a);}if(novas)this.tocar();},
+ fechar(id){this.avisos=this.avisos.filter(a=>a.id!==id);}
+ }" x-init="iniciar()" @virtus-atrasos.window="receber($event.detail.avisos??[])" @virtus-testar-som.window="tocar(true)">
+ <div class="fixed right-4 top-20 z-50 flex flex-col gap-3" style="max-width:min(360px,calc(100vw - 32px))" aria-live="polite">
+ <template x-for="aviso in avisos.slice(0,3)" :key="aviso.chave"><div class="rounded-xl border border-amber-300 bg-white p-4 shadow-lg dark:bg-gray-900" role="status">
+ <div class="flex items-start justify-between gap-3"><strong class="text-sm text-amber-800">{{ __('Cliente aguardando resposta') }}</strong><button type="button" @click="fechar(aviso.id)" aria-label="{{ __('Fechar aviso') }}">×</button></div>
+ <p x-show="aviso.cliente" class="mt-2 break-words font-semibold" x-text="aviso.cliente"></p><p class="mt-1 text-sm font-medium" x-text="aviso.protocolo"></p><p class="text-sm text-gray-500"><span x-text="aviso.minutos"></span> {{ __('minutos de espera útil') }}</p>
+ <span x-show="aviso.demo" class="text-sm text-gray-500">{{ __('Aviso de teste') }}</span><a x-show="!aviso.demo" :href="'/admin?conversa='+aviso.id" class="mt-3 inline-flex items-center justify-center rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2">{{ __('Abrir conversa') }}</a>
+ </div></template>
+ </div>
+</div>

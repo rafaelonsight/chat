@@ -15,8 +15,8 @@ class ChannelForm
     {
         return $schema->components([
             Select::make('tipo')
-                ->label('Tipo de canal')
-                ->options(Channel::TIPOS)
+                ->label(__('ui_9685bc6facb9'))
+                ->options(fn () => \App\Support\Idiomas::opcoes(Channel::TIPOS))
                 ->default(Channel::EVOLUTION)
                 ->native(false)
                 ->required()
@@ -29,30 +29,24 @@ class ChannelForm
                 // Ja escolhido na tela anterior: mostrar de novo faria a escolha parecer
                 // inutil. Continua visivel se alguem chegar aqui pela URL sem escolher.
                 ->hidden(fn (Get $get) => request()->query('tipo') !== null)
-                ->helperText('Oficial: janela de 24h, modelo aprovado, sem grupo. Evolution: sem janela, com grupo.'),
+                ->helperText(__('ui_55aeb82ac31a')),
 
-            // O AVISO MAIS IMPORTANTE DESTE FORMULARIO, e ele nao existia.
-            //
-            // Vincular um numero a API oficial e IRREVERSIVEL na pratica: aquele numero para
-            // de funcionar no aplicativo do WhatsApp, no celular, para sempre. Quem descobre
-            // isso depois descobre da pior forma — tentando abrir o WhatsApp da empresa e nao
-            // conseguindo mais.
+            // Coexistencia e migracao tem impactos diferentes; a Meta define o caminho elegivel.
             Placeholder::make('aviso_oficial')
                 ->label('')
                 ->content(new \Illuminate\Support\HtmlString(
                     '<div class="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-900 '
                     .'dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">'
-                    .'<p class="font-semibold">Atenção: isto não tem volta fácil.</p>'
-                    .'<p class="mt-1">Depois de vincular um número à API oficial da Meta, ele '
-                    .'<strong>deixa de funcionar no aplicativo do WhatsApp</strong> — no celular, '
-                    .'para sempre. Use um número que a empresa não usa no dia a dia.</p></div>'
+                    .'<p class="font-semibold">Confira como o número será conectado.</p>'
+                    .'<p class="mt-1">Na coexistência oferecida pela Meta, o WhatsApp Business do celular pode continuar funcionando junto com a API. '
+                    .'A disponibilidade depende da conta e do número. Se houver migração, confira o impacto no aplicativo antes de concluir.</p></div>'
                 ))
                 ->visible(fn (Get $get) => $get('tipo') === Channel::META_CLOUD)
                 ->columnSpanFull(),
 
             TextInput::make('nome')
-                ->label('Nome do canal')
-                ->helperText('Como voce identifica este numero. Ex.: Comercial, Cobranca.')
+                ->label(__('ui_96e023a3235a'))
+                ->helperText(__('ui_343a211d5723'))
                 ->required()
                 ->maxLength(255),
 
@@ -60,21 +54,21 @@ class ChannelForm
             // Os identificadores ficam NO CANAL e nao na configuracao do servidor: com
             // eles globais, o segundo cliente nao caberia.
             TextInput::make('meta_phone_number_id')
-                ->label('Phone Number ID')
-                ->helperText('Painel da Meta: WhatsApp > Configuracao da API. E um numero longo — NAO e o telefone.')
+                ->label(__('ui_9bac39e4c734'))
+                ->helperText(__('ui_02c16dd86fb7'))
                 ->visible(fn (Get $get) => $get('tipo') === Channel::META_CLOUD)
                 ->required(fn (Get $get) => $get('tipo') === Channel::META_CLOUD)
                 ->maxLength(255),
 
             TextInput::make('meta_waba_id')
-                ->label('WABA ID')
-                ->helperText('Id da conta do WhatsApp Business. Necessario para modelos de mensagem.')
+                ->label(__('ui_3f02f5154a53'))
+                ->helperText(__('ui_a3971b90ed3b'))
                 ->visible(fn (Get $get) => $get('tipo') === Channel::META_CLOUD)
                 ->required(fn (Get $get) => $get('tipo') === Channel::META_CLOUD)
                 ->maxLength(255),
 
             TextInput::make('meta_token')
-                ->label('Token de acesso deste numero')
+                ->label(__('ui_bc3c48298ca9'))
                 ->password()
                 ->revealable()
                 ->autocomplete('new-password')
@@ -85,13 +79,13 @@ class ChannelForm
                 // Nunca devolver o token ao navegador ao abrir a tela: ele estaria no HTML
                 // da pagina, no cache do navegador e em qualquer print de tela.
                 ->afterStateHydrated(fn (TextInput $component) => $component->state(null))
-                ->helperText('Em branco, usa a credencial do servidor. Preencha quando o numero for do cliente.')
+                ->helperText(__('ui_116085597df5'))
                 ->visible(fn (Get $get) => $get('tipo') === Channel::META_CLOUD)
                 ->columnSpanFull(),
 
             TextInput::make('telefone_e164')
-                ->label('Numero')
-                ->helperText('Como aparece para quem recebe. No oficial nao vem de QR Code: e informado.')
+                ->label(__('ui_6d069f697319'))
+                ->helperText(__('ui_39344cd5ca81'))
                 ->visible(fn (Get $get) => $get('tipo') === Channel::META_CLOUD)
                 ->maxLength(255),
 
@@ -101,14 +95,14 @@ class ChannelForm
             // pela acao "Ver codigo de instalacao" — nao um campo que da para apagar
             // por descuido e quebrar o balao de todo mundo que ja colou o codigo.
             TextInput::make('site_dominio')
-                ->label('Domínio do site')
-                ->helperText('So para sua referencia — nao trava o balao se estiver errado ou em branco.')
+                ->label(__('ui_6ce95fb1db07'))
+                ->helperText(__('ui_0b860b2b8b64'))
                 ->visible(fn (Get $get) => $get('tipo') === Channel::SITE)
                 ->maxLength(255),
 
             TextInput::make('site_saudacao')
-                ->label('Mensagem de saudação')
-                ->helperText('O que aparece quando o balao abre, antes de a pessoa escrever.')
+                ->label(__('ui_5f1a299e916b'))
+                ->helperText(__('ui_66855d1eb9a5'))
                 ->visible(fn (Get $get) => $get('tipo') === Channel::SITE)
                 ->maxLength(500)
                 ->columnSpanFull(),
@@ -119,30 +113,30 @@ class ChannelForm
             // — o login pelo Facebook e o unico caminho, entao nao ha o que preencher
             // a mao. Ver ConectarMetaSocial/EditChannel::reconectar_meta_social.
             Placeholder::make('meta_page_nome')
-                ->label('Página do Facebook')
+                ->label(__('ui_03a3f3b8f12e'))
                 ->content(fn ($record) => $record?->meta_page_nome ?: '—')
                 ->visible(fn (Get $get) => in_array($get('tipo'), [Channel::MESSENGER, Channel::INSTAGRAM], true)),
 
             Placeholder::make('meta_ig_username')
-                ->label('Conta do Instagram')
+                ->label(__('ui_ef8ed44f8ab2'))
                 ->content(fn ($record) => $record?->meta_ig_username ? '@'.$record->meta_ig_username : '—')
                 ->visible(fn (Get $get) => $get('tipo') === Channel::INSTAGRAM),
 
             // ---------------------------------------------------------- evolution
             // Derivados: gerados ao salvar ou vindos do proprio WhatsApp.
             Placeholder::make('instance_name')
-                ->label('Instancia na Evolution')
+                ->label(__('ui_c67704c7f942'))
                 ->content(fn ($record) => $record?->instance_name ?? 'gerada ao salvar')
                 ->visible(fn (Get $get, $record) => $record !== null && $get('tipo') === Channel::EVOLUTION),
 
             Placeholder::make('telefone_placeholder')
-                ->label('Numero')
+                ->label(__('ui_6d069f697319'))
                 ->content(fn ($record) => $record?->telefone_e164 ?? 'aparece apos conectar')
                 ->visible(fn (Get $get, $record) => $record !== null && $get('tipo') === Channel::EVOLUTION),
 
             // --------------------------------------------------------------- ambos
             Placeholder::make('status')
-                ->label('Conexao')
+                ->label(__('ui_deed29689ce7'))
                 ->content(fn ($record) => match ($record?->status) {
                     'open'       => 'conectado',
                     'connecting' => 'conectando',
@@ -152,7 +146,7 @@ class ChannelForm
                 ->visibleOn('edit'),
 
             Placeholder::make('ultimo_erro')
-                ->label('Ultimo erro')
+                ->label(__('ui_2dc3d72fb401'))
                 ->content(fn ($record) => $record?->ultimo_erro ?: 'nenhum')
                 ->visibleOn('edit')
                 ->columnSpanFull(),

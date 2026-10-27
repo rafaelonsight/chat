@@ -1,0 +1,28 @@
+<?php
+namespace App\Filament\Resources\AttendanceActions;
+use App\Models\{AttendanceAction,ChatbotIntegration};use App\Support\TenantContext;
+use Filament\Resources\Resource;use Filament\Schemas\Schema;use Filament\Tables\Table;
+use Filament\Forms\Components\{TextInput,Textarea,Select,Toggle,CheckboxList};use Filament\Tables\Columns\{TextColumn,IconColumn};use Illuminate\Database\Eloquent\{Model,Builder};
+class AttendanceActionResource extends Resource {
+ use \App\Filament\TraduzirResource;
+ protected static ?string $model=AttendanceAction::class;
+ protected static string|\BackedEnum|null $navigationIcon='heroicon-o-bolt';
+ protected static string|\UnitEnum|null $navigationGroup='Aplicações';
+ protected static ?string $navigationLabel='Ações do atendimento';protected static ?string $modelLabel='ação do atendimento';protected static ?string $pluralModelLabel='ações do atendimento';protected static ?string $slug='acoes-atendimento';protected static ?string $recordTitleAttribute='nome';protected static ?int $navigationSort=5;
+ public static function canViewAny():bool{return (bool)auth()->user()?->admin&&(bool)TenantContext::get();}
+ public static function canCreate():bool{return static::canViewAny();}public static function canEdit(Model $record):bool{return static::canViewAny()&&(int)$record->tenant_id===(int)TenantContext::get();}public static function canDelete(Model $record):bool{return false;}
+ public static function getEloquentQuery():Builder{return parent::getEloquentQuery()->where('tenant_id',TenantContext::get()??0);}
+ public static function form(Schema $schema):Schema{return $schema->schema([
+  TextInput::make('nome')->label(__('Nome'))->required()->maxLength(80),TextInput::make('descricao')->label(__('Descrição'))->maxLength(240),
+  Select::make('tipo')->label(__('Comportamento'))->options(['pagina'=>__('Abrir página'),'integracao'=>__('Executar integração')])->default('pagina')->required()->live(),
+  Select::make('modo_pagina')->label(__('Onde abrir'))->options(['painel'=>__('Painel lateral'),'nova_aba'=>__('Nova aba')])->default('painel')->required(fn($get)=>$get('tipo')==='pagina')->visible(fn($get)=>$get('tipo')==='pagina'),
+  TextInput::make('url')->label(__('URL da página'))->maxLength(2048)->required(fn($get)=>$get('tipo')==='pagina')->visible(fn($get)=>$get('tipo')==='pagina')->helperText(__('Use HTTPS. Sites que bloqueiam a exibição interna podem ser abertos em nova aba.').' {{nome_cliente}}, {{telefone_cliente}}, {{email_cliente}}, {{protocolo}}, {{id_conversa}}, {{id_contato}}, {{id_usuario}}, {{id_conta}}'),
+  Select::make('chatbot_integration_id')->label(__('Integração'))->options(fn()=>ChatbotIntegration::where('tenant_id',TenantContext::get())->where('ativa',true)->orderBy('nome')->pluck('nome','id'))->required(fn($get)=>$get('tipo')==='integracao')->visible(fn($get)=>$get('tipo')==='integracao')->helperText(__('Cadastre o destino e a credencial em Integrações do chatbot.')),
+  Textarea::make('dados')->label(__('Dados enviados (JSON)'))->default('{}')->rows(5)->maxLength(4096)->visible(fn($get)=>$get('tipo')==='integracao')->helperText('{{nome_cliente}}, {{telefone_cliente}}, {{email_cliente}}, {{protocolo}}, {{id_conversa}}, {{id_contato}}, {{id_usuario}}, {{id_conta}}'),
+  Toggle::make('ia_consulta')->label(__('Permitir consulta automática pela IA'))->default(false)->visible(fn($get)=>$get('tipo')==='integracao')->helperText(__('Autorize apenas consultas GET que não alteram dados. A IA usa os parâmetros cadastrados, sem inventar novos parâmetros.')),
+  CheckboxList::make('perfis')->label(__('Quem pode usar'))->options(fn()=>\App\Support\Idiomas::opcoes(\App\Services\AcoesAtendimento::PERFIS))->default(['admin','supervisor','atendente'])->required(),
+  TextInput::make('ordem')->label(__('Ordem no menu'))->numeric()->integer()->minValue(0)->maxValue(999)->default(0),Toggle::make('ativa')->label(__('Ativa'))->default(true),
+ ]);}
+ public static function table(Table $table):Table{return $table->columns([TextColumn::make('nome')->label(__('Nome'))->searchable(),TextColumn::make('tipo')->label(__('Comportamento'))->formatStateUsing(fn($state)=>$state==='pagina'?__('Abrir página'):__('Executar integração')),TextColumn::make('integration.nome')->label(__('Integração')),IconColumn::make('ativa')->label(__('Ativa'))->boolean()])->recordActions([\Filament\Actions\EditAction::make(),\Filament\Actions\Action::make('historico')->label(__('Histórico'))->icon('heroicon-o-clock')->modalHeading(__('Histórico da ação'))->modalSubmitAction(false)->modalCancelActionLabel(__('Fechar'))->modalContent(function($record){$runs=\Illuminate\Support\Facades\DB::table('attendance_action_runs')->leftJoin('users','users.id','=','attendance_action_runs.user_id')->where('attendance_action_runs.tenant_id',TenantContext::get())->where('attendance_action_id',$record->id)->orderByDesc('attendance_action_runs.id')->limit(20)->get(['attendance_action_runs.*','users.name as autor']);$ai=\Illuminate\Support\Facades\DB::table('ai_tool_runs')->join('ai_agents','ai_agents.id','=','ai_tool_runs.ai_agent_id')->where('ai_tool_runs.tenant_id',TenantContext::get())->where('attendance_action_id',$record->id)->orderByDesc('ai_tool_runs.id')->limit(20)->get(['ai_tool_runs.id','ai_tool_runs.status','ai_tool_runs.conversation_id','ai_tool_runs.created_at',\Illuminate\Support\Facades\DB::raw("'IA · ' || ai_agents.nome as autor")]);$runs=$runs->concat($ai)->sortByDesc('created_at')->take(20);return view('filament.partials.attendance-action-history',compact('runs'));})])->defaultSort('ordem');}
+ public static function getPages():array{return ['index'=>Pages\ListAttendanceActions::route('/'),'edit'=>Pages\EditAttendanceAction::route('/{record}/edit')];}
+}

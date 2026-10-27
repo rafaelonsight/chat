@@ -15,12 +15,12 @@ class TagsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(fn ($query) => $query->withCount('contacts'))
+            ->modifyQueryUsing(fn ($query) => $query->withCount(['contacts','conversations','boardItems','tickets']))
             ->columns([
                 // Mostra a etiqueta como ela aparece de verdade. Nome numa coluna de
                 // texto simples nao diz nada sobre a cor escolhida.
                 TextColumn::make('nome')
-                    ->label('Etiqueta')
+                    ->label(__('ui_07287eda176e'))
                     ->html()
                     ->formatStateUsing(fn ($state, Tag $record) => new HtmlString(
                         '<span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 '
@@ -31,7 +31,7 @@ class TagsTable
 
                 // Ponto antes do nome: quem procura "aquela azul" acha pela cor.
                 TextColumn::make('cor')
-                    ->label('Cor')
+                    ->label(__('ui_62037d43904a'))
                     ->html()
                     ->formatStateUsing(fn ($state, Tag $record) => new HtmlString(
                         '<span class="inline-flex items-center gap-1.5">'
@@ -41,21 +41,21 @@ class TagsTable
                     ))
                     ->toggleable(),
 
-                TextColumn::make('contacts_count')
-                    ->label('Contatos')
+                TextColumn::make('uso')->getStateUsing(fn(Tag $record)=>match($record->contexto){'conversa'=>$record->conversations_count,'item'=>$record->board_items_count,'ticket'=>$record->tickets_count,default=>$record->contacts_count})
+                    ->label(__('ui_17a43d279a49'))
                     ->badge()
-                    ->color(fn ($state) => $state > 0 ? 'primary' : 'gray')
-                    ->sortable(),
+                    ->color(fn ($state) => $state > 0 ? 'primary' : 'gray'),
             ])
             ->defaultSort('nome')
             // Mesma largura da criacao: a grade de 24 cores tem 12 colunas.
             ->recordActions([
                 EditAction::make()
-                    ->modalHeading('Editar etiqueta')
+                    ->modalHeading(__('ui_221a2ba5697b'))
                     ->modalWidth(Width::Large),
+                \Filament\Actions\Action::make('historico')->label(__('ui_bea29e92ac2b'))->modalHeading(__('ui_bc8b7bcd0045'))->modalSubmitAction(false)->modalContent(fn(Tag $record)=>view('filament.etiquetas-historico',['movimentos'=>\Illuminate\Support\Facades\DB::table('etiqueta_movimentos')->leftJoin('users','users.id','=','etiqueta_movimentos.usuario_id')->where('etiqueta_movimentos.tenant_id',$record->tenant_id)->where('tag_id',$record->id)->orderByDesc('etiqueta_movimentos.id')->limit(100)->select('etiqueta_movimentos.*','users.name as usuario_nome')->get()])),
                 DeleteAction::make(),
             ])
-            ->emptyStateHeading('Nenhuma etiqueta ainda')
-            ->emptyStateDescription('Etiqueta serve para separar contatos: quem é cliente, quem está inadimplente, quem veio de anúncio. O chatbot também pode colocá-las.');
+            ->emptyStateHeading(__('ui_101e64506d3f'))
+            ->emptyStateDescription(__('ui_6b859fe7148b'));
     }
 }

@@ -54,12 +54,13 @@ class ChatbotMotor
     public function talvezAtender(Channel $canal, Message $mensagem): bool
     {
         $conversa = $mensagem->conversation;
+        if (app(RelatorioCampanha::class)->prepararResposta($mensagem)==='equipe') return false;
 
         if (! $conversa || ! $this->podeAtender($conversa, $mensagem)) {
             return false;
         }
 
-        $bot = Chatbot::publicadoPara($canal);
+        $bot = $conversa->chatbot_id ? Chatbot::where('tenant_id',$conversa->tenant_id)->find($conversa->chatbot_id) : Chatbot::publicadoPara($canal);
 
         if (! $bot) {
             return false;
@@ -134,7 +135,7 @@ class ChatbotMotor
         }
 
         $canal = $conversa->channel;
-        $bot = $canal ? Chatbot::publicadoPara($canal) : null;
+        $bot = $canal ? ($conversa->chatbot_id ? Chatbot::where('tenant_id',$conversa->tenant_id)->find($conversa->chatbot_id) : Chatbot::publicadoPara($canal)) : null;
 
         if (! $canal || ! $bot) {
             return;
@@ -358,6 +359,26 @@ class ChatbotMotor
             return false;
         }
 
+        if(in_array($conversa->chatbot_aguardando,['aguardar','modelo'])) {
+            if($acao->cfg('guardar_em'))app(BlocosChatbot::class)->guardar($conversa,$acao->cfg('guardar_em'),$texto);
+            $conversa->update(['chatbot_aguardando'=>null]);$this->executar($bot,$conversa->refresh(),$passo,$acao->ordem);return true;
+        }
+        if($conversa->chatbot_aguardando==='dinamica') {
+            $opcoes=($conversa->chatbot_respostas??[])['_opcoes_'.$acao->id]??[];
+            $opcao=collect($opcoes)->first(fn($o)=>$this->normalizar((string)$o['id'])===$this->normalizar($texto)||$this->normalizar($o['rotulo'])===$this->normalizar($texto));
+            if(!$opcao)return $this->naoEntendi($bot,$conversa,$passo,$acao);
+            app(BlocosChatbot::class)->guardar($conversa,$acao->cfg('guardar_em','escolha'),$opcao['id']);
+            $conversa->update(['chatbot_aguardando'=>null]);$this->executar($bot,$conversa->refresh(),$passo->destino('sucesso'),0);return true;
+        }
+        if($conversa->chatbot_aguardando==='ia') {
+            $turnos=(int)(($conversa->chatbot_respostas??[])['_ia_'.$acao->id]??0);
+            try{if($turnos>=max(1,min(10,(int)(app(BlocosChatbot::class)->configIA($acao,$conversa)['max_turnos']??3))))return $this->entregar($bot,$conversa,null,'Limite de respostas da IA; encaminhado',self::ESCAPOU);
+            $r=app(BlocosChatbot::class)->responderIA($acao,$conversa,$texto);$this->saidas[]=$r['texto'];app(BlocosChatbot::class)->guardar($conversa,'ia_'.$acao->id,$r['texto']);
+                $dados=$conversa->chatbot_respostas??[];$dados['_ia_'.$acao->id]=$turnos+1;$conversa->update(['chatbot_respostas'=>$dados]);
+                if($r['transferir'])return $this->entregar($bot,$conversa,null,'IA encaminhou para uma pessoa',self::ESCAPOU);
+                $this->passarAAguardar($bot,$conversa,$passo,$acao,'ia');return true;
+            }catch(\Throwable $e){report($e);return $this->entregar($bot,$conversa,null,'IA indisponível; encaminhado',self::ESCAPOU);}
+        }
         return match ($conversa->chatbot_aguardando) {
             self::AGUARDA_MENU     => $this->responderMenu($bot, $conversa, $passo, $acao, $texto),
             self::AGUARDA_PERGUNTA => $this->responderPergunta($bot, $conversa, $passo, $acao, $texto),
@@ -522,13 +543,58 @@ class ChatbotMotor
             $desviou = false;
 
             foreach ($acoes as $acao) {
+                if(in_array($acao->tipo,ChatbotAction::NOVOS)) {
+                    try {
+                        $ext=app(BlocosChatbot::class);
+                        switch($acao->tipo) {
+                            case 'aguardar':$this->passarAAguardar($bot,$conversa,$passo,$acao,'aguardar');return;
+                            case 'agente_ia':case 'supervisor_ia':
+                                $entrada=(string)$conversa->messages()->where('direcao','in')->whereNull('apagada_em')->orderByDesc('id')->value('corpo');
+                                $r=$ext->responderIA($acao,$conversa,$entrada);$this->saidas[]=$r['texto'];
+                                $dados=$conversa->chatbot_respostas??[];$dados['_ia_'.$acao->id]=1;$conversa->update(['chatbot_respostas'=>$dados]);
+                                if($r['transferir']){$this->entregar($bot,$conversa,null,'IA encaminhou para uma pessoa',self::ESCAPOU);return;}
+                                $this->passarAAguardar($bot,$conversa,$passo,$acao,'ia');return;
+                            case 'modelo':
+                                $template=\App\Models\MetaTemplate::where('tenant_id',$conversa->tenant_id)->enviaveis()->findOrFail($acao->cfg('template_id'));
+                                if($this->canal?->tipo!==Channel::META_CLOUD || $template->meta_waba_id!==$this->canal->meta_waba_id)throw new \RuntimeException(__('ui_bd0f36905b2f'));
+                                $valores=array_map(fn($v)=>$ext->texto($conversa,$v),preg_split('/\R/',trim((string)$acao->cfg('valores')))?:[]);
+                                if($template->variaveis===0)$valores=[];
+                                if(count($valores)!==$template->variaveis || in_array('',$valores,true))throw new \RuntimeException(__('ui_6aee26dd54d3'));
+                                $this->saidas[]=['template'=>$template,'valores'=>$valores];break;
+                            case 'outro_chatbot':
+                                $novo=Chatbot::where('tenant_id',$conversa->tenant_id)->where('status',Chatbot::PUBLICADO)->findOrFail($acao->cfg('chatbot_id'));
+                                if(!$novo->inicio()?->destino())throw new \RuntimeException(__('ui_8eaff6a597c8'));
+                                $bot=$novo;$conversa->update(['chatbot_id'=>$novo->id]);$passo=$novo->inicio()->destino();$desviou=true;break;
+                            case 'pergunta_dinamica':
+                                $data=$ext->webhook($acao,$conversa);$opcoes=$data['opcoes']??[];
+                                if(!is_array($opcoes)||!count($opcoes)||count($opcoes)>20)throw new \RuntimeException(__('ui_bdac4b0da86d'));
+                                $lista=[];foreach($opcoes as $o){if(!is_array($o)||!is_scalar($o['id']??null)||!is_string($o['rotulo']??null))throw new \RuntimeException(__('ui_6a76d7a3a8dc'));$lista[]=['id'=>(string)$o['id'],'rotulo'=>mb_substr($o['rotulo'],0,100)];}
+                                if(count(array_unique(array_column($lista,'id')))!==count($lista))throw new \RuntimeException(__('ui_718680c6c4cf'));
+                                $dados=$conversa->chatbot_respostas??[];$dados['_opcoes_'.$acao->id]=$lista;$conversa->update(['chatbot_respostas'=>$dados]);
+                                $texto=$ext->texto($conversa,(string)($data['mensagem']??$acao->cfg('texto')));$corpo=$texto;foreach($lista as $o)$texto.="\n".$o['id'].'. '.$o['rotulo'];$this->saidas[]=MenuChatbot::montar($conversa->channel,(string)$acao->cfg('formato','numerico'),$corpo,$lista,$texto);
+                                $this->passarAAguardar($bot,$conversa,$passo,$acao,'dinamica');return;
+                            default:$r=$ext->executar($acao,$conversa);if(isset($r['handle'])){$passo=$passo->destino($r['handle']);$desviou=true;}break;
+                        }
+                    }catch(\Throwable $e){
+                        report($e);$this->registrar($conversa,'Falha no bloco '.$acao->rotulo().'; verifique sua configuração.');
+                        if(in_array($acao->tipo,['webhook','pergunta_dinamica']) && $passo->destino('erro')){$passo=$passo->destino('erro');$desviou=true;}
+                        else {$this->entregar($bot,$conversa,null,'Bloco indisponível; encaminhado para uma pessoa',self::ESCAPOU);return;}
+                    }
+                    if($desviou)break;
+                    continue;
+                }
                 switch ($acao->tipo) {
                     case ChatbotAction::MENSAGEM:
+                        if($acao->cfg('tipo_midia','text')!=='text') {
+                            $path=(string)$acao->cfg('media_path');
+                            if(!preg_match('~^chatbots/'.$conversa->tenant_id.'/[a-zA-Z0-9_.-]+$~',$path)||!\Illuminate\Support\Facades\Storage::disk('local')->exists($path)){$this->entregar($bot,$conversa,null,'Arquivo indisponível; encaminhado',self::ESCAPOU);return;}
+                            $this->saidas[]=['midia'=>['tipo'=>$acao->cfg('tipo_midia'),'media_path'=>$path,'media_mime'=>$acao->cfg('media_mime'),'media_nome'=>$acao->cfg('media_nome'),'legenda'=>$this->comMarcadores($conversa,(string)$acao->cfg('texto'))]];break;
+                        }
                         $this->saidas[] = $this->comMarcadores($conversa, (string) $acao->cfg('texto'));
                         break;
 
                     case ChatbotAction::MENU:
-                        $this->saidas[] = $this->textoDoMenu($bot, $acao, $conversa);
+                        $this->saidas[] = MenuChatbot::montar($conversa->channel,(string)$acao->cfg('formato','numerico'),$this->comMarcadores($conversa,(string)$acao->cfg('texto')),(array)$acao->cfg('opcoes',[]),$this->textoDoMenu($bot,$acao,$conversa));
                         $this->passarAAguardar($bot, $conversa, $passo, $acao, self::AGUARDA_MENU);
 
                         return;
@@ -564,12 +630,14 @@ class ChatbotMotor
                         if ($contato) {
                             $etiquetador = app(Etiquetador::class);
                             $etiquetador->aplicar($contato, (array) $acao->cfg('adicionar', []), Etiquetador::CHATBOT);
-                            $etiquetador->remover($contato, (array) $acao->cfg('remover', []));
+                            $etiquetador->remover($contato, (array) $acao->cfg('remover', []), Etiquetador::CHATBOT);
+                            $etiquetador->aplicar($conversa,(array)$acao->cfg('adicionar',[]),Etiquetador::CHATBOT);
+                            $etiquetador->remover($conversa,(array)$acao->cfg('remover',[]),Etiquetador::CHATBOT);
                         }
                         break;
 
                     case ChatbotAction::CONDICIONAL:
-                        $lado = $this->avaliar($conversa, $acao) ? ChatbotEdge::SIM : ChatbotEdge::NAO;
+                        $lado = $acao->cfg('modo')==='multiplo' ? CondicoesChatbot::destino($acao,$conversa) : ($this->avaliar($conversa, $acao) ? ChatbotEdge::SIM : ChatbotEdge::NAO);
                         $proximo = $passo->destino($lado);
 
                         $this->registrar($conversa, 'Condição resolvida como "'.$lado.'"');
@@ -805,6 +873,13 @@ class ChatbotMotor
 
     private function avaliar(Conversation $conversa, ChatbotAction $acao): bool
     {
+        if($acao->cfg('fonte')==='etiqueta') {
+            $tag=\App\Models\Tag::where('tenant_id',$conversa->tenant_id)->whereIn('contexto',['contato','conversa'])->find((int)$acao->cfg('etiqueta_id'));
+            if(!$tag)return false;
+            $alvo=$tag->contexto==='conversa'?$conversa:$conversa->contact;
+            $presente=$alvo?->tags()->whereKey($tag->id)->exists()??false;
+            return $acao->cfg('operador')==='ausente'?!$presente:$presente;
+        }
         $guardado = $this->normalizar((string) data_get($conversa->chatbot_respostas ?? [], (string) $acao->cfg('campo')));
         $valor = $this->normalizar((string) $acao->cfg('valor'));
 
@@ -822,6 +897,7 @@ class ChatbotMotor
     /** Deixa o fluxo citar o nome do contato e o que ele respondeu antes. */
     private function comMarcadores(Conversation $conversa, string $texto): string
     {
+        return app(BlocosChatbot::class)->texto($conversa,$texto);
         $trocas = ['{{nome}}' => $conversa->contact?->nomeExibicao() ?? ''];
 
         foreach ($conversa->chatbot_respostas ?? [] as $chave => $valor) {
@@ -848,6 +924,19 @@ class ChatbotMotor
         $jobs = [];
 
         foreach ($this->saidas as $texto) {
+            if(is_array($texto) && isset($texto['interactive'])) {
+                $m=Message::create(['conversation_id'=>$conversa->id,'channel_id'=>$canal->id,'direcao'=>'out','automatica'=>true,'tipo'=>'text','corpo'=>$texto['texto'],'status'=>Message::STATUS_QUEUED]);
+                $jobs[]=new SendTextMessage($m->id,$texto['interactive']);continue;
+            }
+            if(is_array($texto) && isset($texto['midia'])) {
+                $m=Message::create(array_merge($texto['midia'],['conversation_id'=>$conversa->id,'channel_id'=>$canal->id,'direcao'=>'out','automatica'=>true,'status'=>Message::STATUS_QUEUED]));
+                $jobs[]=new \App\Jobs\SendMediaMessage($m->id);continue;
+            }
+            if(is_array($texto) && isset($texto['template'])) {
+                $t=$texto['template'];$values=$texto['valores'];
+                $m=Message::create(['conversation_id'=>$conversa->id,'channel_id'=>$canal->id,'direcao'=>'out','automatica'=>true,'tipo'=>'template','corpo'=>$t->renderizar($values),'status'=>Message::STATUS_QUEUED]);
+                $jobs[]=new \App\Jobs\SendTemplateMessage($m->id,$t->id,$values);continue;
+            }
             $texto = trim($texto);
 
             if ($texto === '') {

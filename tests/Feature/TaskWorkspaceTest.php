@@ -85,10 +85,8 @@ it('stores private attachments and blocks unauthorized download',function(){
     Livewire::test(Paineis::class)->call('editarItem',$this->item->id)->set('arquivo',UploadedFile::fake()->create('guide.pdf',10,'application/pdf'))->call('anexar')->assertHasNoErrors();
     $file=DB::table('board_attachments')->first();Storage::disk('local')->assertExists($file->path);
     $this->board->forceFill(['restrito'=>true])->save();
-    Livewire::actingAs($this->celso)->test(Paineis::class)->call('baixar',$file->id)
-        // Livewire 4.4: o findOrFail sob o escopo do tenant vira 404 no teste, em vez de
-        // exceção. O que importa continua igual: o registro de outra conta não é carregado.
-        ->assertStatus(404);
+    expect(fn()=>Livewire::actingAs($this->celso)->test(Paineis::class)->call('baixar',$file->id))
+        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 });
 it('saves panel configuration without replacing existing columns',function(){
     Livewire::test(Paineis::class)->call('configurar')->set('nomePainel','Equipe nova')->set('membros',[$this->celso->id=>'editor'])->set('restrito',true)->call('salvarConfiguracao')->assertHasNoErrors();

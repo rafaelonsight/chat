@@ -42,6 +42,12 @@ class Message extends Model
         // A transicao de estado da conversa mora aqui, num lugar so: toda
         // mensagem criada — pela tela, por job ou pela IA no futuro — move a
         // conversa do jeito certo sem depender de alguem lembrar.
+        static::creating(function(Message $mensagem){
+            if($mensagem->direcao==='out' && $mensagem->user_id && ! $mensagem->assinatura_nome){
+                $autor=\App\Models\User::withoutGlobalScopes()->find($mensagem->user_id);
+                if($autor && ($autor->tenant_id===$mensagem->tenant_id || $autor->operador)) $mensagem->assinatura_nome=$autor->nomePublico();
+            }
+        });
         static::created(function (Message $mensagem) {
             // Resposta automatica nao e atendimento: se movesse a conversa para
             // "em atendimento", ela sairia de Novos e ninguem veria o cliente

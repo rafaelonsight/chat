@@ -52,11 +52,9 @@ it('registra mudança de status e não repete quando não mudou', function () {
 it('não aceita status de outro painel', function () {
     $item = BoardItem::create($this->atributos);
     $outro = Funnel::criarCom('Outro');
-    Livewire::test(BoardItemDiscussion::class, ['itemId' => $item->id])
-        ->set('status', $outro->stages->first()->id)->call('alterarStatus')
-        // Livewire 4.4: o findOrFail sob o escopo do tenant vira 404 no teste, em vez de
-        // exceção. O que importa continua igual: o registro de outra conta não é carregado.
-        ->assertStatus(404);
+    expect(fn () => Livewire::test(BoardItemDiscussion::class, ['itemId' => $item->id])
+        ->set('status', $outro->stages->first()->id)->call('alterarStatus'))
+        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 });
 
 it('não abre discussão nem notifica colaborador de outra conta', function () {
@@ -67,10 +65,8 @@ it('não abre discussão nem notifica colaborador de outra conta', function () {
         ->set('texto', 'Interno')->set('mencoes', [$estranho->id])->call('enviar');
     expect($estranho->notifications()->count())->toBe(0);
     TenantContext::set($outro->id);
-    Livewire::actingAs($estranho)->test(BoardItemDiscussion::class, ['itemId' => $item->id])
-        // Livewire 4.4: o findOrFail sob o escopo do tenant vira 404 no teste, em vez de
-        // exceção. O que importa continua igual: o registro de outra conta não é carregado.
-        ->assertStatus(404);
+    expect(fn () => Livewire::actingAs($estranho)->test(BoardItemDiscussion::class, ['itemId' => $item->id]))
+        ->toThrow(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
 });
 
 it('gera links sem executar HTML ou protocolos perigosos', function () {

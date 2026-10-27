@@ -14,6 +14,7 @@ function cenarioGrupo(string $slug): array
     $t = Tenant::create(['nome' => strtoupper($slug), 'slug' => $slug]);
     TenantContext::set($t->id);
     $u = User::create(['tenant_id' => $t->id, 'name' => 'U', 'email' => "u@{$slug}.test", 'password' => 'segredo123']);
+    $u->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
     $c = Channel::create(['nome' => 'C']);
     $c->refresh();
     $c->update(['status' => 'open']);
@@ -178,7 +179,7 @@ it('identifica visualmente o autor interno pela cor configurada', function () {
     \Livewire\Livewire::actingAs($u)
         ->test(ConversationWindow::class, ['conversationId' => $conversa->id])
         ->assertSee('Rafael')
-        ->assertSee('!bg-blue-600', escape: false);
+        ->assertSee('vc-user-color-azul', escape: false);
 });
 
 it('aplica a cor ao historico antigo que ja tinha assinatura', function () {
@@ -193,7 +194,7 @@ it('aplica a cor ao historico antigo que ja tinha assinatura', function () {
 
     \Livewire\Livewire::actingAs($u)
         ->test(ConversationWindow::class, ['conversationId' => $conversa->id])
-        ->assertSee('!bg-blue-600', escape: false);
+        ->assertSee('vc-user-color-azul', escape: false);
 });
 
 it('envio para pessoa continua usando o telefone', function () {

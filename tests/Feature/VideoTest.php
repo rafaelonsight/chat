@@ -55,6 +55,7 @@ beforeEach(function () {
         'tenant_id' => $this->conta->id, 'name' => 'Atendente',
         'email' => 'atendente@video.test', 'password' => 'segredo123', 'admin' => true,
     ]);
+    $this->pessoa->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     $this->canal = Channel::create([
         'tenant_id' => $this->conta->id, 'nome' => 'Canal',
@@ -301,6 +302,7 @@ it('gente de outra conta nao vira anfitria', function () {
         'tenant_id' => $outra->id, 'name' => 'Dela',
         'email' => 'dela@video.test', 'password' => 'segredo123',
     ]);
+    $dela->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
     TenantContext::forget();
 
     $tela = Livewire::actingAs($dela)->test(Sala::class, ['token' => $r->token_convidado]);

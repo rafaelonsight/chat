@@ -19,7 +19,7 @@
         colunas voltam, independentemente do que o Alpine tenha decidido para o celular.
     --}}
     <div data-inbox
-         x-data="{ vista: 'lista' }"
+         x-data="{ vista: @js($conversaInicial ? 'conversa' : 'lista') }"
          x-on:abrir-conversa.window="vista = 'conversa'"
          x-on:abrir-detalhes.window="vista = (vista === 'detalhes' ? 'conversa' : 'detalhes')"
          x-on:voltar-para-lista.window="vista = 'lista'"
@@ -41,14 +41,18 @@
                   monitores operacionais. --}}
              class="vc-queue w-full shrink-0 flex-col border-r lg:flex lg:w-80 xl:w-[22.5rem]">
             <livewire:inbox.new-conversation />
-            <livewire:inbox.conversation-list />
+            <livewire:inbox.conversation-list :selecionada="$conversaInicial" :balde="$baldeInicial" />
         </div>
 
         {{-- conversa --}}
         <div :class="vista === 'conversa' ? 'flex' : 'hidden'"
              class="min-w-0 w-full flex-1 flex-col overflow-hidden lg:flex">
-            <livewire:inbox.conversation-window />
-            <livewire:inbox.message-composer />
+            <livewire:inbox.conversation-window :conversation-id="$conversaInicial" />
+            @if (! auth()->user()?->ehAuditor())
+                <livewire:inbox.message-composer :conversation-id="$conversaInicial" />
+            @else
+                <div class="border-t border-gray-200 p-4 text-sm text-gray-500">{{ __('ui_516dcbcd3ee6') }}</div>
+            @endif
         </div>
 
         {{--
@@ -58,7 +62,7 @@
             verdades sobre o mesmo painel.
         --}}
         <div :class="vista === 'detalhes' ? 'contents' : 'hidden'" class="lg:contents">
-            <livewire:inbox.contact-details />
+            <livewire:inbox.contact-details :conversation-id="$conversaInicial" />
         </div>
     </div>
 
@@ -92,7 +96,7 @@
             <div x-on:click.stop
                  class="w-full max-w-sm rounded-xl border border-gray-200 bg-white p-5 shadow-xl dark:border-white/10 dark:bg-gray-900">
                 <div class="mb-3 flex items-center justify-between">
-                    <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Atalhos de teclado</h2>
+                    <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100">{{ __('ui_1e9500f20441') }}</h2>
                     <button type="button" x-on:click="aberta = false"
                             class="rounded px-2 text-lg leading-none text-gray-400 hover:text-gray-700">&times;</button>
                 </div>
@@ -116,7 +120,7 @@
                 </dl>
 
                 <p class="mt-4 border-t border-gray-100 pt-3 text-xs text-gray-400 dark:border-white/5">
-                    Nenhum deles dispara enquanto você está escrevendo.
+                    {{ __('ui_5381702d6b10') }}
                 </p>
             </div>
         </div>

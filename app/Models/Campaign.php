@@ -36,11 +36,12 @@ class Campaign extends Model
         'tenant_id', 'channel_id', 'criada_por', 'nome', 'status',
         'publico', 'tag_id', 'corpo', 'meta_template_id', 'template_valores',
         'agendada_para', 'iniciada_em', 'concluida_em',
-        'por_minuto', 'hora_inicio', 'hora_fim',
+        'por_minuto', 'hora_inicio', 'hora_fim', 'configuracao', 'motivo_pausa',
     ];
 
     protected $casts = [
         'template_valores' => 'array',
+        'configuracao' => 'array',
         'agendada_para'    => 'datetime',
         'iniciada_em'      => 'datetime',
         'concluida_em'     => 'datetime',

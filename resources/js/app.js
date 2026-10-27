@@ -18,7 +18,7 @@ import Pusher from 'pusher-js';
 
 window.Pusher = Pusher;
 
-window.Echo = new Echo({
+window.Echo = document.querySelector('meta[name="agenda-update-mode"]')?.content === 'polling' ? null : new Echo({
     broadcaster: 'reverb',
     key: import.meta.env.VITE_REVERB_APP_KEY,
     wsHost: import.meta.env.VITE_REVERB_HOST,
@@ -240,6 +240,7 @@ const tenant = meta('onchat-tenant');
 // Uma ponte explícita também para a equipe: o Livewire atualiza os dados, o JS alerta.
 let usuarioDeAvisos = null;
 function conectarAvisosDaEquipe() {
+    if (!window.Echo) return;
     const usuario = meta('onchat-usuario');
     if (!usuario || usuarioDeAvisos === usuario) return;
     if (usuarioDeAvisos) window.Echo.leave(`recados.${usuarioDeAvisos}`);
@@ -280,7 +281,7 @@ function conectarAvisosDaEquipe() {
 conectarAvisosDaEquipe();
 document.addEventListener('livewire:navigated', conectarAvisosDaEquipe);
 
-if (tenant) {
+if (tenant && window.Echo) {
     const canal = window.Echo.private(`tenant.${tenant}.conversations`);
 
     canal.listen('.message.stored', (e) => {
@@ -326,7 +327,7 @@ if (tenant) {
  * parada olhando para uma tela de espera, e um aviso que evapora em quatro segundos enquanto o
  * atendente estava digitando deixa ela la ate desistir.
  */
-if (tenant) {
+if (tenant && window.Echo) {
     window.Echo.private(`tenant.${tenant}.conversations`)
         .listen('.sala.esperando', (e) => {
             bipe();
@@ -500,7 +501,7 @@ document.addEventListener('keydown', (e) => {
  * cara de normal e o cliente espera. O aviso e discreto de proposito, e some sozinho
  * quando volta.
  */
-const conexao = window.Echo.connector?.pusher?.connection;
+const conexao = window.Echo?.connector?.pusher?.connection;
 
 if (conexao) {
     const aviso = document.createElement('div');
@@ -679,3 +680,21 @@ window.addEventListener('storage', (e) => {
         }, 600);
     });
 }
+
+
+window.virtusNotificarEspera = async (aviso) => {
+    if (!window.onchatAvisoLigado() || aviso.demo) return;
+    const title = document.documentElement.lang?.startsWith('en') ? 'Customer awaiting reply' : 'Cliente aguardando resposta';
+    const body = [aviso.cliente, aviso.protocolo, `${aviso.minutos} min`].filter(Boolean).join(' · ');
+    const url = '/admin?conversa=' + Number(aviso.id);
+    try {
+        const registration = await navigator.serviceWorker?.getRegistration('/');
+        if (registration) {
+            await registration.showNotification(title, {body, tag:'virtus-espera-'+aviso.id, icon:'/apple-touch-icon.png', data:{url}, silent:true});
+        } else {
+            const notification = new Notification(title, {body, tag:'virtus-espera-'+aviso.id, silent:true});
+            notification.onclick = () => { window.focus(); window.location.assign(url); notification.close(); };
+        }
+    } catch (_) {}
+};
+window.virtusTestarNotificacao = () => testBrowserPush().catch(() => false);

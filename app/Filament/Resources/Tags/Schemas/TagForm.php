@@ -15,38 +15,29 @@ class TagForm
     {
         return $schema->components([
             TextInput::make('nome')
-                ->label('Nome')
+                ->label(__('ui_13030dd962f4'))
                 ->required()
                 ->maxLength(40)
-                ->unique(ignoreRecord: true)
+                ->rule(fn($get,?Tag $record)=>Rule::unique('tags','nome')->where('tenant_id',\App\Support\TenantContext::get())->where('contexto',$record?->contexto ?? $get('contexto'))->ignore($record?->id))
                 // Alimenta a previa do seletor de cor enquanto se digita.
                 ->live(onBlur: true)
-                ->helperText('Curto, porque vira uma pilula na tela. Ex.: Inadimplente, Cliente, Fornecedor.'),
+                ->helperText(__('ui_247f804fc64e')),
 
             // ONDE a etiqueta pode ser posta. Escolhido na criacao, e nao no uso: assim
             // "Cliente VIP" nem aparece na lista da conversa, e o atendente nao tem como
             // marcar no lugar errado — que e exatamente o que estraga o relatorio historico.
-            Radio::make('contexto')
-                ->label('Esta etiqueta descreve')
-                ->options(Tag::CONTEXTOS)
-                ->default(Tag::CONTATO)
-                ->required()
-                ->rule(Rule::in(array_keys(Tag::CONTEXTOS)))
-                ->helperText('Etiqueta de contato acompanha a pessoa para sempre. '
-                    .'Etiqueta de conversa fica presa ao atendimento — e é ela que faz o '
-                    .'relatório do mês passado continuar valendo. Etiqueta de item organiza '
-                    .'o trabalho nos painéis do CRM.'),
+            \Filament\Forms\Components\Hidden::make('contexto')->default(fn(?Tag $record)=>$record?->contexto ?? Tag::CONTATO)->required()->rule(Rule::in(array_keys(Tag::CONTEXTOS))),
 
             // Grade com as 24 cores da paleta. Paleta fechada de proposito: cor
             // livre gera etiqueta ilegivel. A validacao repete a lista porque o
             // valor chega do navegador.
             ViewField::make('cor')
-                ->label('Cor')
+                ->label(__('ui_62037d43904a'))
                 ->view('filament.forms.components.seletor-cor')
                 ->default('cinza')
                 ->required()
                 ->rule(Rule::in(array_keys(Tag::PALETA)))
-                ->helperText('Clique na cor. As setas do teclado também andam pela paleta.'),
+                ->helperText(__('ui_33006a3c4d16')),
         ]);
     }
 }

@@ -55,6 +55,7 @@ class Contact extends Model
     ];
 
     protected $casts = [
+        'chatbot_metadados'=>'array',
         'anonimizado_em' => 'datetime',
         'opt_out_em' => 'datetime',
         'arquivado_em' => 'datetime',

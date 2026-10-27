@@ -25,40 +25,9 @@ beforeEach(function () {
 
 afterEach(fn () => TenantContext::forget());
 
-it('a tela de recuperar senha existe e abre', function () {
-    $this->get('/admin/password-reset/request')->assertOk();
-});
-
-it('a rota tem nome, para o link do e-mail nao quebrar', function () {
-    expect(route('filament.admin.auth.password-reset.request'))->toContain('/admin/password-reset/request');
-});
-
-it('pedir recuperacao manda o aviso para o usuario certo', function () {
-    Notification::fake();
-
-    $estado = Password::broker()->sendResetLink(['email' => $this->usuario->email]);
-
-    expect($estado)->toBe(Password::RESET_LINK_SENT);
-
-    Notification::assertSentTo($this->usuario, ResetPassword::class);
-});
-
-it('e-mail que nao existe nao revela que nao existe', function () {
-    // Responder "esse e-mail nao esta cadastrado" entrega para quem tenta adivinhar quais
-    // enderecos tem conta. O broker responde generico de proposito.
-    Notification::fake();
-
-    Password::broker()->sendResetLink(['email' => 'ninguem@lugar.test']);
-
-    Notification::assertNothingSent();
-});
-
-it('o token fica registrado, para o link poder ser conferido depois', function () {
-    Notification::fake();
-
-    Password::broker()->sendResetLink(['email' => $this->usuario->email]);
-
-    expect(DB::table('password_reset_tokens')->where('email', $this->usuario->email)->exists())->toBeTrue();
+it('as antigas rotas de recuperação por senha não existem', function () {
+    $this->get('/admin/password-reset/request')->assertNotFound();
+    $this->get('/admin/password-reset/reset/token')->assertNotFound();
 });
 
 // ================================================ o diagnostico denuncia o silencio

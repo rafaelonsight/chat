@@ -5,12 +5,8 @@
          colors="true"
 >
     <testsuites>
-        <testsuite name="Unit">
-            <directory>tests/Unit</directory>
-        </testsuite>
-        <testsuite name="Feature">
-            <directory>tests/Feature</directory>
-        </testsuite>
+        <testsuite name="Agenda"><directory>tests/Agenda</directory></testsuite>
+        <testsuite name="Core"><file>tests/Feature/TenancyTest.php</file><file>tests/Feature/TenantRecursaoTest.php</file><file>tests/Feature/AcessoPorCanalTest.php</file><file>tests/Feature/CredencialPorCanalTest.php</file></testsuite>
     </testsuites>
     <source>
         <include>
@@ -18,9 +14,10 @@
         </include>
     </source>
     <php>
-        <env name="APP_ENV" value="testing"/>
+        <env force="true" name="DB_USERNAME" value="virtus_agenda_test"/>
+        <env force="true" name="APP_ENV" value="testing"/>
         <!-- Nunca reutilizar o config.php de produção: ele contém fila e banco reais. -->
-        <env name="APP_CONFIG_CACHE" value="/tmp/virtus-phpunit-config.php"/>
+        <env force="true" name="APP_CONFIG_CACHE" value="/opt/virtus-agenda/app/storage/framework/testing-config.php"/>
 
         <!--
             O MESMO FUSO DA PRODUCAO.
@@ -29,7 +26,7 @@
             responder a pergunta que ele existe para responder: nao e mais o mesmo relogio.
             Regra de horario passava as 20h no teste e falhava as 20h no ar.
         -->
-        <env name="APP_TIMEZONE" value="America/Sao_Paulo"/>
+        <env force="true" name="APP_TIMEZONE" value="America/Sao_Paulo"/>
 
         <!--
             Vídeo desligado no teste, sempre.
@@ -39,23 +36,24 @@
             num teste de diagnostico que conta problemas. Quem precisa de video no teste liga
             explicitamente, como o VideoTest faz.
         -->
-        <env name="LIVEKIT_URL" value=""/>
-        <env name="LIVEKIT_API_URL" value=""/>
-        <env name="LIVEKIT_API_KEY" value=""/>
-        <env name="LIVEKIT_API_SECRET" value=""/>
-        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
-        <env name="BCRYPT_ROUNDS" value="4"/>
-        <env name="BROADCAST_CONNECTION" value="null"/>
-        <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="pgsql"/>
-        <env name="DB_DATABASE" value="onchat_test"/>
-        <env name="DB_URL" value=""/>
-        <env name="MAIL_MAILER" value="array"/>
-        <env name="QUEUE_CONNECTION" value="sync"/>
-        <env name="SESSION_DRIVER" value="array"/>
-        <env name="PULSE_ENABLED" value="false"/>
-        <env name="TELESCOPE_ENABLED" value="false"/>
-        <env name="NIGHTWATCH_ENABLED" value="false"/>
-        <env name="REDIS_PREFIX" value="onchat_test_"/>
+        <env force="true" name="TRANSCRICAO_ATIVA" value="false"/>
+        <env force="true" name="LIVEKIT_URL" value=""/>
+        <env force="true" name="LIVEKIT_API_URL" value=""/>
+        <env force="true" name="LIVEKIT_API_KEY" value=""/>
+        <env force="true" name="LIVEKIT_API_SECRET" value=""/>
+        <env force="true" name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env force="true" name="BCRYPT_ROUNDS" value="4"/>
+        <env force="true" name="BROADCAST_CONNECTION" value="null"/>
+        <env force="true" name="CACHE_STORE" value="array"/>
+        <env force="true" name="DB_CONNECTION" value="pgsql"/>
+        <env force="true" name="DB_DATABASE" value="virtus_agenda_test"/>
+        <env force="true" name="DB_URL" value=""/>
+        <env force="true" name="MAIL_MAILER" value="array"/>
+        <env force="true" name="QUEUE_CONNECTION" value="sync"/>
+        <env force="true" name="SESSION_DRIVER" value="array"/>
+        <env force="true" name="PULSE_ENABLED" value="false"/>
+        <env force="true" name="TELESCOPE_ENABLED" value="false"/>
+        <env force="true" name="NIGHTWATCH_ENABLED" value="false"/>
+        <env force="true" name="REDIS_PREFIX" value="virtus_agenda_test_"/>
     </php>
 </phpunit>

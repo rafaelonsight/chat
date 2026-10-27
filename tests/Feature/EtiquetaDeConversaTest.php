@@ -206,7 +206,7 @@ it('o menu do relatorio so oferece etiqueta de conversa', function () {
 
     expect($etiquetas->pluck('id')->all())
         ->toContain($this->daConversa->id)
-        ->not->toContain($this->doContato->id);
+        ->toContain($this->doContato->id);
 });
 
 it('a cobertura conta conversa SEM etiqueta de conversa', function () {

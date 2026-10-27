@@ -217,3 +217,36 @@ it('monta o texto que o cliente vai ler, para conferir antes de enviar', functio
     expect($modelo->renderizar(['Rafael', '12345']))
         ->toBe("Order confirmed\n\nHi Rafael,\n\nYour order number is 12345.");
 });
+
+
+it('reconhece nomes repetidos uma vez e preserva valores literais na prévia', function () {
+    $d = MetaTemplate::analisar(['components' => [['type' => 'BODY', 'text' => 'Olá {{nome}}, pedido {{pedido}} de {{nome}}.']]]);
+    $m = new MetaTemplate($d);
+    expect($d['variaveis'])->toBe(2)
+        ->and($m->renderizar(['Rafael $1', 'ABC']))->toBe('Olá Rafael $1, pedido ABC de Rafael $1.');
+});
+
+it('não aceita mistura de parâmetros nomeados e posicionais', function () {
+    $d = MetaTemplate::analisar(['components' => [['type' => 'BODY', 'text' => 'Olá {{nome}} {{1}}']]]);
+    expect($d['suportado'])->toBeFalse();
+});
+
+it('preserva lista local se a resposta contém registro incompleto', function () {
+    app(SincronizarTemplatesMeta::class)->paraCanal($this->canal);
+    $this->respostaTemplates = ['data' => [['name' => 'incompleto']]];
+    $r = app(SincronizarTemplatesMeta::class)->paraCanal($this->canal);
+    expect($r['ok'])->toBeFalse()->and(MetaTemplate::count())->toBe(5);
+});
+
+it('preserva rascunhos locais ao sincronizar', function () {
+    MetaTemplate::create(['meta_waba_id' => '362', 'nome' => 'rascunho', 'idioma' => 'en_GB', 'status' => 'DRAFT', 'corpo' => 'Hello']);
+    app(SincronizarTemplatesMeta::class)->paraCanal($this->canal);
+    expect(MetaTemplate::where('status', 'DRAFT')->count())->toBe(1);
+});
+
+it('não remove templates quando a paginação excede a trava de segurança', function () {
+    app(SincronizarTemplatesMeta::class)->paraCanal($this->canal);
+    $this->respostaTemplates = ['data' => [templatesDaMeta()[0]], 'paging' => ['cursors' => ['after' => 'repetido'], 'next' => 'https://graph.facebook.com/next']];
+    $r = app(SincronizarTemplatesMeta::class)->paraCanal($this->canal);
+    expect($r['ok'])->toBeFalse()->and(MetaTemplate::count())->toBe(5);
+});

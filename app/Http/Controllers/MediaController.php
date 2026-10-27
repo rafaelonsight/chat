@@ -12,9 +12,11 @@ class MediaController extends Controller
 {
     public function __invoke(string $message): StreamedResponse
     {
+        abort_unless(auth()->user()?->consultaAnexos(),403);
         $mensagem = Message::find($message);
 
         abort_if(! $mensagem || ! $mensagem->media_path, 404);
+        abort_unless($mensagem->conversation && auth()->user()->podeVer($mensagem->conversation),403);
         abort_unless(Storage::disk('local')->exists($mensagem->media_path), 404);
 
         return Storage::disk('local')->response(

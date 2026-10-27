@@ -65,10 +65,10 @@
             <aside class="hidden w-56 shrink-0 space-y-5 lg:block">
                 <section class="rounded-xl border border-gray-200 bg-white p-3 dark:border-white/10 dark:bg-gray-900">
                     <div class="mb-2 flex items-center justify-between">
-                        <button type="button" wire:click="miniAnterior" aria-label="Mês anterior"
+                        <button type="button" wire:click="miniAnterior" aria-label="{{ __('ui_9ef462c393bb') }}"
                                 class="grid h-7 w-7 place-items-center rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10">&lsaquo;</button>
                         <span class="text-xs font-semibold text-gray-800 dark:text-gray-100">{{ $mesMini }}</span>
-                        <button type="button" wire:click="miniProximo" aria-label="Próximo mês"
+                        <button type="button" wire:click="miniProximo" aria-label="{{ __('ui_a6bc9247779d') }}"
                                 class="grid h-7 w-7 place-items-center rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10">&rsaquo;</button>
                     </div>
 
@@ -97,10 +97,10 @@
                 <section class="border-t border-gray-200 pt-4 dark:border-white/10">
                     <div class="mb-2 flex items-center justify-between">
                         <div>
-                            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">Páginas de reserva</h3>
-                            <p class="text-[11px] text-gray-500">Links que seus clientes usam</p>
+                            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">{{ __('ui_9e2ce8ff14d9') }}</h3>
+                            <p class="text-[11px] text-gray-500">{{ __('ui_90cdc53c74a0') }}</p>
                         </div>
-                        <button type="button" wire:click="verComo('link')" title="Nova página de reserva"
+                        <button type="button" wire:click="verComo('link')" title="{{ __('ui_3952ef8b5b8e') }}"
                                 class="grid h-7 w-7 place-items-center rounded-md text-gray-500 hover:bg-gray-100 dark:hover:bg-white/10">+</button>
                     </div>
 
@@ -116,13 +116,13 @@
                             </button>
                         @empty
                             <button type="button" wire:click="verComo('link')" class="w-full rounded-lg border border-dashed border-gray-300 px-3 py-3 text-left text-xs text-gray-500 hover:bg-gray-50 dark:border-white/15 dark:hover:bg-white/5">
-                                Criar primeira página de reserva
+                                {{ __('ui_e4fefc924f28') }}
                             </button>
                         @endforelse
                     </div>
 
                     @if ($paginasReserva->isNotEmpty())
-                        <button type="button" wire:click="verComo('link')" class="mt-2 text-xs font-medium text-primary-600 hover:underline dark:text-primary-400">Gerenciar páginas</button>
+                        <button type="button" wire:click="verComo('link')" class="mt-2 text-xs font-medium text-primary-600 hover:underline dark:text-primary-400">{{ __('ui_2134d16958a1') }}</button>
                     @endif
                 </section>
             </aside>
@@ -131,16 +131,16 @@
         {{-- ------------------------------------------------------------ barra --}}
         <div class="flex flex-wrap items-center gap-2">
             @unless ($this->visao === 'link')
-                <x-filament::button wire:click="novo" icon="heroicon-o-plus">Novo</x-filament::button>
+                <x-filament::button wire:click="novo" icon="heroicon-o-plus">{{ __('ui_887bef1273bb') }}</x-filament::button>
             @endunless
 
             @unless (in_array($this->visao, \App\Filament\Pages\Agenda::SEM_PERIODO, true))
-                <x-filament::button color="gray" size="sm" wire:click="hoje">Hoje</x-filament::button>
+                <x-filament::button color="gray" size="sm" wire:click="hoje">{{ __('ui_ba0084278453') }}</x-filament::button>
 
                 <div class="flex">
-                    <button type="button" wire:click="anterior" aria-label="Anterior"
+                    <button type="button" wire:click="anterior" aria-label="{{ __('ui_d97f1097b8f3') }}"
                             class="grid h-8 w-8 place-items-center rounded-l-lg border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-white/20 dark:text-gray-300 dark:hover:bg-white/5">&lsaquo;</button>
-                    <button type="button" wire:click="proximo" aria-label="Próximo"
+                    <button type="button" wire:click="proximo" aria-label="{{ __('ui_64b2d0d63475') }}"
                             class="-ml-px grid h-8 w-8 place-items-center rounded-r-lg border border-gray-300 text-gray-600 hover:bg-gray-50 dark:border-white/20 dark:text-gray-300 dark:hover:bg-white/5">&rsaquo;</button>
                 </div>
             @endunless
@@ -152,7 +152,7 @@
             @unless ($this->visao === 'link')
                 <select wire:model.live="quem"
                         class="h-8 rounded-lg border-gray-300 py-0 text-xs dark:border-white/20 dark:bg-gray-800">
-                    <option value="">Equipe toda</option>
+                    <option value="">{{ __('ui_52bec9247857') }}</option>
                     @foreach ($pessoas as $p)
                         <option value="{{ $p->id }}">{{ $p->name }}</option>
                     @endforeach
@@ -205,9 +205,9 @@
 
         @unless (in_array($this->visao, \App\Filament\Pages\Agenda::SEM_PERIODO, true))
             <p class="text-xs text-gray-400">
-                Clique num espaço vazio para marcar. Arraste para remarcar.
-                <span class="inline-block h-2 w-2 rounded-sm bg-indigo-400 align-middle"></span> compromisso ·
-                <span class="inline-block h-2 w-2 rounded-sm bg-amber-400 align-middle"></span> lembrete, só você vê
+                {{ __('ui_bb629fce6842') }}
+                <span class="inline-block h-2 w-2 rounded-sm bg-indigo-400 align-middle"></span> {{ __('ui_c8d5f4bf74dc') }}
+                <span class="inline-block h-2 w-2 rounded-sm bg-amber-400 align-middle"></span> {{ __('ui_ed3fbc8e1cf9') }}
             </p>
         @endunless
             </div>

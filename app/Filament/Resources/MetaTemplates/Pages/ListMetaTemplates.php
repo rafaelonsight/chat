@@ -16,19 +16,21 @@ class ListMetaTemplates extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('precosConsumo')->label(__('Preços e consumo'))->icon('heroicon-o-currency-pound')->color('gray')->url(\App\Filament\Pages\ConsumoConversas::getUrl()),
+            \Filament\Actions\CreateAction::make()->label(__('Novo template')),
             Action::make('sincronizar')
-                ->label('Sincronizar com a Meta')
+                ->label(__('ui_41e73b85660d'))
                 ->icon('heroicon-o-arrow-path')
                 ->action(function () {
                     $canais = Channel::where('tipo', Channel::META_CLOUD)
                         ->whereNotNull('meta_waba_id')
-                        ->get();
+                        ->get()->unique('meta_waba_id');
 
                     if ($canais->isEmpty()) {
                         Notification::make()
                             ->warning()
-                            ->title('Nenhum canal oficial com WABA ID')
-                            ->body('Cadastre o canal oficial com o WABA ID antes de sincronizar. Template vive na conta, nao no numero.')
+                            ->title(__('ui_7c40ae7d29ed'))
+                            ->body(__('ui_fcf057ac6558'))
                             ->persistent()
                             ->send();
 

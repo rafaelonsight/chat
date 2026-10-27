@@ -22,7 +22,23 @@ use Livewire\Attributes\Computed;
  */
 class EditarFluxo extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     use InteractsWithRecord;
+    use \Livewire\WithFileUploads;
+    public $arquivoBloco = null;
+    #[\Livewire\Attributes\Locked]
+    public array $itensCopiados = [];
+    public function copiarItens(): void {
+        $passo=$this->passoDo($this->passoAberto); if(!$passo)return;
+        $this->itensCopiados=$passo->actions()->orderBy("ordem")->get()->map(fn($a)=>["tipo"=>$a->tipo,"config"=>$a->config])->all();
+        Notification::make()->success()->title("Ações copiadas neste editor")->send();
+    }
+    public function colarItens(): void {
+        $passo=$this->passoDo($this->passoAberto);if(!$passo || !$this->itensCopiados)return;
+        $this->estruturaMudou(); foreach($this->itensCopiados as $a)$this->fluxo()->adicionarAcao($passo,$a["tipo"],$a["config"]);
+        Notification::make()->success()->title("Ações coladas. Conecte as saídas deste grupo.")->send();
+    }
 
     protected static string $resource = ChatbotResource::class;
 
@@ -40,6 +56,19 @@ class EditarFluxo extends Page
     public array $form = [];
 
     public bool $paletaAberta = false;
+    #[\Livewire\Attributes\Locked]
+    public array $simulacao = [];
+    public string $respostaTeste = '';
+    public function iniciarTeste(): void {
+        $this->simulacao = app(\App\Services\ChatbotSimulador::class)->iniciar($this->record);
+        $this->respostaTeste = '';
+    }
+    public function responderTeste(): void {
+        $this->simulacao = app(\App\Services\ChatbotSimulador::class)->responder($this->record, $this->simulacao, $this->respostaTeste);
+        $this->respostaTeste = '';
+    }
+    public function fecharTeste(): void { $this->simulacao = []; }
+
 
     public function mount(int|string $record): void
     {
@@ -87,7 +116,7 @@ class EditarFluxo extends Page
 
     public function getBreadcrumb(): string
     {
-        return 'Fluxo';
+        return __('ui_f7cf4eda51a1');
     }
 
     private function fluxo(): ChatbotFluxo
@@ -189,6 +218,7 @@ class EditarFluxo extends Page
     private function rotuloDoHandle(ChatbotAction $acao, string $handle): ?string
     {
         if ($acao->tipo === ChatbotAction::CONDICIONAL) {
+            if($acao->cfg('modo')==='multiplo'){if($handle==='padrao')return __('ui_312723131f3f');foreach($acao->cfg('casos',[]) as $caso)if('caso:'.$caso['id']===$handle)return $caso['nome'];}
             return $handle === ChatbotEdge::SIM ? 'sim' : 'não';
         }
 
@@ -204,6 +234,38 @@ class EditarFluxo extends Page
     }
 
     // ------------------------------------------------------------------- escrita
+
+    /** Organiza por distância do início; ramos e ciclos permanecem conectados. */
+    public function organizarGrupos(): void
+    {
+        $this->estruturaMudou();
+        $passos = $this->record->steps()->orderBy('id')->get();
+        $inicio = $passos->first(fn ($p) => $p->ehInicio());
+        if (! $inicio) return;
+        $saidas = $this->record->edges()->get()->groupBy('from_step_id');
+        $niveis = [$inicio->id => 0];
+        $fila = [$inicio->id];
+        for ($i = 0; $i < count($fila); $i++) {
+            foreach ($saidas[$fila[$i]] ?? [] as $aresta) {
+                if (! isset($niveis[$aresta->to_step_id])) {
+                    $niveis[$aresta->to_step_id] = $niveis[$fila[$i]] + 1;
+                    $fila[] = $aresta->to_step_id;
+                }
+            }
+        }
+        $ultimo = max($niveis) + 1;
+        $linhas = [];
+        \Illuminate\Support\Facades\DB::transaction(function () use ($passos, $niveis, $ultimo, &$linhas) {
+            foreach ($passos as $passo) {
+                $nivel = $niveis[$passo->id] ?? $ultimo;
+                $linha = $linhas[$nivel] ?? 0;
+                $passo->update(['x' => 60 + $nivel * 360, 'y' => 60 + $linha * 460]);
+                $linhas[$nivel] = $linha + 1;
+            }
+        });
+        $this->dispatch('fluxo-organizado');
+        Notification::make()->success()->title(__('ui_39e15f42872a'))->send();
+    }
 
     public function criarPasso(int $x = 400, int $y = 200): void
     {
@@ -285,8 +347,11 @@ class EditarFluxo extends Page
 
         $passo = $this->passoDo($this->passoAberto);
 
-        if (! $passo || ! array_key_exists($tipo, ChatbotAction::TIPOS)) {
-            return;
+        if (! array_key_exists($tipo, ChatbotAction::TIPOS)) return;
+        if (! $passo) {
+            $indice = $this->record->steps()->count();
+            $passo = $this->fluxo()->criarPasso($this->record, 420, 60 + $indice * 80, ChatbotAction::TIPOS[$tipo]);
+            $this->passoAberto = $passo->id;
         }
 
         $acao = $this->fluxo()->adicionarAcao($passo, $tipo, $this->configPadrao($tipo));
@@ -306,7 +371,7 @@ class EditarFluxo extends Page
             ChatbotAction::TRANSFERIR  => ['team_id' => null, 'aviso' => 'Vou te encaminhar para um atendente.'],
             ChatbotAction::CONCLUIR    => ['aviso' => 'Atendimento encerrado. Obrigado!'],
             ChatbotAction::ETIQUETA    => ['adicionar' => [], 'remover' => []],
-            default                    => [],
+            default                    => \App\Services\BlocosChatbot::padrao($tipo),
         };
     }
 
@@ -318,6 +383,7 @@ class EditarFluxo extends Page
             return;
         }
 
+        $this->arquivoBloco=null;
         $this->acaoAberta = $id;
         $this->passoAberto = $acao->step_id;
         $this->paletaAberta = false;
@@ -338,6 +404,22 @@ class EditarFluxo extends Page
         }
 
         $config = $this->form;
+        if($acao->tipo===ChatbotAction::MENSAGEM && ($config['tipo_midia']??'text')!=='text') {
+            if($this->arquivoBloco) {
+                $this->validate(['arquivoBloco'=>'file|max:20480|mimes:jpg,jpeg,png,webp,mp4,mp3,ogg,wav,pdf,doc,docx,xls,xlsx,txt']);
+                $mime=$this->arquivoBloco->getMimeType();$tipo=app(\App\Services\MediaService::class)->tipoPorMime($mime);
+                if($tipo!==$config['tipo_midia'])throw \Illuminate\Validation\ValidationException::withMessages(['arquivoBloco'=>'O arquivo precisa corresponder ao tipo de mídia escolhido.']);
+                $config['media_path']=$this->arquivoBloco->store('chatbots/'.$acao->tenant_id,'local');
+                $config['media_mime']=$mime;$config['media_nome']=$this->arquivoBloco->getClientOriginalName();
+            }
+            if(!preg_match('~^chatbots/'.$acao->tenant_id.'/[a-zA-Z0-9_.-]+$~',(string)($config['media_path']??'')) || !\Illuminate\Support\Facades\Storage::disk('local')->exists($config['media_path']))throw \Illuminate\Validation\ValidationException::withMessages(['arquivoBloco'=>'Envie um arquivo para este bloco.']);
+        }
+
+        if($acao->tipo===ChatbotAction::CONDICIONAL && ($config['modo']??'')!=='multiplo' && ($config['fonte']??'')==='etiqueta') {
+            if(!\App\Models\Tag::whereIn('contexto',['contato','conversa'])->whereKey((int)($config['etiqueta_id']??0))->exists()) throw \Illuminate\Validation\ValidationException::withMessages(['form.etiqueta_id'=>'Selecione uma etiqueta desta empresa.']);
+            $config['operador']=($config['operador']??'')==='ausente'?'ausente':'presente';
+        }
+        if($acao->tipo===ChatbotAction::ETIQUETA) foreach(['adicionar','remover'] as $campo) $config[$campo]=\App\Models\Tag::whereIn('contexto',['contato','conversa'])->whereIn('id',(array)($config[$campo]??[]))->pluck('id')->all();
 
         if ($acao->tipo === ChatbotAction::MENU) {
             // Opcao sem gatilho nao e escolhivel: some em vez de virar lixo no menu.
@@ -351,18 +433,47 @@ class EditarFluxo extends Page
                 ->all();
         }
 
+        if($acao->tipo===ChatbotAction::MENU && !empty($config['opcoes'])) {
+            $errors=\App\Services\MenuChatbot::validar((string)($config['formato']??'numerico'),$config['opcoes']);
+            if($errors!==[])throw \Illuminate\Validation\ValidationException::withMessages(['form.opcoes'=>implode(' ', $errors)]);
+        }
+        if(in_array($acao->tipo,['agente_ia','supervisor_ia']) && !empty($config['agente_id'])) {
+            $candidate=clone $acao;$candidate->config=$config;
+            try{app(\App\Services\BlocosChatbot::class)->configIA($candidate);}catch(\Throwable $e){throw \Illuminate\Validation\ValidationException::withMessages(['form.agente_id'=>'Selecione um agente ativo desta empresa com a função correspondente.']);}
+        }
+
         if ($acao->tipo === ChatbotAction::ESPERAR) {
             $config['segundos'] = max(1, (int) ($config['segundos'] ?? 1));
         }
 
+        if($acao->tipo===ChatbotAction::CONDICIONAL && ($config['modo']??'')==='multiplo'){
+            $errors=\App\Services\CondicoesChatbot::validar($config,$acao->tenant_id);
+            if($errors)throw \Illuminate\Validation\ValidationException::withMessages(['form.casos'=>implode(' ', $errors)]);
+        }
         $acao->update(['config' => $config]);
 
         // Gatilho removido deixa aresta orfa apontando para um caminho que nao
         // existe mais; a validacao acusaria e o usuario nao saberia por que.
         $this->limparArestasOrfas($acao->step);
 
-        Notification::make()->success()->title('Ação salva')->send();
+        Notification::make()->success()->title(__('ui_3424e755ec45'))->send();
     }
+
+    public function updatedForm(mixed $value,string $key): void {
+        if(preg_match('/^casos\.(\d+)\.regras\.(\d+)\.fonte$/',$key,$m)){
+            $this->form['casos'][(int)$m[1]]['regras'][(int)$m[2]]['operador']=$value==='etiqueta'?'presente':'igual';
+            $this->form['casos'][(int)$m[1]]['regras'][(int)$m[2]]['campo']='';
+        }
+    }
+    public function adicionarCasoCondicao(): void {
+        if(!$a=$this->acaoDo($this->acaoAberta))return;
+        if($a->tipo!==ChatbotAction::CONDICIONAL || count($this->form['casos']??[])>=10)return;
+        $this->form['casos'][]=['id'=>(string)\Illuminate\Support\Str::uuid(),'nome'=>'Nova saída','combinacao'=>'todas','regras'=>[['fonte'=>'resposta','campo'=>'','operador'=>'igual','valor'=>'']]];
+    }
+    public function removerCasoCondicao(int $index): void {if($this->acaoDo($this->acaoAberta)?->tipo!==ChatbotAction::CONDICIONAL)return;unset($this->form['casos'][$index]);$this->form['casos']=array_values($this->form['casos']??[]);}
+    public function adicionarRegraCondicao(int $index): void {if($this->acaoDo($this->acaoAberta)?->tipo!==ChatbotAction::CONDICIONAL || !isset($this->form['casos'][$index]) || count($this->form['casos'][$index]['regras']??[])>=10)return;$this->form['casos'][$index]['regras'][]=['fonte'=>'resposta','campo'=>'','operador'=>'igual','valor'=>''];}
+    public function removerRegraCondicao(int $caso,int $regra): void {if($this->acaoDo($this->acaoAberta)?->tipo!==ChatbotAction::CONDICIONAL)return;unset($this->form['casos'][$caso]['regras'][$regra]);$this->form['casos'][$caso]['regras']=array_values($this->form['casos'][$caso]['regras']??[]);}
+    public function moverCasoCondicao(int $index,int $direcao): void {if($this->acaoDo($this->acaoAberta)?->tipo!==ChatbotAction::CONDICIONAL || !in_array($direcao,[-1,1]))return;$to=$index+$direcao;if(isset($this->form['casos'][$index],$this->form['casos'][$to]))[$this->form['casos'][$index],$this->form['casos'][$to]]=[$this->form['casos'][$to],$this->form['casos'][$index]];}
 
     private function limparArestasOrfas(ChatbotStep $passo): void
     {
@@ -445,6 +556,12 @@ class EditarFluxo extends Page
         $this->passoDo($deId)?->saidas()->where('from_handle', $handle)->delete();
     }
 
+    public function desativar(): void
+    {
+        $this->record->update(['ativo' => false]);
+        Notification::make()->success()->title(__('ui_5f3616f1c9ea'))->send();
+    }
+
     public function publicar(): void
     {
         $this->estruturaMudou();
@@ -454,7 +571,7 @@ class EditarFluxo extends Page
         if ($problemas !== []) {
             Notification::make()
                 ->danger()
-                ->title('O fluxo ainda não pode ser publicado')
+                ->title(__('ui_c7e71ed36ad9'))
                 ->body(implode("\n", array_slice($problemas, 0, 4)))
                 ->send();
 
@@ -465,8 +582,8 @@ class EditarFluxo extends Page
 
         Notification::make()
             ->success()
-            ->title('Fluxo publicado')
-            ->body('Versão '.$this->record->versao.'. A partir de agora é este que atende.')
+            ->title(__('ui_a04e4a2210b2'))
+            ->body(__('ui_ab86dbdd802c').$this->record->versao.'. A partir de agora é este que atende.')
             ->send();
     }
 
@@ -475,14 +592,14 @@ class EditarFluxo extends Page
         $this->estruturaMudou();
 
         if ($this->record->steps()->where('tipo', ChatbotStep::GRUPO)->exists()) {
-            Notification::make()->warning()->title('Este fluxo já tem grupos')->send();
+            Notification::make()->warning()->title(__('ui_e5ea5e026444'))->send();
 
             return;
         }
 
         $this->fluxo()->criarExemplo($this->record);
 
-        Notification::make()->success()->title('Fluxo de exemplo criado')->send();
+        Notification::make()->success()->title(__('ui_53a4ec8d07d5'))->send();
     }
 
     // --------------------------------------------------------------------- apoio

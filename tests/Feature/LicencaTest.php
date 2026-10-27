@@ -23,6 +23,7 @@ beforeEach(function () {
         "tenant_id" => $this->casa->id, "name" => "Dono",
         "email" => "dono@casa.test", "password" => "segredo123", "admin" => true,
     ]);
+    $this->operador->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
     $this->operador->forceFill(["operador" => true])->save();
 });
 
@@ -34,6 +35,7 @@ function tenantComUsuario(string $slug, array $licenca = []): array
         "tenant_id" => $tenant->id, "name" => "Fulano",
         "email" => $slug."@teste.test", "password" => "segredo123", "admin" => true,
     ]);
+    $usuario->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     if ($licenca !== []) {
         License::updateOrCreate(

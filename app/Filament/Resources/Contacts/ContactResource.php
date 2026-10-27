@@ -17,6 +17,8 @@ use UnitEnum;
 
 class ContactResource extends Resource
 {
+    use \App\Filament\TraduzirResource;
+
     protected static ?string $model = Contact::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedIdentification;
@@ -39,11 +41,16 @@ class ContactResource extends Resource
     protected static ?int $navigationSort = 2;
 
     protected static ?string $recordTitleAttribute = 'nome';
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query=parent::getEloquentQuery();
+        return config('agenda.edition') ? $query->where('contacts.tipo',Contact::PESSOA) : $query;
+    }
 
     // Atendente precisa consultar cliente: isto nao e tela de gestao.
     public static function canViewAny(): bool
     {
-        return auth()->check();
+        return auth()->check() && !auth()->user()->isAgendaProfessional();
     }
 
     public static function form(Schema $schema): Schema

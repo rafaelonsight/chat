@@ -19,10 +19,17 @@ class MessageStored implements ShouldBroadcast
 
     public function broadcastOn(): array
     {
+        // Also neutralizes already queued broadcast jobs in Agenda polling mode.
+        if (!$this->broadcastWhen()) return [];
         return [
             new PrivateChannel('conversation.'.$this->message->conversation_id),
             new PrivateChannel('tenant.'.$this->message->tenant_id.'.conversations'),
         ];
+    }
+
+    public function broadcastWhen(): bool
+    {
+        return !config('agenda.edition') || (bool)config('agenda.realtime_enabled');
     }
 
     public function broadcastAs(): string

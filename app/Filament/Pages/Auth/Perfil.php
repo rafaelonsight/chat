@@ -26,6 +26,10 @@ use Filament\Schemas\Schema;
  */
 class Perfil extends EditProfile
 {
+    protected function afterSave(): void
+    {
+        if(auth()->user()->wasChanged('password'))app(\App\Services\AgendaAccess::class)->selfPasswordChanged(auth()->user());
+    }
     // /admin/perfil e nao /admin/profile: o resto do produto e /admin/cadastro,
     // /admin/clientes, /admin/primeiros-passos. Uma URL em ingles no meio nao quebra nada,
     // mas e o tipo de detalhe que denuncia software montado as pressas.
@@ -34,10 +38,20 @@ class Perfil extends EditProfile
     public function form(Schema $schema): Schema
     {
         return $schema->components([
-            $this->getNameFormComponent(),
+            $this->getNameFormComponent()->label(__('ui_695fc3f31688')),
+            TextInput::make('apelido')->label(__('ui_4f284fbc6bfc'))->required()->maxLength(40)->regex("/^[\pL\pN][\pL\pN .'-]*$/u")->helperText(__('ui_2aafb378c5b3')),
+            TextInput::make('telefone')->label(__('ui_04e0410282ed'))->tel()->required()->maxLength(30),
+            TextInput::make('cargo')->label(__('ui_6c98e86fc49b'))->maxLength(100),
+            \App\Forms\Components\PaletaDeCores::make('cor_chat')->label(__('ui_10eb03864ece')),
+            \Filament\Schemas\Components\Text::make(new \Illuminate\Support\HtmlString('<a href="/meu-perfil" class="underline">Atualizar foto e apresentação</a>')),
+
+
+            $this->getPasswordFormComponent(),
+            $this->getPasswordConfirmationFormComponent(),
+            $this->getCurrentPasswordFormComponent(),
 
             TextInput::make('email')
-                ->label('E-mail')
+                ->label(__('ui_0d01e2e86669'))
                 ->disabled()
                 // dehydrated(false) tira o campo do que e salvo. Sem isto, um campo desabilitado
                 // ainda viaja no formulario e o valor do navegador — que da para editar — seria
@@ -45,19 +59,16 @@ class Perfil extends EditProfile
                 ->dehydrated(false)
                 ->belowContent('É com ele que você entra. Para trocar, peça ao administrador da conta.'),
 
-            $this->getCurrentPasswordFormComponent(),
-            $this->getPasswordFormComponent(),
-            $this->getPasswordConfirmationFormComponent(),
         ]);
     }
 
     public function getTitle(): string
     {
-        return 'Meu perfil';
+        return __('ui_742e3d06caa4');
     }
 
     public function getHeading(): string
     {
-        return 'Meu perfil';
+        return __('ui_742e3d06caa4');
     }
 }

@@ -17,12 +17,12 @@ class LicensesTable
             ->modifyQueryUsing(fn ($query) => $query->with('tenant'))
             ->columns([
                 TextColumn::make('tenant.nome')
-                    ->label('Cliente')
+                    ->label(__('ui_c5c7d5ee3d61'))
                     ->searchable()
                     ->sortable(),
 
                 TextColumn::make('status')
-                    ->label('Status')
+                    ->label(__('ui_bae7d5be7082'))
                     ->badge()
                     ->formatStateUsing(fn (string $state) => License::STATUS[$state] ?? $state)
                     ->color(fn (string $state) => match ($state) {
@@ -34,11 +34,11 @@ class LicensesTable
                     }),
 
                 TextColumn::make('plano')
-                    ->label('Plano')
+                    ->label(__('ui_eac9e53a1678'))
                     ->placeholder('—'),
 
                 TextColumn::make('vence_em')
-                    ->label('Vence em')
+                    ->label(__('ui_39e35d115789'))
                     ->dateTime('d/m/Y')
                     ->sortable()
                     ->placeholder('—'),
@@ -46,7 +46,7 @@ class LicensesTable
             ->recordActions([
                 EditAction::make(),
             ])
-            ->emptyStateHeading('Nenhuma licença ainda')
-            ->emptyStateDescription('Toda conta nasce com uma licença — cadastre um cliente na tela de Clientes.');
+            ->emptyStateHeading(__('ui_59d766a8c286'))
+            ->emptyStateDescription(__('ui_6c8a1240a3f7'));
     }
 }

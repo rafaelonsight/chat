@@ -17,6 +17,8 @@ use UnitEnum;
 
 class ProposalResource extends Resource
 {
+    use \App\Filament\TraduzirResource;
+
     protected static bool $shouldRegisterNavigation = false;
 
     public static function canViewAny(): bool

@@ -59,6 +59,7 @@ class SendTemplateMessage implements ShouldQueue
         }
 
         TenantContext::runAs($mensagem->tenant_id, function () use ($mensagem, $enviadores) {
+            if (!app(\App\Services\RelatorioCampanha::class)->permitirEnvio($mensagem)) return;
             $canal = $mensagem->conversation->channel;
             $enviador = $enviadores->para($canal);
 

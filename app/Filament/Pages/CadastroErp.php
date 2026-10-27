@@ -19,6 +19,8 @@ use UnitEnum;
  */
 class CadastroErp extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static bool $shouldRegisterNavigation = false;
 
     public static function canAccess(): bool

@@ -29,7 +29,7 @@ it('nao aceita duas etiquetas com o mesmo nome, mesmo trocando maiuscula', funct
     // O indice e sobre lower(nome): "cliente" e "Cliente" sao a mesma etiqueta, e
     // duas iguais na lista de escolha e confusao pura.
     expect(fn () => Tag::create(['nome' => 'CLIENTE', 'cor' => 'azul']))
-        ->toThrow(Illuminate\Database\UniqueConstraintViolationException::class);
+        ->toThrow(Illuminate\Validation\ValidationException::class);
 });
 
 it('registra quem aplicou e por qual caminho', function () {
@@ -189,6 +189,7 @@ it('o seletor mostra as cores, nao o nome delas num select', function () {
 
     // O modal do Filament so monta no navegador, entao o HTML do seletor e
     // conferido na pagina de edicao — mesmo TagForm, mesma blade.
+    $u->forceFill(['apelido'=>'Admin','telefone'=>'11999999999','perfil_preenchido_em'=>now()])->saveQuietly();
     $html = $this->actingAs($u)
         ->get("/admin/tags/{$tag->id}/edit")
         ->assertSuccessful()

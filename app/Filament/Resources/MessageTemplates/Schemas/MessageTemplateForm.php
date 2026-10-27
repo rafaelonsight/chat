@@ -18,31 +18,31 @@ class MessageTemplateForm
 
         return $schema->components([
             TextInput::make('titulo')
-                ->label('Título')
+                ->label(__('ui_98a5efa60beb'))
                 ->required()
                 ->maxLength(120)
-                ->helperText('Como o atendente reconhece o modelo na lista.'),
+                ->helperText(__('ui_0287f0cc9ea7')),
 
             TextInput::make('atalho')
-                ->label('Atalho')
+                ->label(__('ui_fd3728e73db3'))
                 ->required()
                 ->maxLength(40)
                 ->unique(ignoreRecord: true)
-                ->helperText('Palavra curta para achar rápido. Ex.: boleto, senha, agendamento.')
+                ->helperText(__('ui_e0819bf0f4cf'))
                 ->dehydrateStateUsing(fn ($state) => mb_strtolower(trim((string) $state))),
 
             Textarea::make('corpo')
-                ->label('Mensagem')
+                ->label(__('ui_eaffb6306dc5'))
                 ->required()
                 ->rows(6)
                 ->maxLength(4000)
-                ->helperText('Marcadores disponíveis: '.$marcadores)
+                ->helperText(__('ui_f8cb11c6694b').$marcadores)
                 ->columnSpanFull(),
 
             Toggle::make('ativo')
-                ->label('Ativo')
+                ->label(__('ui_8263fde6ccc4'))
                 ->default(true)
-                ->helperText('Desativado continua salvo, mas não aparece para o atendente.'),
+                ->helperText(__('ui_e83624472209')),
         ]);
     }
 }

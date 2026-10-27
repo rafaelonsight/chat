@@ -25,6 +25,8 @@ use UnitEnum;
  */
 class Reunioes extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedVideoCamera;
 
     protected static string|UnitEnum|null $navigationGroup = 'CRM';

@@ -204,3 +204,17 @@ it('canal sem janela nao mostra template nenhum', function () {
         ->assertViewHas('templatesDisponiveis', fn ($t) => $t->isEmpty())
         ->assertDontSee('cobrado pela Meta');
 });
+
+it('selecionar e cancelar a previa nao envia nem cria mensagem', function () {
+ fecharJanela();
+ Livewire::actingAs($this->usuario)->test(MessageComposer::class,['conversationId'=>$this->conversa->id])
+ ->call('escolherTemplate',$this->modelo->id)->assertSee('Confirmar envio')
+ ->call('limparTemplate')->assertSet('templateId',null);
+ expect(Message::count())->toBe(0); Queue::assertNothingPushed();
+});
+it('recusa parametros removidos pelo navegador', function () {
+ fecharJanela();
+ Livewire::actingAs($this->usuario)->test(MessageComposer::class,['conversationId'=>$this->conversa->id])
+ ->call('escolherTemplate',$this->modelo->id)->set('valoresTemplate',[])->call('enviarTemplate')->assertHasErrors('template');
+ expect(Message::count())->toBe(0); Queue::assertNothingPushed();
+});

@@ -16,6 +16,8 @@ use Illuminate\Support\Carbon;
 
 class Relatorios extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedChartBar;
 
     // Grupo proprio, e nao item solto, por dois motivos: no Filament itens sem
@@ -41,11 +43,13 @@ class Relatorios extends Page
      * para "todas" — e '' num int tipado explode antes de chegar aqui.
      */
     public ?string $etiqueta = null;
+    public ?string $equipe = null;
+    public ?string $atendente = null;
 
     // Dado de gestao: atendente nao ve.
     public static function canAccess(): bool
     {
-        return (bool) auth()->user()?->admin;
+        return (bool) auth()->user()?->consultaRelatorios();
     }
 
     public function periodo(int $dias): void
@@ -78,10 +82,11 @@ class Relatorios extends Page
      */
     private function conversas(): \Illuminate\Database\Eloquent\Builder
     {
-        $q = Conversation::query();
+        $q = Conversation::query()->when((int)$this->equipe,fn($q,$id)=>$q->where('team_id',$id))->when((int)$this->atendente,fn($q,$id)=>$q->where('atendente_id',$id));
 
         if ($id = $this->etiquetaId()) {
-            $q->whereHas('tags', fn ($t) => $t->whereKey($id));
+            $relacao=Tag::find($id)?->contexto==='contato'?'contact.tags':'tags';
+            $q->whereHas($relacao,fn($t)=>$t->whereKey($id));
         }
 
         return $q;
@@ -89,10 +94,11 @@ class Relatorios extends Page
 
     private function mensagens(): \Illuminate\Database\Eloquent\Builder
     {
-        $q = Message::query();
+        $q = Message::query()->when((int)$this->equipe || (int)$this->atendente,fn($q)=>$q->whereIn('conversation_id',$this->conversas()->select('conversations.id')));
 
         if ($id = $this->etiquetaId()) {
-            $q->whereHas('conversation.tags', fn ($t) => $t->whereKey($id));
+            $relacao=Tag::find($id)?->contexto==='contato'?'conversation.contact.tags':'conversation.tags';
+            $q->whereHas($relacao,fn($t)=>$t->whereKey($id));
         }
 
         return $q;
@@ -102,7 +108,7 @@ class Relatorios extends Page
     {
         return [
             Action::make('exportar')
-                ->label('Exportar CSV')
+                ->label(__('ui_555da043aae8'))->visible(fn()=>!auth()->user()?->ehAuditor())
                 ->icon('heroicon-o-arrow-down-tray')
                 ->action(fn () => $this->exportar()),
         ];
@@ -117,6 +123,7 @@ class Relatorios extends Page
      */
     public function exportar(): \Symfony\Component\HttpFoundation\StreamedResponse
     {
+        abort_if(auth()->user()?->ehAuditor(),403);
         $desde = now()->subDays($this->dias);
 
         // O recorte vai no NOME do arquivo. Planilha baixada como "relatorio.csv" vira um
@@ -265,8 +272,8 @@ class Relatorios extends Page
             ->count();
 
         // So as de conversa: e por elas que este relatorio agrupa, e oferecer uma etiqueta
-        // de contato no menu daria zero resultado sem explicar por que.
-        $etiquetas = Tag::deConversa()->orderBy('nome')->get();
+        // O seletor distingue o cadastro atual do contato da classificação do atendimento.
+        $etiquetas = Tag::whereIn('contexto',['contato','conversa'])->orderBy('contexto')->orderBy('nome')->get();
         $etiquetaEscolhida = $this->etiquetaId()
             ? $etiquetas->firstWhere('id', $this->etiquetaId())
             : null;

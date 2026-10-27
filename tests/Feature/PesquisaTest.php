@@ -87,7 +87,7 @@ function respostaDoCliente(string $texto, $ctx): Message
 it('pergunta ao encerrar, quando a conta pediu', function () {
     Livewire::actingAs($this->pessoa)
         ->test(ConversationWindow::class, ['conversationId' => $this->conversa->id])
-        ->call('finalizar');
+        ->call('finalizar')->set('enviarPesquisa',true)->set('assuntoEncerramento','Atendimento')->set('resumoEncerramento','Orientações fornecidas ao cliente.')->call('encerrar');
 
     $pergunta = Message::where('direcao', 'out')->latest('id')->first();
 
@@ -104,7 +104,7 @@ it('nao pergunta quando a conta nao pediu', function () {
 
     Livewire::actingAs($this->pessoa)
         ->test(ConversationWindow::class, ['conversationId' => $this->conversa->id])
-        ->call('finalizar');
+        ->call('finalizar')->set('assuntoEncerramento','Atendimento')->set('resumoEncerramento','Orientações fornecidas ao cliente.')->call('encerrar');
 
     expect(Message::where('direcao', 'out')->count())->toBe(0)
         ->and($this->conversa->fresh()->pesquisa_enviada_em)->toBeNull();
@@ -126,7 +126,7 @@ it('nao pergunta com a janela de 24h fechada no canal oficial', function () {
 
     Livewire::actingAs($this->pessoa)
         ->test(ConversationWindow::class, ['conversationId' => $fechada->id])
-        ->call('finalizar');
+        ->call('finalizar')->set('assuntoEncerramento','Atendimento')->set('resumoEncerramento','Orientações fornecidas ao cliente.')->call('encerrar');
 
     expect($fechada->fresh()->pesquisa_enviada_em)->toBeNull();
 });

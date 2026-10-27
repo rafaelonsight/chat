@@ -34,6 +34,8 @@ use UnitEnum;
  */
 class Agenda extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedCalendarDays;
 
     protected static string|UnitEnum|null $navigationGroup = 'CRM';
@@ -895,11 +897,11 @@ class Agenda extends Page
         }
 
         if ($this->visao === 'lista') {
-            return 'O que está por vir';
+            return __('ui_1090f215442b');
         }
 
         if ($this->visao === 'link') {
-            return 'Link de agendamento';
+            return __('ui_e1c4584b4c8a');
         }
 
         $de = $d->copy()->startOfWeek(Carbon::SUNDAY);

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Aplica e remove etiquetas de contato.
+ * Aplica e remove etiquetas de contato, atendimento e tarefas.
  *
  * Existe como servico, e nao solto no controlador, porque a etiqueta vai ser
  * aplicada por tres caminhos diferentes — mao do atendente, chatbot e agente de
@@ -67,7 +67,7 @@ class Etiquetador
         // So etiqueta do contexto certo. O filtro esta AQUI, e nao so no menu da tela, porque
         // o id chega de fora — do navegador, do chatbot, da importacao — e etiqueta no lugar
         // errado e exatamente o que estraga o relatorio historico.
-        $validos = Tag::whereKey($tagIds)->where('contexto', self::contextoDe($alvo))->pluck('id')->all();
+        $validos = Tag::where('tenant_id',$alvo->tenant_id)->whereKey($tagIds)->where('contexto', self::contextoDe($alvo))->pluck('id')->all();
 
         if ($validos === []) {
             return 0;
@@ -77,6 +77,7 @@ class Etiquetador
         $aplicadas = 0;
 
         DB::transaction(function () use ($alvo, $validos, $origem, $usuarioId, $agora, &$aplicadas) {
+            DB::table($alvo->getTable())->where('id',$alvo->id)->where('tenant_id',$alvo->tenant_id)->lockForUpdate()->first();
             foreach ($validos as $id) {
                 // Ja tem: nao reescreve. A primeira aplicacao e a que conta, senao
                 // o rastro de origem seria sobrescrito por quem passou depois.
@@ -90,6 +91,7 @@ class Etiquetador
                     'created_at'   => $agora,
                 ]);
 
+                $this->registrar($alvo,$id,'aplicar',$origem,$usuarioId??auth()->id());
                 $aplicadas++;
             }
         });
@@ -100,9 +102,17 @@ class Etiquetador
     /**
      * @param  array<int, int>  $tagIds
      */
-    public function remover(Model $alvo, array $tagIds): int
-    {
-        return $alvo->tags()->detach(Tag::whereKey($tagIds)->pluck('id')->all());
+    public function remover(Model $alvo,array $tagIds,string $origem=self::MANUAL,?int $usuarioId=null): int {
+        $validos=Tag::where('tenant_id',$alvo->tenant_id)->where('contexto',self::contextoDe($alvo))->whereKey($tagIds)->pluck('id')->all();
+        return DB::transaction(function()use($alvo,$validos,$origem,$usuarioId){
+            $presentes=$alvo->tags()->whereIn('tags.id',$validos)->pluck('tags.id')->all();
+            foreach($presentes as $id)$this->registrar($alvo,$id,'remover',$origem,$usuarioId??auth()->id());
+            return $alvo->tags()->detach($presentes);
+        });
+    }
+    private function registrar(Model $alvo,int $id,string $acao,string $origem,?int $usuarioId): void {
+        $tag=Tag::where('tenant_id',$alvo->tenant_id)->findOrFail($id);
+        DB::table('etiqueta_movimentos')->insert(['tenant_id'=>$alvo->tenant_id,'tag_id'=>$id,'etiqueta_nome'=>$tag->nome,'contexto'=>$tag->contexto,'alvo_tipo'=>$alvo->getMorphClass(),'alvo_id'=>$alvo->id,'acao'=>$acao,'origem'=>$origem,'usuario_id'=>$usuarioId,'created_at'=>now()]);
     }
 
     /**
@@ -113,9 +123,9 @@ class Etiquetador
      */
     public function sincronizar(Model $alvo, array $tagIds, string $origem = self::MANUAL, ?int $usuarioId = null): void
     {
-        $validos = Tag::whereKey($tagIds)->where('contexto', self::contextoDe($alvo))->pluck('id')->all();
+        $validos = Tag::where('tenant_id',$alvo->tenant_id)->whereKey($tagIds)->where('contexto', self::contextoDe($alvo))->pluck('id')->all();
 
-        $alvo->tags()->detach(array_diff($alvo->tags()->pluck('tags.id')->all(), $validos));
+        $this->remover($alvo,array_diff($alvo->tags()->pluck('tags.id')->all(),$validos),$origem,$usuarioId);
         $this->aplicar($alvo, $validos, $origem, $usuarioId);
     }
 
@@ -127,6 +137,6 @@ class Etiquetador
      */
     private static function contextoDe(Model $alvo): string
     {
-        return $alvo instanceof \App\Models\Conversation ? Tag::CONVERSA : Tag::CONTATO;
+        return match(true){$alvo instanceof \App\Models\Conversation=>Tag::CONVERSA,$alvo instanceof \App\Models\BoardItem=>Tag::ITEM,default=>Tag::CONTATO};
     }
 }

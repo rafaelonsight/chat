@@ -1,5 +1,10 @@
 <?php
 
+if (config('agenda.edition')) {
+    require __DIR__.'/agenda-web.php';
+    return;
+}
+
 use Illuminate\Support\Facades\Route;
 
 Route::get('/internal-media/{id}', function (int $id) {
@@ -84,15 +89,31 @@ Route::get('/saude', function () {
  * do painel, senao mostraria por tras justamente o que ela existe para esconder.
  */
 Route::middleware('auth')->group(function () {
+    Route::post('/suporte/selecionar', function (\Illuminate\Http\Request $pedido) {
+        abort_unless($pedido->user()?->operador && $pedido->user()?->super_admin, 403);
+        $data=$pedido->validate(['tenant_id'=>'required|integer|exists:tenants,id']);
+        $pedido->session()->put(\App\Support\TenantContext::CHAVE_SESSAO_SUPORTE,(int)$data['tenant_id']);
+        return redirect('/admin');
+    })->name('suporte.selecionar');
+
     Route::post('/suporte/sair', function (\Illuminate\Http\Request $pedido) {
         abort_unless($pedido->user()?->operador && $pedido->user()?->super_admin, 403);
         $pedido->session()->forget(\App\Support\TenantContext::CHAVE_SESSAO_SUPORTE);
 
-        return redirect('/admin/suporte/contas');
+        return redirect('/gestao/clientes');
     })->name('suporte.sair');
 
     // Cadastro Incorporado (Embedded Signup): o popup da Meta devolve code + ids por
     // JS, e e o JS quem chama esta rota para trocar isso por um canal pronto.
+    Route::get('/canais/meta/resultado', [App\Http\Controllers\MetaEmbeddedSignupController::class, 'resultado'])
+        ->name('canais.meta.resultado');
+
+    Route::post('/canais/meta/receber', [App\Http\Controllers\MetaEmbeddedSignupController::class, 'receber'])
+        ->name('canais.meta.receber');
+
+    Route::post('/canais/meta/iniciar', [App\Http\Controllers\MetaEmbeddedSignupController::class, 'iniciar'])
+        ->name('canais.meta.iniciar');
+
     Route::post('/canais/meta/conectar-incorporado', [App\Http\Controllers\MetaEmbeddedSignupController::class, 'conectar'])
         ->name('canais.meta.conectar-incorporado');
 
@@ -117,44 +138,15 @@ Route::middleware('auth')->group(function () {
 
     // POST e nao GET: bloquear muda estado, e link visitado por engano nao pode
     // trancar a tela de ninguem.
+    // Bloquear exige um novo código, sem manter uma alternativa de senha.
     Route::post('/sessao/bloquear', function (\Illuminate\Http\Request $pedido) {
-        $pedido->session()->put(\App\Http\Middleware\SessaoBloqueada::CHAVE, true);
-
-        return redirect()->route('sessao.travada');
+        \Illuminate\Support\Facades\Auth::logout();
+        $pedido->session()->invalidate();
+        $pedido->session()->regenerateToken();
+        return redirect('/admin/login');
     })->name('sessao.bloquear');
-
-    Route::get('/sessao/travada', function (\Illuminate\Http\Request $pedido) {
-        // Sessao destravada nao tem o que fazer nesta tela.
-        if (! $pedido->session()->get(\App\Http\Middleware\SessaoBloqueada::CHAVE)) {
-            return redirect('/admin');
-        }
-
-        $usuario = $pedido->user();
-
-        return view('sessao.travada', [
-            'nome'     => $usuario->name,
-            'iniciais' => \Illuminate\Support\Str::of($usuario->name)
-                ->explode(' ')
-                ->filter()
-                ->take(2)
-                ->map(fn ($p) => mb_strtoupper(mb_substr($p, 0, 1)))
-                ->implode(''),
-        ]);
-    })->name('sessao.travada');
-
-    // throttle: tela de bloqueio que aceita tentativa infinita de senha e pior que
-    // nenhuma — daria para adivinhar a senha em paz na maquina de quem saiu.
-    Route::post('/sessao/destravar', function (\Illuminate\Http\Request $pedido) {
-        $pedido->validate(['senha' => 'required|string']);
-
-        if (! \Illuminate\Support\Facades\Hash::check($pedido->input('senha'), $pedido->user()->password)) {
-            return back()->withErrors(['senha' => 'Senha incorreta.']);
-        }
-
-        $pedido->session()->forget(\App\Http\Middleware\SessaoBloqueada::CHAVE);
-
-        return redirect()->intended('/admin');
-    })->middleware('throttle:5,1')->name('sessao.destravar');
+    Route::get('/sessao/travada', fn () => redirect('/admin/login'))->name('sessao.travada');
+    Route::post('/sessao/destravar', fn () => abort(404))->name('sessao.destravar');
 
     Route::get('/sessao/limpar-navegador', function () {
         return view('sessao.limpar-navegador', [
@@ -237,3 +229,19 @@ Route::middleware(['auth', \App\Http\Middleware\SessaoBloqueada::class, \App\Htt
     Route::post('/subscriptions', [\App\Http\Controllers\BrowserPushController::class, 'store']);
     Route::delete('/subscriptions', [\App\Http\Controllers\BrowserPushController::class, 'destroy']);
 });
+
+Route::middleware('guest')->group(function () {
+    Route::post('/acesso/trocar-email', [App\Http\Controllers\AcessoPorCodigoController::class, 'trocarEmail'])->middleware('throttle:10,1')->name('acesso.trocar-email');
+    Route::post('/acesso/solicitar', [App\Http\Controllers\AcessoPorCodigoController::class, 'solicitar'])
+        ->middleware('throttle:5,1')->name('acesso.solicitar');
+    Route::post('/acesso/confirmar', [App\Http\Controllers\AcessoPorCodigoController::class, 'confirmar'])
+        ->middleware('throttle:10,1')->name('acesso.confirmar');
+});
+
+Route::middleware('auth')->group(function(){
+ Route::get('/meu-perfil', [\App\Http\Controllers\PerfilInicialController::class,'mostrar'])->name('perfil.inicial');
+ Route::post('/meu-perfil', [\App\Http\Controllers\PerfilInicialController::class,'salvar'])->middleware('throttle:20,1')->name('perfil.salvar');
+ Route::get('/perfil-foto/{usuario}', [\App\Http\Controllers\PerfilInicialController::class,'foto'])->name('perfil.foto');
+});
+
+Route::post('/idioma', [\App\Http\Controllers\IdiomaController::class, 'atualizar'])->middleware('auth')->name('idioma.atualizar');

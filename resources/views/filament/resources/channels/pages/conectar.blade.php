@@ -32,34 +32,30 @@
         {{-- O nome so e pedido DEPOIS de conectar, e ja vem sugerido com o numero. Antes do QR
              a pessoa nao tinha como saber que nome dar: ela veio conectar um telefone. --}}
         <x-filament::section>
-            <x-slot name="heading">Como você chama este canal</x-slot>
+            <x-slot name="heading">{{ __('ui_283a27fcb111') }}</x-slot>
             <x-slot name="description">
-                Aparece na caixa de entrada para separar um número do outro. Pode trocar quando
-                quiser.
+                {{ __('ui_4547990742bf') }}
             </x-slot>
 
             <div class="flex flex-wrap items-end gap-2">
                 <input type="text" wire:model="nome" maxlength="60"
                        class="min-w-56 flex-1 rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                <x-filament::button wire:click="salvarNome">Salvar</x-filament::button>
+                <x-filament::button wire:click="salvarNome">{{ __('ui_93bf2d32ec33') }}</x-filament::button>
             </div>
         </x-filament::section>
     @else
         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm dark:border-white/10 dark:bg-white/5">
-            <p class="font-medium text-gray-800 dark:text-gray-100">Onde encontrar isso no celular</p>
+            <p class="font-medium text-gray-800 dark:text-gray-100">{{ __('ui_7862ef38db46') }}</p>
             <ol class="mt-2 list-decimal space-y-1 pl-5 text-gray-600 dark:text-gray-300">
-                <li>Abra o WhatsApp no aparelho que tem <strong>este número</strong></li>
-                <li>Toque nos três pontinhos e depois em <strong>Aparelhos conectados</strong></li>
-                <li>Toque em <strong>Conectar aparelho</strong> e aponte a câmera para o código</li>
+                <li>{{ __('ui_5a77150b0faf') }} <strong>{{ __('ui_11c24af68671') }}</strong></li>
+                <li>{{ __('ui_72fe64f2aebb') }} <strong>{{ __('ui_d2e8f355deaa') }}</strong></li>
+                <li>{{ __('ui_c693db20c86e') }} <strong>{{ __('ui_cdcfcd9315d7') }}</strong> {{ __('ui_a605cb324aee') }}</li>
             </ol>
             <p class="mt-3 text-xs text-gray-500">
-                O celular precisa continuar ligado e com internet. Se ficar dias sem rede, a
-                conexão cai e é preciso ler o código de novo — o Diagnóstico avisa quando isso
-                acontece.
+                {{ __('ui_854a9dbd1be6') }}
             </p>
             <p class="mt-2 text-xs text-gray-500">
-                Assim que conectar, este canal passa a se chamar pelo próprio número — e você
-                pode trocar o nome aqui mesmo.
+                {{ __('ui_ed794ff75158') }}
             </p>
         </div>
     @endif

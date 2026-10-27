@@ -51,7 +51,21 @@ class TranscribeAudio implements ShouldQueue
         }
 
         TenantContext::runAs($mensagem->tenant_id, function () use ($mensagem, $transcricao) {
-            $r = $transcricao->transcrever($mensagem->media_path);
+            $segundos=$transcricao->duracao(\Illuminate\Support\Facades\Storage::disk('local')->path($mensagem->media_path));
+            if(!$segundos || $segundos<=0){$mensagem->update(['transcricao_status'=>'falhou']);return;}
+            $creditos=(int)ceil($segundos/60*max(1,(int)\App\Models\SystemSetting::ler('ia_creditos_minuto_audio','1000')));
+            try {
+                $resultado=\App\Services\SaldoIA::executar($mensagem->tenant,$creditos,function()use($mensagem,$transcricao,$creditos,$segundos){
+                    $db=\Illuminate\Support\Facades\DB::table('consumos_ia');
+                    if($db->where('message_id',$mensagem->id)->exists())return 'registrada';
+                    $r=$transcricao->transcrever($mensagem->media_path);
+                    $mensagem->update(['transcricao'=>$r['texto'],'transcricao_status'=>$r['status']]);
+                    if($r['status']==='pronta')\Illuminate\Support\Facades\DB::table('consumos_ia')->insert(['tenant_id'=>$mensagem->tenant_id,'user_id'=>null,'recurso'=>'transcricao','provedor'=>'whisper_local','modelo'=>'whisper','entrada'=>null,'saida'=>null,'total'=>$creditos,'message_id'=>$mensagem->id,'segundos_audio'=>$segundos,'created_at'=>now()]);
+                    return $r['status'];
+                });
+                if($resultado['erro'])throw $resultado['erro'];
+            }catch(\RuntimeException $e){$mensagem->update(['transcricao_status'=>'ignorada']);return;}
+            $r=['texto'=>$mensagem->fresh()->transcricao,'status'=>$mensagem->fresh()->transcricao_status];
 
             $mensagem->update([
                 'transcricao'        => $r['texto'],

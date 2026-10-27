@@ -27,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
          * do CSRF, entao a remocao por nome de classe passa batida sem erro nenhum — o
          * sintoma foi um 419 que nao aparecia em log algum.
          */
+        $middleware->web(append: [\App\Http\Middleware\IdiomaDaInterface::class]);
         $middleware->validateCsrfTokens(except: ['webhooks/*', 'chat-do-site/*']);
         //
     })

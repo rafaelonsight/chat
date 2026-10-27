@@ -129,7 +129,7 @@ it('a janela finaliza e reabre a conversa', function () {
 
     Livewire::actingAs($u)
         ->test(ConversationWindow::class, ['conversationId' => $cv->id])
-        ->call('finalizar');
+        ->call('finalizar')->set('assuntoEncerramento','Atendimento')->set('resumoEncerramento','Orientações fornecidas ao cliente.')->call('encerrar');
 
     expect($cv->refresh()->status)->toBe(Conversation::ARQUIVADA);
 

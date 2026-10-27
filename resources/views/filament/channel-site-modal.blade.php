@@ -1,8 +1,7 @@
 <div class="space-y-4 py-2">
     <p class="text-sm text-gray-500 dark:text-gray-400">
-        Cole esta linha no HTML do site, de preferência perto do fim, antes do
-        <code>&lt;/body&gt;</code>. O balão aparece sozinho, em qualquer página onde o
-        script estiver presente.
+        {{ __('ui_83705f131659') }}
+        <code>&lt;/body&gt;</code>{{ __('ui_5412f2987982') }}
     </p>
 
     <div
@@ -23,13 +22,12 @@
             "
             class="absolute right-2 top-2 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-white/10 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
         >
-            <span x-show="! copiado">Copiar</span>
-            <span x-show="copiado" x-cloak>Copiado!</span>
+            <span x-show="! copiado">{{ __('ui_885410773340') }}</span>
+            <span x-show="copiado" x-cloak>{{ __('ui_094a8b9530ed') }}</span>
         </button>
     </div>
 
     <p class="text-xs text-gray-400 dark:text-gray-500">
-        Chave deste canal: <code>{{ $channel->site_key }}</code> — não compartilhe fora do
-        código do site; é ela que identifica a sua conta para quem conversa pelo balão.
+        {{ __('ui_28b4fbc3cf56') }} <code>{{ $channel->site_key }}</code> {{ __('ui_024f49b309ce') }}
     </p>
 </div>

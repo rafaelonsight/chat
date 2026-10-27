@@ -13,7 +13,7 @@
     @if ($linhas->isEmpty())
         <div class="mt-4 rounded-lg border border-gray-200 p-6 text-center dark:border-white/10">
             <p class="text-sm font-medium text-gray-800 dark:text-gray-100">
-                Nenhuma conversa veio de anúncio neste período
+                {{ __('ui_0ae36669dc06') }}
             </p>
             <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 Esta tela se enche sozinha quando alguém clica num anúncio Click-to-WhatsApp:
@@ -26,10 +26,10 @@
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500 dark:bg-white/5 dark:text-gray-400">
                     <tr>
-                        <th class="px-3 py-2">Anúncio</th>
-                        <th class="px-3 py-2 text-right">Conversas</th>
-                        <th class="px-3 py-2 text-right">Encerradas</th>
-                        <th class="px-3 py-2">ID</th>
+                        <th class="px-3 py-2">{{ __('ui_0ae0763f7f99') }}</th>
+                        <th class="px-3 py-2 text-right">{{ __('ui_86d0e6f30c0e') }}</th>
+                        <th class="px-3 py-2 text-right">{{ __('ui_8bd3b20f6a25') }}</th>
+                        <th class="px-3 py-2">{{ __('ui_89f89c02cf47') }}</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-white/10">
@@ -60,8 +60,8 @@
     {{-- O contexto que impede a leitura errada: sem ele, a tela sugere que anuncio e a
          principal porta de entrada, e a decisao de orcamento sai torta. --}}
     <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-        No período: <strong>{{ $total }}</strong> conversa(s) no total,
-        <strong>{{ $total - $outras }}</strong> de anúncio e
-        <strong>{{ $outras }}</strong> por outros caminhos.
+        {{ __('ui_54471e56f528') }} <strong>{{ $total }}</strong> {{ __('ui_0fa250f69db5') }}
+        <strong>{{ $total - $outras }}</strong> {{ __('ui_0cf2808d89a3') }}
+        <strong>{{ $outras }}</strong> {{ __('ui_e86b7aa19737') }}
     </p>
 </x-filament-panels::page>

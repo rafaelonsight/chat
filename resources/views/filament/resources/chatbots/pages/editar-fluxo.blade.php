@@ -19,10 +19,13 @@
     <div
         x-data="construtorDeFluxo(@js($desenho))"
         x-on:keydown.escape="cancelarLigacao()"
-        class="flex flex-col gap-3"
+        data-desenho="{{ json_encode($desenho) }}"
+        x-on:fluxo-organizado.window="$nextTick(() => enquadrar())"
+        class="vc-flow-editor flex flex-col gap-3"
     >
         {{-- ------------------------------------------------------ barra de acoes --}}
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="vc-flow-topbar flex flex-wrap items-center gap-2">
+            <a href="/admin/chatbot" class="vc-flow-back" aria-label="{{ __('ui_d92560b70b52') }}">←</a><strong class="vc-flow-name">{{ $bot->nome }}</strong>
             <span @class([
                 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
                 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300' => $bot->publicado(),
@@ -39,42 +42,38 @@
             <span class="text-xs text-gray-500 dark:text-gray-400">versão {{ $bot->versao }}</span>
 
             <div class="ms-auto flex items-center gap-2">
-                {{-- zoom --}}
-                <div class="flex items-center rounded-lg border border-gray-200 dark:border-white/10">
-                    <button type="button" x-on:click="ajustarZoom(-0.1)"
-                            class="px-2 py-1 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
-                            aria-label="Diminuir zoom">&minus;</button>
-                    <span class="w-12 text-center text-xs text-gray-500 tabular-nums" x-text="Math.round(escala * 100) + '%'"></span>
-                    <button type="button" x-on:click="ajustarZoom(0.1)"
-                            class="px-2 py-1 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
-                            aria-label="Aumentar zoom">+</button>
-                </div>
-
-                <x-filament::button color="gray" size="sm" icon="heroicon-o-arrows-pointing-in" x-on:click="enquadrar()">
-                    Enquadrar
-                </x-filament::button>
-
-                @if (count($desenho) <= 1)
-                    <x-filament::button color="gray" size="sm" icon="heroicon-o-sparkles" wire:click="criarExemplo">
-                        Fluxo de exemplo
-                    </x-filament::button>
+                <x-filament::button color="gray" size="sm" tag="a" :href="\App\Filament\Resources\Chatbots\ChatbotResource::getUrl('edit', ['record' => $bot])">{{ __('ui_871f24c4cdaf') }}</x-filament::button>
+                @if ($bot->ativo)
+                    <x-filament::button color="gray" size="sm" wire:click="desativar" wire:confirm="Desativar o chatbot em todos os canais selecionados?">{{ __('ui_79db9fc45073') }}</x-filament::button>
                 @endif
-
-                <x-filament::button color="gray" size="sm" icon="heroicon-o-plus" x-on:click="novoPasso()">
-                    Novo grupo
-                </x-filament::button>
-
+                <x-filament::button color="gray" size="sm" icon="heroicon-o-play" wire:click="iniciarTeste">{{ __('ui_25b9d5e25459') }}</x-filament::button>
                 <x-filament::button
                     size="sm"
                     icon="heroicon-o-arrow-up-tray"
                     wire:click="publicar"
                     :color="count($problemas) ? 'gray' : 'primary'"
                 >
-                    Publicar
+                    {{ __('ui_9df643f06945') }}
                 </x-filament::button>
             </div>
         </div>
 
+        @if ($simulacao)
+            <section class="vc-flow-test rounded-xl border border-primary-200 bg-white p-4 dark:bg-gray-900">
+                <div class="flex items-center justify-between"><strong>{{ __('ui_4268c7c2c9b2') }}</strong><div class="flex gap-3"><button wire:click="iniciarTeste" class="text-sm text-primary-600">{{ __('ui_8e25a0e369e5') }}</button><button wire:click="fecharTeste" class="text-sm">{{ __('ui_7b2006fd7af8') }}</button></div></div>
+                <p class="my-2 text-xs text-gray-500">{{ __('ui_79e4f9cb576d') }}</p>
+                <div class="max-h-72 space-y-2 overflow-y-auto bg-gray-50 p-3 dark:bg-gray-950" aria-live="polite">
+                    @foreach ($simulacao['historico'] as $i => $evento)
+                        <div wire:key="teste-{{ $i }}" @class(['rounded-lg p-2 text-sm whitespace-pre-wrap','bg-primary-50 text-primary-900 ms-8'=>$evento['tipo']==='cliente','bg-white border border-gray-200 me-8'=>$evento['tipo']==='bot','text-xs text-gray-500'=>$evento['tipo']==='sistema'])><small>{{ match($evento['tipo']) {'cliente'=>'Você', 'bot'=>'Chatbot', default=>'Simulação'} }}</small><div>{{ $evento['texto'] }}</div></div>
+                    @endforeach
+                </div>
+                @if (! $simulacao['fim'] && $simulacao['aguardando'])
+                    <form wire:submit="responderTeste" class="mt-3 flex gap-2"><input aria-label="{{ __('ui_69080f37ce0a') }}" wire:model="respostaTeste" maxlength="2000" placeholder="{{ __('ui_ccbae5b06896') }}" class="flex-1 rounded-lg border p-2"><x-filament::button type="submit">{{ __('ui_c6b35cd3a37b') }}</x-filament::button></form>
+                @else
+                    <p class="mt-3 text-sm text-gray-500">{{ __('ui_7ed21b13af37') }}</p>
+                @endif
+            </section>
+        @endif
         {{-- ------------------------------------------------------------ problemas --}}
         @if (count($problemas))
             <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
@@ -93,13 +92,13 @@
         @endif
 
 
-        <div class="flex gap-3">
+        <div class="vc-flow-workspace flex gap-3">
             {{-- ------------------------------------------------------------ canvas --}}
             <div
                 x-ref="viewport"
                 x-on:pointerdown="iniciarPan($event)"
                 x-on:wheel.prevent="rolar($event)"
-                class="relative flex-1 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-gray-950"
+                class="vc-flow-canvas relative flex-1 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 dark:border-white/10 dark:bg-gray-950"
                 style="height: calc(100dvh - 19rem); min-height: 30rem;
                        background-image: radial-gradient(circle, rgb(0 0 0 / 0.07) 1px, transparent 1px);
                        background-size: 22px 22px;"
@@ -118,7 +117,7 @@
                         <defs>
                             <marker id="pontaFluxo" viewBox="0 0 8 8" refX="7" refY="4"
                                     markerWidth="7" markerHeight="7" orient="auto">
-                                <path d="M0,0 L8,4 L0,8 z" class="fill-gray-400 dark:fill-gray-500" />
+                                <path d="M0,0 L8,4 L0,8 z" class="vc-flow-arrow fill-gray-400 dark:fill-gray-500" />
                             </marker>
                         </defs>
 
@@ -127,12 +126,12 @@
                                 @php $destino = $passo['saidas'][$h['handle']] ?? null; @endphp
                                 @if ($destino)
                                     @php $chave = $passo['id'].':'.$h['handle']; @endphp
-                                    <path x-bind:d="linhas[@js($chave)] ?? ''" fill="none"
-                                          class="stroke-gray-300 dark:stroke-gray-700"
+                                    <path data-edge="{{ $chave }}" x-bind:d="linhas[@js($chave)] ?? ''" fill="none"
+                                          class="vc-flow-line-under stroke-gray-300 dark:stroke-gray-700"
                                           stroke-width="3.5" />
-                                    <path x-bind:d="linhas[@js($chave)] ?? ''" fill="none"
+                                    <path data-edge="{{ $chave }}" x-bind:d="linhas[@js($chave)] ?? ''" fill="none"
                                           marker-end="url(#pontaFluxo)"
-                                          class="stroke-gray-400 dark:stroke-gray-500"
+                                          class="vc-flow-line stroke-gray-400 dark:stroke-gray-500" stroke-dasharray="6 5"
                                           stroke-width="1.75" />
                                 @endif
                             @endforeach
@@ -192,7 +191,7 @@
                                             x-show="! editando"
                                             x-on:click="editando = true; $nextTick(() => $refs.campo.select())"
                                             class="block w-full truncate text-left text-sm font-medium text-gray-800 hover:text-primary-600 dark:text-gray-100 dark:hover:text-primary-400"
-                                            :title="valor + ' — clique para renomear'">
+                                            :title="{{ __('ui_3c73d2ce3e6d') }}">
                                         <span x-text="valor"></span>
                                     </button>
 
@@ -211,7 +210,7 @@
                                             wire:click="removerPasso({{ $passo['id'] }})"
                                             wire:confirm="Remover o grupo {{ $passo['nome'] }}?"
                                             class="shrink-0 rounded p-0.5 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-500/10"
-                                            aria-label="Remover grupo">
+                                            aria-label="{{ __('ui_4083e64ec708') }}">
                                         <x-filament::icon icon="heroicon-m-trash" class="h-3.5 w-3.5" />
                                     </button>
                                 @endunless
@@ -220,16 +219,16 @@
                             {{-- acoes --}}
                             @if ($passo['inicio'])
                                 <p class="px-3 py-2.5 text-xs text-gray-500 dark:text-gray-400">
-                                    Quando o cliente manda a primeira mensagem de cada novo atendimento.
+                                    {{ __('ui_c7c3432d42f7') }}
                                 </p>
                             @else
-                                <div class="divide-y divide-gray-100 dark:divide-white/5">
+                                <div class="vc-flow-actions divide-y divide-gray-100 dark:divide-white/5">
                                     @forelse ($passo['acoes'] as $acao)
                                         <button type="button"
                                                 wire:key="acao-{{ $acao['id'] }}"
                                                 x-on:pointerdown.stop
                                                 wire:click="abrirAcao({{ $acao['id'] }})"
-                                                class="flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-white/5">
+                                                class="vc-flow-action flex w-full items-start gap-2 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-white/5">
                                             <span @class([
                                                 'mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded text-[10px] font-semibold',
                                                 match ($acao['tipo']) {
@@ -242,19 +241,19 @@
                                                     default       => 'bg-gray-100 text-gray-600 dark:bg-white/10 dark:text-gray-300',
                                                 },
                                             ])>
-                                                {{ mb_strtoupper(mb_substr($acao['tipo'], 0, 1)) }}
+                                                <x-filament::icon :icon="match ($acao['tipo']) { 'mensagem' => 'heroicon-o-chat-bubble-left', 'menu' => 'heroicon-o-list-bullet', 'pergunta' => 'heroicon-o-question-mark-circle', 'condicional' => 'heroicon-o-arrows-right-left', 'transferir' => 'heroicon-o-user-group', 'esperar' => 'heroicon-o-clock', 'etiqueta' => 'heroicon-o-tag', default => 'heroicon-o-check-circle' }" class="h-4 w-4" />
                                             </span>
 
                                             <span class="min-w-0 flex-1">
                                                 <span class="block text-xs font-medium text-gray-700 dark:text-gray-200">{{ $acao['rotulo'] }}</span>
                                                 @if ($acao['resumo'] !== '')
-                                                    <span class="block truncate text-xs text-gray-500 dark:text-gray-400">{{ $acao['resumo'] }}</span>
+                                                    <span class="vc-flow-summary block text-xs text-gray-500 dark:text-gray-400">{{ $acao['resumo'] }}</span>
                                                 @endif
                                             </span>
                                         </button>
                                     @empty
                                         <p class="px-3 py-3 text-xs text-gray-400">
-                                            Nenhuma ação. Este grupo não faz nada ainda.
+                                            {{ __('ui_677cc81ec6d5') }}
                                         </p>
                                     @endforelse
                                 </div>
@@ -264,7 +263,7 @@
                                         wire:click="abrirPaleta({{ $passo['id'] }})"
                                         class="flex w-full items-center gap-1.5 border-t border-gray-100 px-3 py-2 text-xs font-medium text-primary-600 hover:bg-primary-50 dark:border-white/5 dark:text-primary-400 dark:hover:bg-primary-500/10">
                                     <x-filament::icon icon="heroicon-m-plus" class="h-3.5 w-3.5" />
-                                    Adicionar ação
+                                    {{ __('ui_d83e6f8be7c5') }}
                                 </button>
                             @endif
 
@@ -286,7 +285,7 @@
                                                         x-on:pointerdown.stop
                                                         wire:click="desligar({{ $passo['id'] }}, '{{ $h['handle'] }}')"
                                                         class="rounded px-1 text-[10px] text-gray-400 hover:text-red-600"
-                                                        aria-label="Desfazer ligação">desligar</button>
+                                                        aria-label="{{ __('ui_ddb6d6310374') }}">desligar</button>
                                             @endif
 
                                             <button type="button"
@@ -297,7 +296,7 @@
                                                         'bg-gray-300 hover:bg-primary-400 dark:bg-gray-600' => ! $ligado,
                                                     ])
                                                     x-bind:class="{ 'scale-125 bg-primary-600': ligando && ligando.de === {{ $passo['id'] }} && ligando.handle === '{{ $h['handle'] }}' }"
-                                                    title="Arraste até o grupo de destino"
+                                                    title="{{ __('ui_9f1ffdefcc54') }}"
                                                     aria-label="{{ $h['rotulo'] ?? 'seguir' }}: arraste até o destino"></button>
                                         </div>
                                     @endforeach
@@ -319,33 +318,51 @@
                 @if (count($desenho) <= 1)
                     <div class="pointer-events-none absolute inset-0 grid place-items-center">
                         <p class="rounded-lg bg-white/80 px-4 py-2 text-sm text-gray-500 backdrop-blur dark:bg-gray-900/80 dark:text-gray-400">
-                            Comece com <strong>Fluxo de exemplo</strong> ou crie um grupo.
+                            {{ __('ui_59d0e95361b3') }}
                         </p>
                     </div>
                 @endif
+                <div class="vc-flow-tools" x-on:pointerdown.stop>
+                    <x-filament::button color="gray" size="sm" icon="heroicon-o-plus" x-on:click="novoPasso()">{{ __('ui_d444eb713529') }}</x-filament::button>
+                <x-filament::button color="gray" size="sm" icon="heroicon-o-squares-2x2" wire:click="organizarGrupos">{{ __('ui_48a0fe9f02f3') }}</x-filament::button>
+                {{-- zoom --}}
+                <div class="flex items-center rounded-lg border border-gray-200 dark:border-white/10">
+                    <button type="button" x-on:click="ajustarZoom(-0.1)"
+                            class="px-2 py-1 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                            aria-label="{{ __('ui_6a1d87ffef02') }}">&minus;</button>
+                    <span class="w-12 text-center text-xs text-gray-500 tabular-nums" x-text="Math.round(escala * 100) + '%'"></span>
+                    <button type="button" x-on:click="ajustarZoom(0.1)"
+                            class="px-2 py-1 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-gray-200"
+                            aria-label="{{ __('ui_3f2e3f7c9339') }}">+</button>
+                </div>
+
+                <x-filament::button color="gray" size="sm" icon="heroicon-o-arrows-pointing-in" x-on:click="enquadrar()">
+                    {{ __('ui_e6c23f370acc') }}
+                </x-filament::button>
+
+                </div>
             </div>
 
             {{-- ------------------------------------------------------------ gaveta --}}
-            @if ($paletaAberta || $acaoAberta)
-                <div class="w-80 shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-gray-900"
+                <div class="vc-flow-library w-80 shrink-0 overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 dark:border-white/10 dark:bg-gray-900"
                      style="height: calc(100dvh - 19rem); min-height: 30rem;">
                     <div class="mb-3 flex items-center justify-between">
                         <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100">
-                            {{ $paletaAberta ? 'Ações disponíveis' : 'Configurar ação' }}
+                            {{ $acaoAberta ? 'Configurar ação' : 'Biblioteca de blocos' }}
                         </h3>
                         <button type="button" wire:click="fecharGaveta"
-                                class="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5" aria-label="Fechar">
+                                class="rounded p-1 text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5" aria-label="{{ __('ui_5356456cb19a') }}" title="{{ __('ui_5356456cb19a') }}">
                             <x-filament::icon icon="heroicon-m-x-mark" class="h-4 w-4" />
                         </button>
                     </div>
 
-                    @if ($paletaAberta)
+                    @if (! $acaoAberta)
+                        <p class="mb-4 text-xs text-gray-500">{{ $passoAberto ? 'Escolha uma ação para este grupo.' : 'Escolha um bloco para começar um novo grupo.' }}</p>
                         @include('filament.resources.chatbots.pages.partials.paleta')
                     @else
                         @include('filament.resources.chatbots.pages.partials.config-acao')
                     @endif
                 </div>
-            @endif
         </div>
     </div>
 
@@ -355,6 +372,8 @@
             escala: 1,
             pan: { x: 40, y: 20 },
             linhas: {},
+            quadroMorph: null,
+            raiz: null,
             ligando: null,
             puxando: false,
             sobreCartao: null,
@@ -362,15 +381,28 @@
             desenho,
 
             init() {
+                // Alpine $el follows the invoking element; geometry always needs the canvas root.
+                this.raiz = this.$el;
                 this.$nextTick(() => this.recalcular());
 
                 // Depois de cada atualizacao do Livewire os cartoes podem ter mudado
                 // de tamanho (acao adicionada, saida nova). Sem redesenhar aqui, as
                 // linhas ficam apontando para onde as saidas estavam antes.
-                Livewire.hook('morph.updated', () => this.$nextTick(() => this.recalcular()));
+                this.desligarHook = Livewire.hook('morph.updated', ({ el }) => {
+                    if (el !== this.raiz && ! this.raiz.contains(el)) return;
+                    if(this.quadroMorph !== null)return;
+                    this.quadroMorph=requestAnimationFrame(() => {
+                        this.quadroMorph=null;
+                        this.desenho=JSON.parse(this.raiz.dataset.desenho || '[]');
+                        this.recalcular();
+                    });
+                });
 
-                window.addEventListener('resize', () => this.recalcular());
+                this.aoRedimensionar = () => this.recalcular();
+                window.addEventListener('resize', this.aoRedimensionar);
             },
+
+            destroy() { if(this.quadroMorph!==null)cancelAnimationFrame(this.quadroMorph);this.cancelarArraste?.();this.desligarHook?.(); window.removeEventListener('resize', this.aoRedimensionar); },
 
             // -------------------------------------------------------------- geometria
 
@@ -381,39 +413,44 @@
             recalcular() {
                 const linhas = {};
 
-                this.$el.querySelectorAll('[data-handle-row]').forEach((linha) => {
+                this.raiz.querySelectorAll('[data-handle-row]').forEach((linha) => {
                     const deId = linha.dataset.from;
                     const handle = linha.dataset.handle;
 
-                    const cartaoDe = this.$el.querySelector(`[data-step="${deId}"]`);
+                    const cartaoDe = this.raiz.querySelector(`[data-step="${deId}"]`);
                     if (! cartaoDe) return;
 
                     const destinoId = this.destinoDe(deId, handle);
                     if (! destinoId) return;
 
-                    const cartaoPara = this.$el.querySelector(`[data-step="${destinoId}"]`);
+                    const cartaoPara = this.raiz.querySelector(`[data-step="${destinoId}"]`);
                     if (! cartaoPara) return;
 
                     const bola = linha.querySelector('button:last-child');
                     if (! bola) return;
 
                     const x1 = this.coordX(cartaoDe) + cartaoDe.offsetWidth;
-                    const y1 = this.coordY(cartaoDe) + bola.offsetTop + bola.offsetHeight / 2;
+                    const y1 = this.centroY(bola);
 
                     const ancora = cartaoPara.querySelector('[data-ancora-entrada]');
                     const x2 = this.coordX(cartaoPara);
-                    const y2 = this.coordY(cartaoPara) + (ancora ? ancora.offsetTop + ancora.offsetHeight / 2 : 20);
+                    const y2 = ancora ? this.centroY(ancora) : this.coordY(cartaoPara) + 20;
 
                     linhas[`${deId}:${handle}`] = this.curva(x1, y1, x2, y2);
                 });
 
                 this.linhas = linhas;
+                this.raiz.querySelectorAll('path[data-edge]').forEach(path=>{
+                    const d=linhas[path.dataset.edge];if(d)path.setAttribute('d',d);
+                });
             },
 
             destinoDe(deId, handle) {
                 const passo = this.desenho.find((p) => String(p.id) === String(deId));
                 return passo ? (passo.saidas?.[handle] ?? null) : null;
             },
+
+            centroY(el) { const r = el.getBoundingClientRect(); return this.paraMundo(r.left, r.top + r.height / 2).y; },
 
             coordX(el) { return parseFloat(el.dataset.x || 0); },
             coordY(el) { return parseFloat(el.dataset.y || 0); },
@@ -432,35 +469,56 @@
                 const cartao = e.currentTarget.closest('[data-step]');
                 const iniX = e.clientX, iniY = e.clientY;
                 const origX = this.coordX(cartao), origY = this.coordY(cartao);
-                let moveu = false;
-
-                const mover = (ev) => {
-                    // Divide pela escala: com zoom em 50%, mover 10px na tela deve
-                    // mover 20px no mundo, senao o cartao "escapa" do cursor.
-                    // Nunca abaixo de zero: coordenada negativa joga o cartao acima e
-                    // a esquerda da area visivel, onde nao da para clicar nele nem na
-                    // bolinha de ligar. Foi assim que os blocos "desapareceram".
-                    const nx = Math.max(0, Math.round(origX + (ev.clientX - iniX) / this.escala));
-                    const ny = Math.max(0, Math.round(origY + (ev.clientY - iniY) / this.escala));
-
-                    if (Math.abs(nx - origX) > 2 || Math.abs(ny - origY) > 2) moveu = true;
-
-                    cartao.dataset.x = nx;
-                    cartao.dataset.y = ny;
-                    cartao.style.left = nx + 'px';
-                    cartao.style.top = ny + 'px';
-                    this.recalcular();
+                let moveu=false, quadro=null, pendente=null;
+                // Measure connections once before moving. Dragging changes position only,
+                // so anchors keep their offsets inside each card without layout reads per event.
+                const conexoes=[];
+                this.raiz.querySelectorAll('[data-handle-row]').forEach((linha)=>{
+                    const deId=linha.dataset.from, handle=linha.dataset.handle;
+                    const paraId=this.destinoDe(deId,handle);
+                    if(String(deId)!==String(id) && String(paraId)!==String(id))return;
+                    const de=this.raiz.querySelector(`[data-step="${deId}"]`);
+                    const para=this.raiz.querySelector(`[data-step="${paraId}"]`);
+                    const bola=linha.querySelector('button:last-child');
+                    if(!de || !para || !bola)return;
+                    const ancora=para.querySelector('[data-ancora-entrada]');
+                    conexoes.push({chave:`${deId}:${handle}`,de,para,largura:de.offsetWidth,
+                        offsetDe:this.centroY(bola)-this.coordY(de),
+                        offsetPara:ancora?this.centroY(ancora)-this.coordY(para):20,
+                        paths:[...this.raiz.querySelectorAll('path[data-edge]')].filter(p=>p.dataset.edge===`${deId}:${handle}`)});
+                });
+                const desenhar=()=>{
+                    quadro=null;if(!pendente)return;
+                    const {nx,ny}=pendente;pendente=null;
+                    cartao.dataset.x=nx;cartao.dataset.y=ny;
+                    cartao.style.left=nx+'px';cartao.style.top=ny+'px';
+                    const atualizadas={...this.linhas};
+                    conexoes.forEach(c=>{
+                        const d=this.curva(this.coordX(c.de)+c.largura,this.coordY(c.de)+c.offsetDe,
+                            this.coordX(c.para),this.coordY(c.para)+c.offsetPara);
+                        atualizadas[c.chave]=d;
+                        c.paths.forEach(path=>path.setAttribute('d',d));
+                    });
+                    this.linhas=atualizadas;
                 };
-
-                const soltar = () => {
-                    window.removeEventListener('pointermove', mover, true);
-                    window.removeEventListener('pointerup', soltar, true);
-                    window.removeEventListener('pointercancel', soltar, true);
-
-                    if (moveu) {
-                        $wire.moverPasso(id, parseInt(cartao.dataset.x), parseInt(cartao.dataset.y));
-                    }
+                const mover=(ev)=>{
+                    const nx=Math.max(0,Math.round(origX+(ev.clientX-iniX)/this.escala));
+                    const ny=Math.max(0,Math.round(origY+(ev.clientY-iniY)/this.escala));
+                    if(Math.abs(nx-origX)>2 || Math.abs(ny-origY)>2)moveu=true;
+                    pendente={nx,ny};if(quadro===null)quadro=requestAnimationFrame(desenhar);
                 };
+                const limpar=()=>{
+                    if(quadro!==null)cancelAnimationFrame(quadro);
+                    desenhar();window.removeEventListener('pointermove',mover,true);
+                    window.removeEventListener('pointerup',soltar,true);
+                    window.removeEventListener('pointercancel',soltar,true);
+                    this.cancelarArraste=null;
+                };
+                const soltar=()=>{
+                    limpar();this.recalcular();
+                    if(moveu)$wire.moverPasso(id,parseInt(cartao.dataset.x),parseInt(cartao.dataset.y));
+                };
+                this.cancelarArraste=limpar;
 
                 // Fase de captura (true): window recebe ANTES do alvo, entao nenhum
                 // stopPropagation no caminho consegue engolir o fim do arraste.
@@ -508,7 +566,7 @@
             },
 
             enquadrar() {
-                const cartoes = [...this.$el.querySelectorAll('[data-step]')];
+                const cartoes = [...this.raiz.querySelectorAll('[data-step]')];
                 if (! cartoes.length) return;
 
                 const xs = cartoes.map((c) => this.coordX(c));
@@ -545,7 +603,7 @@
                 const cartaoOrigem = bola.closest('[data-step]');
                 const origem = {
                     x: this.coordX(cartaoOrigem) + cartaoOrigem.offsetWidth,
-                    y: this.coordY(cartaoOrigem) + bola.offsetTop + bola.offsetHeight / 2,
+                    y: this.centroY(bola),
                 };
 
                 let moveu = false;
@@ -590,8 +648,8 @@
 
             /** Centro da bolinha daquela saida, em coordenadas do canvas. */
             pontoDaSaida(de, handle) {
-                const fila = this.$el.querySelector(`[data-handle-row][data-from="${de}"][data-handle="${handle}"]`);
-                const cartao = this.$el.querySelector(`[data-step="${de}"]`);
+                const fila = this.raiz.querySelector(`[data-handle-row][data-from="${de}"][data-handle="${handle}"]`);
+                const cartao = this.raiz.querySelector(`[data-step="${de}"]`);
 
                 if (!fila || !cartao) return { x: 0, y: 0 };
 
@@ -599,7 +657,7 @@
 
                 return {
                     x: this.coordX(cartao) + cartao.offsetWidth,
-                    y: this.coordY(cartao) + (bola ? bola.offsetTop + bola.offsetHeight / 2 : 0),
+                    y: bola ? this.centroY(bola) : this.coordY(cartao),
                 };
             },
 
@@ -648,7 +706,7 @@
 
                 // Desvia enquanto houver cartao no mesmo lugar: dois blocos exatamente
                 // sobrepostos parecem UM, e o de baixo fica invisivel para sempre.
-                const ocupado = (px, py) => [...this.$el.querySelectorAll('[data-step]')]
+                const ocupado = (px, py) => [...this.raiz.querySelectorAll('[data-step]')]
                     .some((c) => Math.abs(this.coordX(c) - px) < 40 && Math.abs(this.coordY(c) - py) < 40);
 
                 for (let i = 0; i < 12 && ocupado(x, y); i++) {

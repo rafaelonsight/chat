@@ -10,6 +10,8 @@ use UnitEnum;
 
 class PrimeirosPassos extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRocketLaunch;
 
     protected static string|UnitEnum|null $navigationGroup = 'Configurações';

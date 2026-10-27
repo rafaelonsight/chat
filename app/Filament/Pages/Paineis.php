@@ -15,6 +15,8 @@ use Livewire\WithPagination;
 
 class Paineis extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     use WithFileUploads, WithPagination;
 
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-view-columns';
@@ -219,7 +221,7 @@ class Paineis extends Page
             $item->save();
             app(AssignBoardItem::class)->execute(auth()->user(), $item->id, array_map('intval', $this->form['responsaveis']));
             $validTags = Tag::deItem()->whereIn('id', $this->form['tags'])->pluck('id');
-            $item->tags()->sync($validTags->mapWithKeys(fn ($id) => [$id => ['origem' => 'manual', 'aplicado_por' => auth()->id(), 'created_at' => now()]])->all());
+            app(\App\Services\Etiquetador::class)->sincronizar($item,$validTags->all(),\App\Services\Etiquetador::MANUAL,auth()->id());
             DB::table('board_watchers')->insertOrIgnore(['board_item_id' => $item->id, 'user_id' => auth()->id()]);
             $this->itemId = $item->id;
             if(!$wasClosed && FunnelStage::whereKey($item->funnel_stage_id)->value('encerra'))$this->gerarRecorrencia($item);
@@ -425,11 +427,13 @@ class Paineis extends Page
         $this->ok('Configurações salvas');
     }
 
+    public string $corNovaEtiquetaPainel='amarelo';
     public function criarEtiqueta(): void
     {
+        abort_unless(auth()->user()?->admin && !auth()->user()?->ehAuditor(),403);
         $this->board('edit');
-        $this->validate(['novaEtiqueta'=>'required|string|max:60']);
-        $tag = Tag::firstOrCreate(['tenant_id'=>$this->tenant(),'nome'=>trim($this->novaEtiqueta),'contexto'=>'item'], ['cor'=>'amarelo']);
+        $this->validate(['novaEtiqueta'=>'required|string|max:40','corNovaEtiquetaPainel'=>['required',Rule::in(array_keys(Tag::PALETA))]]);
+        $tag = Tag::firstOrCreate(['tenant_id'=>$this->tenant(),'nome'=>trim($this->novaEtiqueta),'contexto'=>'item'], ['cor'=>$this->corNovaEtiquetaPainel]);
         $this->form['tags'][] = $tag->id;
         $this->novaEtiqueta = '';
     }

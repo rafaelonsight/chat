@@ -30,8 +30,8 @@ class EditTicket extends EditRecord
     {
         return [
             Action::make('send_update')
-                ->label('Enviar atualização')->icon('heroicon-o-paper-airplane')
-                ->schema([Textarea::make('summary')->label('Atualização pública')->required()->rows(5)])
+                ->label(__('ui_5175f26b24e2'))->icon('heroicon-o-paper-airplane')
+                ->schema([Textarea::make('summary')->label(__('ui_e3bf3a7e1a0e'))->required()->rows(5)])
                 ->action(function (array $data): void {
                     \App\Models\TicketMessage::create([
                         'tenant_id' => $this->record->tenant_id, 'ticket_id' => $this->record->id,

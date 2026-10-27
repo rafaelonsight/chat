@@ -16,6 +16,7 @@ it('resolve o usuario da sessao sem entrar em recursao', function () {
     $t = Tenant::create(['nome' => 'T', 'slug' => 'rec']);
     TenantContext::set($t->id);
     $u = User::create(['tenant_id' => $t->id, 'name' => 'U', 'email' => 'rec@t.test', 'password' => 'segredo123']);
+    $u->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
     TenantContext::forget();
 
     auth()->loginUsingId($u->id);
@@ -29,6 +30,7 @@ it('abre o painel admin com o usuario carregado da sessao', function () {
     $t = Tenant::create(['nome' => 'T', 'slug' => 'rec2']);
     TenantContext::set($t->id);
     $u = User::create(['tenant_id' => $t->id, 'name' => 'U', 'email' => 'rec2@t.test', 'password' => 'segredo123']);
+    $u->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
     TenantContext::forget();
 
     // simula o que o navegador manda: id do usuario na sessao, sem instancia
@@ -47,6 +49,7 @@ it('mantem o isolamento entre tenants depois da correcao', function () {
     User::create(['tenant_id' => $a->id, 'name' => 'A', 'email' => 'ia@t.test', 'password' => 'segredo123']);
     TenantContext::set($b->id);
     $ub = User::create(['tenant_id' => $b->id, 'name' => 'B', 'email' => 'ib@t.test', 'password' => 'segredo123']);
+    $ub->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
     TenantContext::forget();
 
     // usuario de B logado: o contexto passa a ser B e ele so ve o proprio tenant

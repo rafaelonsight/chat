@@ -49,7 +49,7 @@ class MediaService
         $bytes = base64_decode($base64, true);
 
         if ($bytes === false || $bytes === '') {
-            throw new RuntimeException('conteudo base64 invalido');
+            throw new RuntimeException(__('ui_74b532e4aebc'));
         }
 
         return $this->guardarBytes($conversa, $bytes, $mime, $nome);

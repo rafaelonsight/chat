@@ -45,14 +45,13 @@
                         &#9203;
                     </div>
 
-                    <h1 class="mt-4 text-lg font-semibold">Esperando liberarem sua entrada</h1>
+                    <h1 class="mt-4 text-lg font-semibold">{{ __('ui_665cb2f1ebb0') }}</h1>
 
                     <p class="mt-2 text-sm text-gray-400">
-                        Avisamos quem organiza a reunião que você está aqui. Assim que liberarem,
-                        você entra sozinho — pode deixar esta tela aberta.
+                        {{ __('ui_571845821ed0') }}
                     </p>
 
-                    <p class="mt-4 text-xs text-gray-500">Você entrará como <strong>{{ $nome }}</strong>.</p>
+                    <p class="mt-4 text-xs text-gray-500">{{ __('ui_6c3ea55f1015') }} <strong>{{ $nome }}</strong>.</p>
                 </div>
             </div>
 
@@ -61,25 +60,24 @@
             <div class="flex flex-1 items-center justify-center overflow-y-auto p-6">
                 <div class="w-full max-w-sm rounded-2xl border border-white/10 bg-gray-900 p-6">
                     @if (! $reuniao->aberta())
-                        <h1 class="text-lg font-semibold">Reunião encerrada</h1>
+                        <h1 class="text-lg font-semibold">{{ __('ui_64b8074963a8') }}</h1>
                         <p class="mt-2 text-sm text-gray-400">
-                            Esta chamada já terminou. Se precisar continuar, peça um link novo a
-                            quem te convidou.
+                            {{ __('ui_bf28a17c73ed') }}
                         </p>
                     @elseif ($reuniao->expirada())
-                        <h1 class="text-lg font-semibold">Link expirado</h1>
+                        <h1 class="text-lg font-semibold">{{ __('ui_56acad61af04') }}</h1>
                         <p class="mt-2 text-sm text-gray-400">
                             Links de reunião valem por {{ \App\Models\Meeting::HORAS_ATE_EXPIRAR }} horas.
                             Peça um novo a quem te convidou.
                         </p>
                     @else
-                        <h1 class="text-lg font-semibold">Entrar na chamada</h1>
+                        <h1 class="text-lg font-semibold">{{ __('ui_ffeb44a13b09') }}</h1>
                         <p class="mt-1 text-sm text-gray-400">
-                            Vamos pedir acesso à sua câmera e ao microfone.
+                            {{ __('ui_fddc5d2a2b19') }}
                         </p>
 
                         <label class="mt-5 block">
-                            <span class="text-xs font-medium text-gray-400">Como você aparece</span>
+                            <span class="text-xs font-medium text-gray-400">{{ __('ui_f32e936c71f0') }}</span>
                             <input type="text" wire:model="nome" maxlength="80" autocomplete="name"
                                    class="mt-1 w-full rounded-lg border-white/15 bg-gray-800 text-sm text-gray-100 placeholder-gray-500 focus:border-amber-500 focus:ring-amber-500">
                             @error('nome') <span class="text-xs text-red-400">{{ $message }}</span> @enderror
@@ -138,10 +136,10 @@
                                     x-bind:disabled="pedindo"
                                     wire:loading.attr="disabled"
                                     class="mt-4 w-full rounded-lg bg-amber-500 py-2.5 text-sm font-semibold text-gray-950 transition hover:bg-amber-400 disabled:opacity-60">
-                                <span x-show="pedindo">Liberando câmera…</span>
+                                <span x-show="pedindo">{{ __('ui_8e87a429a6d9') }}</span>
                                 <span x-show="! pedindo">
-                                    <span wire:loading.remove wire:target="entrar">Entrar</span>
-                                    <span wire:loading wire:target="entrar">Abrindo…</span>
+                                    <span wire:loading.remove wire:target="entrar">{{ __('ui_7573ba85155c') }}</span>
+                                    <span wire:loading wire:target="entrar">{{ __('ui_a46e25aecfc1') }}</span>
                                 </span>
                             </button>
 
@@ -150,11 +148,11 @@
                                  Apple nao autoriza a usar camera. Nao ha o que a pagina faca —
                                  so ensinar o caminho. --}}
                             <div x-show="bloqueado" x-cloak class="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
-                                <p class="text-sm font-medium text-amber-200">Abra em outro navegador</p>
+                                <p class="text-sm font-medium text-amber-200">{{ __('ui_13e661d03283') }}</p>
                                 <p class="mt-1 text-xs text-amber-100/80">
-                                    Esta janela não libera a câmera nem o microfone. Toque em
-                                    <strong>•••</strong> ou no ícone de compartilhar e escolha
-                                    <strong>Abrir no Safari</strong> (ou no Chrome). O endereço é o mesmo.
+                                    {{ __('ui_a8cd44b89670') }}
+                                    <strong>•••</strong> {{ __('ui_78afa3e49b71') }}
+                                    <strong>{{ __('ui_dba2eb854676') }}</strong> {{ __('ui_c8c53e5a0de1') }}
                                 </p>
 
                                 <div class="mt-3 flex flex-wrap gap-2">
@@ -162,15 +160,15 @@
                                             x-data="{ copiado: false }"
                                             @click="navigator.clipboard.writeText(window.location.href); copiado = true; setTimeout(() => copiado = false, 1600)"
                                             class="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-gray-950">
-                                        <span x-show="! copiado">Copiar o link</span>
-                                        <span x-show="copiado" x-cloak>Copiado!</span>
+                                        <span x-show="! copiado">{{ __('ui_01e15dc08617') }}</span>
+                                        <span x-show="copiado" x-cloak>{{ __('ui_094a8b9530ed') }}</span>
                                     </button>
 
                                     {{-- Entrar assim mesmo continua valendo: as vezes a pessoa
                                          so quer ouvir, e barrar seria pior que entrar mudo. --}}
                                     <button type="button" @click="bloqueado = false; $wire.entrar()"
                                             class="rounded-lg border border-amber-400/40 px-3 py-1.5 text-xs text-amber-100">
-                                        Entrar assim mesmo, só ouvindo
+                                        {{ __('ui_55b39f4b6de2') }}
                                     </button>
                                 </div>
 
@@ -203,17 +201,17 @@
 
                                 <div class="min-w-0 flex-1">
                                     <p class="truncate text-sm font-medium text-gray-100">{{ $pedido->nome }}</p>
-                                    <p class="text-[11px] text-gray-400">quer entrar</p>
+                                    <p class="text-[11px] text-gray-400">{{ __('ui_1847e3a6d1d3') }}</p>
                                 </div>
 
                                 <button type="button" wire:click="recusar({{ $pedido->id }})"
                                         class="rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:bg-white/5 hover:text-gray-200">
-                                    Recusar
+                                    {{ __('ui_34d9f2bda1ac') }}
                                 </button>
 
                                 <button type="button" wire:click="aceitar({{ $pedido->id }})"
                                         class="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-gray-950 hover:bg-amber-400">
-                                    Liberar
+                                    {{ __('ui_ea6a605ec341') }}
                                 </button>
                             </div>
                         @endforeach
@@ -258,15 +256,15 @@
                                  reflexo volta atras sem recarregar e perder a reuniao. --}}
                             <button type="button" @click="tentarMidia()"
                                     class="rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold text-gray-950 hover:bg-amber-400">
-                                Tentar câmera de novo
+                                {{ __('ui_4b236508e3de') }}
                             </button>
 
                             <button type="button"
                                     x-data="{ copiado: false }"
                                     @click="navigator.clipboard.writeText(window.location.href); copiado = true; setTimeout(() => copiado = false, 1600)"
                                     class="rounded-full border border-amber-400/40 px-3 py-1 text-xs">
-                                <span x-show="! copiado">Copiar o link</span>
-                                <span x-show="copiado" x-cloak>Copiado!</span>
+                                <span x-show="! copiado">{{ __('ui_01e15dc08617') }}</span>
+                                <span x-show="copiado" x-cloak>{{ __('ui_094a8b9530ed') }}</span>
                             </button>
 
                             <span class="text-[10px] opacity-50" x-text="detalhe"></span>
@@ -275,7 +273,7 @@
                 </template>
 
                 <template x-if="entrando">
-                    <div class="flex flex-1 items-center justify-center text-sm text-gray-400">Conectando…</div>
+                    <div class="flex flex-1 items-center justify-center text-sm text-gray-400">{{ __('ui_dc8abc3e74b0') }}</div>
                 </template>
 
                 <template x-if="saiu">
@@ -287,7 +285,7 @@
                            x-text="motivoDaSaida || 'Você saiu da chamada'"></p>
                         <button type="button" wire:click="$refresh"
                                 class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-gray-950 hover:bg-amber-400">
-                            Entrar de novo
+                            {{ __('ui_a9d3c65d9860') }}
                         </button>
                     </div>
                 </template>
@@ -388,13 +386,13 @@
                                          serve para nada. --}}
                                     <template x-if="p.mao">
                                         <span class="absolute left-2 top-2 grid h-8 w-8 place-items-center rounded-full bg-amber-500 text-base"
-                                              title="Pediu a vez">&#9995;</span>
+                                              title="{{ __('ui_c27f0a180064') }}">&#9995;</span>
                                     </template>
 
                                     <div class="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-gradient-to-t from-black/70 to-transparent px-2 py-1.5">
                                         <span class="truncate text-xs font-medium text-white" x-text="p.nome"></span>
                                         <template x-if="p.semSom">
-                                            <span class="text-[11px] text-red-300">sem som</span>
+                                            <span class="text-[11px] text-red-300">{{ __('ui_48afa98b3d78') }}</span>
                                         </template>
                                     </div>
                                 </div>
@@ -416,7 +414,7 @@
 
                             <div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
                                 <p class="text-sm font-medium text-gray-100">
-                                    Na sala <span class="text-gray-500" x-text="'(' + pessoas.length + ')'"></span>
+                                    {{ __('ui_828a9ecf2932') }} <span class="text-gray-500" x-text="'(' + pessoas.length + ')'"></span>
                                 </p>
                                 <button type="button" @click="abrirPainel('')"
                                         class="grid h-8 w-8 place-items-center rounded-full text-gray-400 hover:bg-white/10 hover:text-white">&times;</button>
@@ -431,12 +429,12 @@
                                         <span class="min-w-0 flex-1">
                                             <span class="block truncate text-sm text-gray-100">
                                                 <span x-text="p.nome"></span>
-                                                <template x-if="p.souEu"><span class="text-gray-500"> (você)</span></template>
+                                                <template x-if="p.souEu"><span class="text-gray-500"> {{ __('ui_488a8ea93fac') }}</span></template>
                                             </span>
                                             <span class="flex items-center gap-1.5 text-[11px]">
-                                                <template x-if="p.semSom"><span class="text-red-400">sem som</span></template>
-                                                <template x-if="! p.semSom"><span class="text-gray-500">com som</span></template>
-                                                <template x-if="p.mao"><span class="text-amber-400">· pediu a vez</span></template>
+                                                <template x-if="p.semSom"><span class="text-red-400">{{ __('ui_48afa98b3d78') }}</span></template>
+                                                <template x-if="! p.semSom"><span class="text-gray-500">{{ __('ui_4eb378f324cc') }}</span></template>
+                                                <template x-if="p.mao"><span class="text-amber-400">{{ __('ui_4e3e59666a09') }}</span></template>
                                             </span>
                                         </span>
 
@@ -448,16 +446,16 @@
                                                     <button type="button"
                                                             x-show="! p.semSom"
                                                             @click="$wire.silenciar(p.id)"
-                                                            title="Calar o microfone"
+                                                            title="{{ __('ui_7ab7ba916904') }}"
                                                             class="rounded-lg px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10">
-                                                        Calar
+                                                        {{ __('ui_e4c93d6c2c58') }}
                                                     </button>
 
                                                     <button type="button"
                                                             @click="if (confirm('Tirar ' + p.nome + ' da chamada?')) $wire.remover(p.id)"
-                                                            title="Tirar da chamada"
+                                                            title="{{ __('ui_0f416af8d67d') }}"
                                                             class="rounded-lg px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/10">
-                                                        Tirar
+                                                        {{ __('ui_f409bdf3a555') }}
                                                     </button>
                                                 </span>
                                             </template>
@@ -468,9 +466,7 @@
 
                             @if ($this->souDaEquipe())
                                 <p class="border-t border-white/10 px-4 py-3 text-[11px] text-gray-500">
-                                    Calar não é definitivo: a pessoa pode ligar o microfone de novo.
-                                    Tirar da chamada derruba na hora e volta a exigir sua permissão
-                                    para entrar.
+                                    {{ __('ui_8bbda88066b6') }}
                                 </p>
                             @endif
                         </div>
@@ -492,8 +488,8 @@
 
                             <div class="flex items-center justify-between border-b border-white/10 px-4 py-3">
                                 <div>
-                                    <p class="text-sm font-medium text-gray-100">Conversa</p>
-                                    <p class="text-[11px] text-gray-500">Fica gravada no atendimento</p>
+                                    <p class="text-sm font-medium text-gray-100">{{ __('ui_b70a337beb33') }}</p>
+                                    <p class="text-[11px] text-gray-500">{{ __('ui_6d41b6040403') }}</p>
                                 </div>
                                 <button type="button" @click="abrirPainel('')"
                                         class="grid h-8 w-8 place-items-center rounded-full text-gray-400 hover:bg-white/10 hover:text-white">&times;</button>
@@ -502,8 +498,7 @@
                             <div x-ref="recados" class="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
                                 <template x-if="! recados.length">
                                     <p class="text-xs text-gray-500">
-                                        Nada escrito ainda. Dá para mandar um link, um endereço, um
-                                        número de série — fica salvo depois da chamada.
+                                        {{ __('ui_2ebc365aa861') }}
                                     </p>
                                 </template>
 
@@ -526,12 +521,12 @@
                                          quem usa WhatsApp o dia inteiro ja espera. --}}
                                     <textarea x-model="rascunho" rows="1" maxlength="800"
                                               @keydown.enter.prevent="if (! $event.shiftKey) mandarRecado()"
-                                              placeholder="Escreva um recado…"
+                                              placeholder="{{ __('ui_bfcb5689e657') }}"
                                               class="min-w-0 flex-1 resize-none rounded-lg border-white/15 bg-gray-800 text-sm text-gray-100 placeholder-gray-500 focus:border-amber-500 focus:ring-amber-500"></textarea>
 
                                     <button type="button" @click="mandarRecado()"
                                             class="shrink-0 rounded-lg bg-amber-500 px-3 text-sm font-semibold text-gray-950 hover:bg-amber-400">
-                                        Enviar
+                                        {{ __('ui_a91a95517c03') }}
                                     </button>
                                 </div>
                             </div>
@@ -556,7 +551,7 @@
                                  x-data="{ lista: false }" @click.outside="lista = false">
 
                                 <button type="button" @click="alternarMicrofone()"
-                                        :title="microfone ? 'Desligar o microfone' : 'Ligar o microfone'"
+                                        :title="{{ __('ui_a40d70e4521e') }}"
                                         class="grid h-11 w-11 place-items-center rounded-full text-white">
                                     <svg x-show="microfone" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -572,7 +567,7 @@
                                      so ensina a pessoa a nao clicar em setinha nenhuma. --}}
                                 <template x-if="microfones.length > 1">
                                     <div class="relative">
-                                        <button type="button" @click="lista = ! lista" title="Escolher o microfone"
+                                        <button type="button" @click="lista = ! lista" title="{{ __('ui_aed4fc9f1a9c') }}"
                                                 class="grid h-11 w-6 place-items-center rounded-r-full text-white/70 hover:text-white">
                                             <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
@@ -599,7 +594,7 @@
                                  x-data="{ lista: false }" @click.outside="lista = false">
 
                                 <button type="button" @click="alternarCamera()"
-                                        :title="camera ? 'Desligar a câmera' : 'Ligar a câmera'"
+                                        :title="{{ __('ui_1170ca4d5e88') }}"
                                         class="grid h-11 w-11 place-items-center rounded-full text-white">
                                     <svg x-show="camera" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -613,7 +608,7 @@
 
                                 <template x-if="cameras.length > 1">
                                     <div class="relative">
-                                        <button type="button" @click="lista = ! lista" title="Escolher a câmera"
+                                        <button type="button" @click="lista = ! lista" title="{{ __('ui_ec2861496696') }}"
                                                 class="grid h-11 w-6 place-items-center rounded-r-full text-white/70 hover:text-white">
                                             <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor">
                                                 <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 15.75 7.5-7.5 7.5 7.5" />
@@ -638,7 +633,7 @@
                             {{-- O botão que o atendimento por vídeo existe para ter: "me mostra o aparelho".
                                  Só aparece quando há mais de uma câmera, que na prática quer dizer celular. --}}
                             <template x-if="cameras.length > 1">
-                                <button type="button" @click="virarCamera()" title="Virar a câmera"
+                                <button type="button" @click="virarCamera()" title="{{ __('ui_34a37342439b') }}"
                                         class="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/15">
                                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -649,7 +644,7 @@
 
                             {{-- ---------------------------------------------------------------- mostrar tela --}}
                             <button type="button" @click="alternarTela()"
-                                    :title="compartilhando ? 'Parar de mostrar a tela' : 'Mostrar a minha tela'"
+                                    :title="{{ __('ui_739956256e87') }}"
                                     class="grid h-11 w-11 place-items-center rounded-full text-white"
                                     :class="compartilhando ? 'bg-amber-500 text-gray-950' : 'bg-white/10 hover:bg-white/15'">
                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
@@ -662,7 +657,7 @@
                             {{-- Serve para pedir a vez sem cortar quem está falando. Numa chamada de três é
                                  cortesia; numa de oito é a diferença entre reunião e algazarra. --}}
                             <button type="button" @click="alternarMao()"
-                                    :title="maoLevantada ? 'Baixar a mão' : 'Levantar a mão'"
+                                    :title="{{ __('ui_39254c3bcc2c') }}"
                                     class="grid h-11 w-11 place-items-center rounded-full"
                                     :class="maoLevantada ? 'bg-amber-500 text-gray-950' : 'bg-white/10 text-white hover:bg-white/15'">
                                 <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
@@ -673,7 +668,7 @@
 
                             {{-- ------------------------------------------------------------------- reações --}}
                             <div class="relative" x-data="{ aberto: false }" @click.outside="aberto = false">
-                                <button type="button" @click="aberto = ! aberto" title="Reagir"
+                                <button type="button" @click="aberto = ! aberto" title="{{ __('ui_fc580f9e44f8') }}"
                                         class="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/15">
                                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -691,7 +686,7 @@
                             </div>
 
                             {{-- ----------------------------------------------------------------- gente --}}
-    <button type="button" @click="abrirPainel('gente')" title="Quem está na sala"
+    <button type="button" @click="abrirPainel('gente')" title="{{ __('ui_f06f37e4f0b2') }}"
             class="relative grid h-11 w-11 place-items-center rounded-full"
             :class="painel === 'gente' ? 'bg-amber-500 text-gray-950' : 'bg-white/10 text-white hover:bg-white/15'">
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
@@ -704,7 +699,7 @@
     </button>
 
     {{-- ------------------------------------------------------------------ chat --}}
-    <button type="button" @click="abrirPainel('chat')" title="Conversa"
+    <button type="button" @click="abrirPainel('chat')" title="{{ __('ui_b70a337beb33') }}"
             class="relative grid h-11 w-11 place-items-center rounded-full"
             :class="painel === 'chat' ? 'bg-amber-500 text-gray-950' : 'bg-white/10 text-white hover:bg-white/15'">
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
@@ -723,7 +718,7 @@
 
     {{-- ------------------------------------------------------------------ mais --}}
                             <div class="relative" x-data="{ aberto: false }" @click.outside="aberto = false">
-                                <button type="button" @click="aberto = ! aberto" title="Mais opções"
+                                <button type="button" @click="aberto = ! aberto" title="{{ __('ui_8f453e63fe4d') }}"
                                         class="grid h-11 w-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/15">
                                     <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round"
@@ -737,13 +732,13 @@
                                             x-data="{ copiado: false }"
                                             @click="navigator.clipboard.writeText(window.location.href); copiado = true; setTimeout(() => copiado = false, 1600)"
                                             class="block w-full px-3 py-2 text-left text-xs text-gray-200 hover:bg-white/10">
-                                        <span x-show="! copiado">Copiar o link da sala</span>
-                                        <span x-show="copiado" x-cloak class="text-emerald-400">Copiado!</span>
+                                        <span x-show="! copiado">{{ __('ui_c7b2af0ffdf4') }}</span>
+                                        <span x-show="copiado" x-cloak class="text-emerald-400">{{ __('ui_094a8b9530ed') }}</span>
                                     </button>
 
                                     <button type="button" @click="tentarMidia(); aberto = false"
                                             class="block w-full px-3 py-2 text-left text-xs text-gray-200 hover:bg-white/10">
-                                        Reconectar câmera e microfone
+                                        {{ __('ui_c9c545a0d8c9') }}
                                     </button>
 
                                     {{-- O alerta da mão levantada só toca para a mão dos OUTROS,
@@ -752,7 +747,7 @@
                                          segundo aparelho e de uma segunda pessoa. --}}
                                     <button type="button" @click="apitar()"
                                             class="block w-full px-3 py-2 text-left text-xs text-gray-200 hover:bg-white/10">
-                                        Testar o som do alerta
+                                        {{ __('ui_e720f82ae25a') }}
                                     </button>
 
                                     @if ($this->souDaEquipe())
@@ -778,7 +773,7 @@
                                         <button type="button" wire:click="encerrar"
                                                 wire:confirm="Encerrar a chamada para todos?"
                                                 class="block w-full border-t border-white/10 px-3 py-2 text-left text-xs text-red-300 hover:bg-red-500/10">
-                                            Encerrar para todos
+                                            {{ __('ui_89ece0f20710') }}
                                         </button>
                                     @endif
                                 </div>
@@ -787,7 +782,7 @@
                             {{-- ------------------------------------------------------------------- sair --}}
                             {{-- Vermelho e telefone deitado: e o unico botao da barra que a pessoa procura com
                                  pressa, e o unico que nao pode ser confundido com outro. --}}
-                            <button type="button" @click="sair()" title="Sair da chamada"
+                            <button type="button" @click="sair()" title="{{ __('ui_ee5578a238d9') }}"
                                     class="grid h-11 w-14 place-items-center rounded-full bg-red-500 text-white hover:bg-red-400">
                                 <svg class="h-5 w-5 rotate-[135deg]" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round"

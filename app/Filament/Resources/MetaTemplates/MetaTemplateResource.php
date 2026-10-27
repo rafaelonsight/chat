@@ -11,18 +11,11 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use UnitEnum;
 
-/**
- * Somente leitura, de proposito.
- *
- * Template nao se cria aqui: quem cria e aprova e a Meta, no painel dela, com analise que
- * leva horas ou dias. Um formulario de criacao nesta tela daria a impressao de que salvar
- * basta — e o atendente sairia daqui achando que pode usar algo que a Meta nem viu.
- *
- * O que esta tela faz e mostrar a verdade da Meta e dizer, para cada template, se da para
- * enviar e por que nao.
- */
+/** Rascunhos locais e estado confirmado pela Meta. */
 class MetaTemplateResource extends Resource
 {
+    use \App\Filament\TraduzirResource;
+
     protected static ?string $model = MetaTemplate::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedDocumentCheck;
@@ -46,7 +39,17 @@ class MetaTemplateResource extends Resource
 
     public static function canCreate(): bool
     {
-        return false;
+        return static::canViewAny();
+    }
+
+    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return static::canViewAny() && $record->tenant_id === \App\Support\TenantContext::get() && $record->status === 'DRAFT';
+    }
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool { return static::canEdit($record); }
+    public static function form(\Filament\Schemas\Schema $schema): \Filament\Schemas\Schema
+    {
+        return \App\Filament\Resources\MetaTemplates\Schemas\MetaTemplateForm::configure($schema);
     }
 
     public static function table(Table $table): Table
@@ -58,6 +61,8 @@ class MetaTemplateResource extends Resource
     {
         return [
             'index' => ListMetaTemplates::route('/'),
+            'create' => Pages\CreateMetaTemplate::route('/create'),
+            'edit' => Pages\EditMetaTemplate::route('/{record}/edit'),
         ];
     }
 }

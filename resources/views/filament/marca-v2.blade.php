@@ -1,0 +1,1 @@
+<span class="vc-brand" aria-label="{{ __('ui_14041ba04401') }}">{{ __('ui_8c10a9f11c20') }}<span>.chat</span></span>

@@ -68,8 +68,6 @@
     </div>
 
     <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-        A mesma verificação roda sozinha a cada 5 minutos e avisa quando encontra algo crítico.
-        Esta tela existe para a pergunta que aparece no meio do atendimento, quando ninguém
-        quer abrir o servidor para saber se o problema é do sistema.
+        {{ __('ui_db8b79f11634') }}
     </p>
 </x-filament-panels::page>

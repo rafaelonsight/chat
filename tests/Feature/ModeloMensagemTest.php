@@ -10,6 +10,7 @@ function cenarioModelo(string $slug): array
     $t = Tenant::create(['nome' => strtoupper($slug), 'slug' => $slug]);
     TenantContext::set($t->id);
     $u = User::create(['tenant_id' => $t->id, 'name' => 'U', 'email' => "u@{$slug}.test", 'password' => 'segredo123', 'admin' => true]);
+    $u->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
     $c = Channel::create(['nome' => 'C']);
     $c->refresh();
     $c->update(['status' => 'open']);

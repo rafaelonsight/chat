@@ -48,6 +48,15 @@ class DispararCampanha implements ShouldQueue
 
         TenantContext::runAs($campanha->tenant_id, function () use ($campanha, $disparador) {
             $agora = now();
+            if ($campanha->agendada_para && $campanha->agendada_para->gt($agora)) {
+                self::dispatch($campanha->id)->delay($campanha->agendada_para);
+                return;
+            }
+            if ($campanha->channel?->status !== 'open') {
+                $campanha->update(['status'=>Campaign::PAUSADA,'motivo_pausa'=>'Canal desconectado. Reconecte antes de retomar.']);
+                app(\App\Services\RelatorioCampanha::class)->historico($campanha, 'pausada', $campanha->motivo_pausa);
+                return;
+            }
 
             // Fora da janela: nao manda nada e volta quando abrir. Disparo as 23h nao e so
             // falta de educacao — e assedio de consumo no CDC e denuncia no WhatsApp.
@@ -67,13 +76,18 @@ class DispararCampanha implements ShouldQueue
             }
 
             $lote = $campanha->recipients()
-                ->where('status', CampaignRecipient::PENDENTE)
+                ->where('status', CampaignRecipient::PENDENTE)->whereNull('message_id')
                 ->with('contact')
                 ->orderBy('id')
                 ->limit($campanha->por_minuto)
                 ->get();
 
             if ($lote->isEmpty()) {
+                if ($campanha->recipients()->whereHas('message', fn($q)=>$q->where('status', Message::STATUS_QUEUED))->exists()) {
+                    self::dispatch($campanha->id)->delay(now()->addMinute());
+                    return;
+                }
+                app(\App\Services\RelatorioCampanha::class)->historico($campanha, 'concluida', 'Processamento dos envios encerrado; recibos podem chegar depois.');
                 $campanha->forceFill([
                     'status'       => Campaign::CONCLUIDA,
                     'concluida_em' => now(),
@@ -82,8 +96,8 @@ class DispararCampanha implements ShouldQueue
                 return;
             }
 
-            foreach ($lote as $destinatario) {
-                $this->enviarPara($campanha, $destinatario, $disparador);
+            foreach ($lote as $indice => $destinatario) {
+                $this->enviarPara($campanha, $destinatario, $disparador, $indice);
             }
 
             // Proximo lote em um minuto. Se acabou, o proximo tique fecha a campanha — deixar
@@ -93,7 +107,7 @@ class DispararCampanha implements ShouldQueue
         });
     }
 
-    private function enviarPara(Campaign $campanha, CampaignRecipient $destinatario, Disparador $disparador): void
+    private function enviarPara(Campaign $campanha, CampaignRecipient $destinatario, Disparador $disparador, int $indice = 0): void
     {
         $contato = $destinatario->contact;
 
@@ -115,12 +129,18 @@ class DispararCampanha implements ShouldQueue
         }
 
         try {
+            \Illuminate\Support\Facades\DB::transaction(function() use ($campanha, $destinatario, $contato, $disparador, $indice) {
+            $destinatario=CampaignRecipient::whereKey($destinatario->id)->lockForUpdate()->firstOrFail();
+            if ($destinatario->message_id || $destinatario->status!==CampaignRecipient::PENDENTE || !$campanha->fresh()->rodando()) return;
             $conversa = Conversation::abertaOuNova(
                 $campanha->channel_id,
                 $contato->id,
                 $campanha->tenant_id,
             );
 
+            if ($team = data_get($campanha->configuracao, 'team_id')) {
+                if (!$conversa->atendente_id) $conversa->update(['team_id'=>$team]);
+            }
             $ehTemplate = $campanha->exigeTemplate();
 
             $mensagem = Message::create([
@@ -138,20 +158,23 @@ class DispararCampanha implements ShouldQueue
                 'status'          => Message::STATUS_QUEUED,
             ]);
 
+            // Link before dispatch: a fast worker must see the campaign before sending.
+            $destinatario->update(['message_id'=>$mensagem->id, 'motivo'=>null]);
             $ehTemplate
-                ? SendTemplateMessage::dispatch($mensagem->id, $campanha->meta_template_id, (array) $campanha->template_valores)
-                : SendTextMessage::dispatch($mensagem->id);
+                ? SendTemplateMessage::dispatch($mensagem->id, $campanha->meta_template_id, (array) $campanha->template_valores)->afterCommit()->delay($disparador->quandoEnviar($campanha,$indice))
+                : SendTextMessage::dispatch($mensagem->id)->afterCommit()->delay($disparador->quandoEnviar($campanha,$indice));
 
             // ultima_msg_em SIM, ultima_entrada_em NAO: quem falou fomos nos. A janela de 24h
             // pertence a quem procurou, e campanha nao abre janela nenhuma.
             $conversa->update(['ultima_msg_em' => now()]);
 
             $destinatario->forceFill([
-                'status'     => CampaignRecipient::ENVIADA,
+                'status'     => CampaignRecipient::PENDENTE,
                 'message_id' => $mensagem->id,
-                'enviada_em' => now(),
+                'enviada_em' => null,
                 'motivo'     => null,
             ])->save();
+            });
         } catch (\Throwable $e) {
             // Falha de UM destinatario nao para a campanha: o lote continua e esta linha fica
             // com o motivo. Parar tudo por um numero invalido faria mil pessoas nao receberem

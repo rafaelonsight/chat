@@ -13,46 +13,100 @@ use Filament\Panel;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['tenant_id', 'admin', 'name', 'email', 'password', 'cor_chat'])]
+#[Fillable(['tenant_id', 'admin', 'name', 'email', 'password', 'cor_chat', 'perfil', 'ver_notas_internas', 'consultar_anexos', 'apelido', 'telefone', 'cargo', 'foto_perfil', 'agenda_products_manage', 'agenda_finance_view', 'agenda_finance_manage'])]
 #[Hidden(['password', 'remember_token'])]
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements \Illuminate\Contracts\Translation\HasLocalePreference, FilamentUser, \Filament\Models\Contracts\HasAvatar, \Filament\Models\Contracts\HasName
 {
-    public const CORES_CHAT = [
-        'amarelo' => 'Amarelo',
-        'azul'    => 'Azul',
-        'cinza'   => 'Cinza',
-        'roxo'    => 'Roxo',
-        'rosa'    => 'Rosa',
-        'laranja' => 'Laranja',
-        'verde'   => 'Verde',
+    public function save(array $options=[])
+    {
+        $tenant=$this->tenant_id ?? \App\Support\TenantContext::get();
+        if(!$this->exists && $tenant && config('agenda.edition') && \Illuminate\Support\Facades\Schema::hasTable('agenda_plan_entitlements')) {
+            return \Illuminate\Support\Facades\DB::transaction(function()use($tenant,$options){
+                \Illuminate\Support\Facades\DB::table('tenants')->where('id',$tenant)->lockForUpdate()->first();
+                app(\App\Services\AgendaPlan::class)->assertSeat((int)$tenant);
+                return parent::save($options);
+            });
+        }
+        return parent::save($options);
+    }
+    public function preferredLocale(): string {return config('agenda.edition') ? \App\Support\Idiomas::interface($this) : \App\Support\Idiomas::valido(Tenant::find($this->tenant_id)?->idioma_comunicacoes);}
+    public const PERFIS = ['admin'=>'Admin','supervisor'=>'Supervisor','atendente'=>'Atendente','auditor'=>'Auditor','profissional'=>'Profissional'];
+    public function isAgendaProfessional(): bool {return config('agenda.edition') && $this->perfil==='profissional' && !$this->admin;}
+    public function agendaProfessional(): ?AgendaProfessional {
+        return AgendaProfessional::withoutGlobalScopes()->where('tenant_id',$this->tenant_id)->where('user_id',$this->id)->first();
+    }
+    public function canEnterAgenda(): bool {
+        return $this->tenant_id && $this->agenda_access_status==='ativo' && (!$this->isAgendaProfessional() || $this->agendaProfessional()!==null);
+    }
+    public function canAgendaProducts(): bool {return $this->canEnterAgenda() && !$this->ehAuditor() && ($this->admin || $this->perfil==='admin' || $this->agenda_products_manage);}
+    public function canAgendaFinance(bool $write=false): bool {return $this->canEnterAgenda() && (!$write || !$this->ehAuditor()) && ($this->admin || $this->perfil==='admin' || $this->agenda_finance_manage || (!$write && $this->agenda_finance_view));}
+    public function canDefineAgendaPassword(): bool {
+        return $this->tenant_id && $this->agenda_access_status!=='suspenso' && (!$this->isAgendaProfessional() || $this->agendaProfessional()!==null);
+    }
+    public function ehAuditor(): bool { return $this->perfil === 'auditor'; }
+    public function gerenciaUsuarios(): bool { return $this->operador || $this->admin || $this->perfil === 'admin'; }
+    public function consultaRelatorios(): bool { return $this->admin || in_array($this->perfil,['admin','supervisor','auditor'],true); }
+    public function consultaAnexos(): bool { return ! $this->ehAuditor() || $this->consultar_anexos; }
+    public function consultaNotas(): bool { return ! $this->ehAuditor() || $this->ver_notas_internas; }
+    protected static function booted(): void {
+        static::saving(function(User $u){
+            if ($u->isDirty('perfil')) { $u->admin = $u->perfil === 'admin'; }
+            elseif ($u->isDirty('admin')) { $u->perfil = $u->admin ? 'admin' : 'atendente'; }
+            if(config('agenda.edition') && $u->exists && ($u->getOriginal('admin') || $u->getOriginal('perfil')==='admin') && $u->getOriginal('agenda_access_status')==='ativo' && ((!$u->admin && $u->perfil!=='admin') || $u->agenda_access_status!=='ativo')) {
+                $others=static::withoutGlobalScopes()->where('tenant_id',$u->tenant_id)->whereKeyNot($u->id)->where('agenda_access_status','ativo')->where(fn($q)=>$q->where('admin',true)->orWhere('perfil','admin'))->count();
+                if(!$others)throw \Illuminate\Validation\ValidationException::withMessages(['data.perfil'=>__('O estabelecimento precisa manter um administrador ativo.')]);
+            }
+        });
+    }
+    public const PALETA_CHAT = [
+        'roxo' => '#6338F6',
+        'violeta' => '#7C3AED',
+        'lavanda' => '#A78BFA',
+        'indigo' => '#4338CA',
+        'azul' => '#2563EB',
+        'celeste' => '#0284C7',
+        'ciano' => '#0891B2',
+        'turquesa' => '#0D9488',
+        'verde' => '#059669',
+        'floresta' => '#15803D',
+        'lima' => '#84CC16',
+        'amarelo' => '#FBBF24',
+        'ambar' => '#D97706',
+        'laranja' => '#EA580C',
+        'coral' => '#F97373',
+        'vermelho' => '#DC2626',
+        'rosa' => '#DB2777',
+        'fucsia' => '#C026D3',
+        'cinza' => '#475569',
+        'grafite' => '#1F2937',
     ];
-
-    /** Classes seguras no tema escuro para identificar autoria nas mensagens de saída. */
-    public function classesChat(): string
-    {
-        return match ($this->cor_chat) {
-            'amarelo' => '!bg-amber-400 !text-gray-950',
-            'azul'    => '!bg-blue-600 !text-white',
-            'cinza'   => '!bg-slate-600 !text-white',
-            'roxo'    => '!bg-violet-600 !text-white',
-            'rosa'    => '!bg-pink-600 !text-white',
-            'laranja' => '!bg-orange-600 !text-white',
-            default   => 'vc-message-out',
-        };
-    }
-
-    public function classeEtiquetaChat(): string
-    {
-        return match ($this->cor_chat) {
-            'amarelo' => 'bg-amber-300 text-gray-950',
-            'azul'    => 'bg-blue-700 text-white',
-            'cinza'   => 'bg-slate-700 text-white',
-            'roxo'    => 'bg-violet-700 text-white',
-            'rosa'    => 'bg-pink-700 text-white',
-            'laranja' => 'bg-orange-700 text-white',
-            default   => 'bg-emerald-700 text-white',
-        };
-    }
+    public const CORES_CHAT = [
+        'roxo' => 'Roxo',
+        'violeta' => 'Violeta',
+        'lavanda' => 'Lavanda',
+        'indigo' => 'Indigo',
+        'azul' => 'Azul',
+        'celeste' => 'Celeste',
+        'ciano' => 'Ciano',
+        'turquesa' => 'Turquesa',
+        'verde' => 'Verde',
+        'floresta' => 'Floresta',
+        'lima' => 'Lima',
+        'amarelo' => 'Amarelo',
+        'ambar' => 'Ambar',
+        'laranja' => 'Laranja',
+        'coral' => 'Coral',
+        'vermelho' => 'Vermelho',
+        'rosa' => 'Rosa',
+        'fucsia' => 'Fucsia',
+        'cinza' => 'Cinza',
+        'grafite' => 'Grafite',
+    ];
+    public function classesChat(): string {return 'vc-user-color-'.(isset(self::PALETA_CHAT[$this->cor_chat])?$this->cor_chat:'roxo');}
+    public function classeEtiquetaChat(): string {return $this->classesChat();}
+    public function nomePublico(): string {return trim((string)$this->apelido) ?: $this->primeiroNome();}
+    public function getFilamentName(): string {return $this->nomePublico();}
+    public function getFilamentAvatarUrl(): ?string {return $this->foto_perfil ? route('perfil.foto',['usuario'=>$this->id]) : null;}
     /**
      * So o primeiro nome.
      *
@@ -77,6 +131,8 @@ class User extends Authenticatable implements FilamentUser
     protected $attributes = [
         'operador' => false,
         'super_admin' => false,
+        'agenda_access_status' => 'ativo',
+        'agenda_access_version' => 1,
     ];
 
     /**
@@ -88,12 +144,16 @@ class User extends Authenticatable implements FilamentUser
     {
         return [
             'email_verified_at' => 'datetime',
+            'perfil_preenchido_em' => 'datetime',
             'admin' => 'boolean',
+            'ver_notas_internas' => 'boolean',
+            'consultar_anexos' => 'boolean',
             'super_admin' => 'boolean',
             // 'operador' NAO entra no #[Fillable]: e a chave da casa. Fora do
             // preenchimento em massa, so o comando onchat:operador concede.
             'operador' => 'boolean',
             'password' => 'hashed',
+            'agenda_access_version' => 'integer',
         ];
     }
 
@@ -110,7 +170,7 @@ class User extends Authenticatable implements FilamentUser
             return (bool) $this->operador;
         }
 
-        return true;
+        return config('agenda.edition') ? ($panel->getId() === 'admin' && $this->canEnterAgenda()) : true;
     }
 
     /** @var array<int, int>|null */

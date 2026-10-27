@@ -11,9 +11,9 @@
     <div class="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-5 shadow-xl dark:bg-gray-900">
         <div class="flex items-start justify-between gap-3">
             <div>
-                <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">Avisar por WhatsApp</h2>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-gray-100">{{ __('ui_3166899ff849') }}</h2>
                 <p class="mt-0.5 text-xs text-gray-500">
-                    O convite vai como mensagem de texto, com data, hora e o link se for por vídeo.
+                    {{ __('ui_e66e07321334') }}
                 </p>
             </div>
 
@@ -23,10 +23,10 @@
 
         {{-- ------------------------------------------------------------- o canal --}}
         <label class="mt-4 block">
-            <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Por qual número</span>
+            <span class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ __('ui_472bdba0a139') }}</span>
             <select wire:model="canalDoAviso"
                     class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
-                <option value="">Escolha o canal…</option>
+                <option value="">{{ __('ui_81a27b6effdb') }}</option>
                 @foreach ($canais as $c)
                     <option value="{{ $c->id }}">{{ $c->nome }}</option>
                 @endforeach
@@ -37,14 +37,14 @@
         {{-- ---------------------------------------------------------- os contatos --}}
         <div class="mt-4">
             <div class="flex items-baseline justify-between gap-2">
-                <span class="text-xs font-medium text-gray-600 dark:text-gray-300">Para quem</span>
+                <span class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ __('ui_c29a34269479') }}</span>
                 <span class="text-[11px] text-gray-400">
                     {{ count($paraAvisar) }} {{ count($paraAvisar) === 1 ? 'selecionado' : 'selecionados' }}
                 </span>
             </div>
 
             <input type="text" wire:model.live.debounce.300ms="buscaParaAvisar"
-                   placeholder="procurar contato pelo nome"
+                   placeholder="{{ __('ui_05076fbfefe2') }}"
                    class="mt-1 w-full rounded-lg border-gray-300 text-sm dark:border-white/20 dark:bg-gray-800">
 
             @error('paraAvisar') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
@@ -64,7 +64,7 @@
                     </label>
                 @empty
                     <p class="px-3 py-4 text-center text-xs text-gray-400">
-                        Nenhum contato encontrado.
+                        {{ __('ui_0675efed02f8') }}
                     </p>
                 @endforelse
             </div>
@@ -73,15 +73,15 @@
                 {{-- Dizer que a lista foi cortada, em vez de deixar a pessoa achar que o contato
                      dela nao existe. --}}
                 <p class="mt-1 text-[11px] text-gray-400">
-                    Mostrando os 40 mais recentes. Use a busca para achar os outros.
+                    {{ __('ui_5a8a705a5974') }}
                 </p>
             @endif
         </div>
 
         <div class="mt-5 flex justify-end gap-2">
-            <x-filament::button color="gray" wire:click="$set('avisando', false)">Cancelar</x-filament::button>
+            <x-filament::button color="gray" wire:click="$set('avisando', false)">{{ __('ui_c111e0ab9ddb') }}</x-filament::button>
             <x-filament::button wire:click="avisarPorWhatsapp" wire:loading.attr="disabled">
-                Enviar convite
+                {{ __('ui_2f0d5e838b70') }}
             </x-filament::button>
         </div>
     </div>

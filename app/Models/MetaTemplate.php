@@ -51,6 +51,7 @@ class MetaTemplate extends Model
     {
         if (! $this->aprovado()) {
             return match ($this->status) {
+                'DRAFT' => 'rascunho: solicite aprovação da Meta',
                 'PENDING'  => 'aguardando aprovação da Meta',
                 'REJECTED' => 'reprovado pela Meta',
                 'PAUSED'   => 'pausado pela Meta por qualidade',
@@ -72,13 +73,13 @@ class MetaTemplate extends Model
     {
         $texto = (string) $this->corpo;
 
+        $nomes = $this->nomesParametros();
+        $substituicoes = [];
         foreach (array_values($valores) as $i => $valor) {
-            $texto = preg_replace(
-                '/\{\{\s*'.($i + 1).'\s*\}\}/',
-                (string) $valor,
-                $texto,
-            ) ?? $texto;
+            $substituicoes[$nomes[$i] ?? (string) ($i + 1)] = (string) $valor;
         }
+        $texto = preg_replace_callback('/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*|\d+)\s*\}\}/',
+            fn ($m) => $substituicoes[$m[1]] ?? $m[0], $texto) ?? $texto;
 
         return trim(($this->cabecalho ? $this->cabecalho."\n\n" : '').$texto);
     }
@@ -162,6 +163,10 @@ class MetaTemplate extends Model
             $motivo ??= 'template sem corpo de texto';
         }
 
+        if (preg_match('/\{\{\s*\d+\s*\}\}/', $corpo) && preg_match('/\{\{\s*[a-zA-Z_]\w*\s*\}\}/', $corpo)) {
+            $motivo ??= 'mistura de parâmetros nomeados e posicionais';
+        }
+
         return [
             'cabecalho'            => $cabecalho,
             'corpo'                => $corpo,
@@ -172,17 +177,20 @@ class MetaTemplate extends Model
         ];
     }
 
-    /**
-     * Quantos valores este template precisa.
-     *
-     * O MAIOR indice, nao a contagem: a Meta recebe parametros posicionais, e um corpo que
-     * usa so {{2}} ainda exige dois valores na lista. Contar ocorrencias daria 1 e o envio
-     * falharia com "number of parameters does not match".
-     */
+    /** Ordem dos parâmetros nomeados; posicionais conservam o maior índice. */
+    public function nomesParametros(): array
+    {
+        preg_match_all('/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/', (string) $this->corpo, $achados);
+        return array_values(array_unique($achados[1]));
+    }
+
     private static function maiorVariavel(string $corpo): int
     {
+        preg_match_all('/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/', $corpo, $nomes);
+        if ($nomes[1]) {
+            return count(array_unique($nomes[1]));
+        }
         preg_match_all('/\{\{\s*(\d+)\s*\}\}/', $corpo, $achados);
-
         return $achados[1] ? max(array_map('intval', $achados[1])) : 0;
     }
 }

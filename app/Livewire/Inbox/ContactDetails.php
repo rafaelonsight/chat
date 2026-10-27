@@ -8,6 +8,7 @@ use Livewire\Component;
 
 class ContactDetails extends Component
 {
+    use \App\Livewire\Inbox\Concerns\CriaEtiquetaNoLocal;
     public ?int $conversationId = null;
 
     public bool $aberto = false;

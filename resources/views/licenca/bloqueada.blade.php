@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -46,8 +46,8 @@
         <p class="marca">{{ config('app.name') }}</p>
 
         <span class="status">{{ $status }}</span>
-        <p class="titulo">Este acesso não está disponível agora</p>
-        <p class="texto">Fale com quem administra sua conta para regularizar a situação.</p>
+        <p class="titulo">{{ __('ui_1783dfc85611') }}</p>
+        <p class="texto">{{ __('ui_e3bc6c77075f') }}</p>
 
         @if ($motivo)
             <div class="motivo">{{ $motivo }}</div>
@@ -55,7 +55,7 @@
 
         <form method="POST" action="{{ route('filament.admin.auth.logout') }}">
             @csrf
-            <button type="submit" class="sair">Sair da conta</button>
+            <button type="submit" class="sair">{{ __('ui_79c7443231cc') }}</button>
         </form>
     </div>
 </body>

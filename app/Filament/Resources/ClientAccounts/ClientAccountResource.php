@@ -27,6 +27,8 @@ use UnitEnum;
 
 class ClientAccountResource extends Resource
 {
+    use \App\Filament\TraduzirResource;
+
     protected static bool $shouldRegisterNavigation = false;
 
     public static function canViewAny(): bool
@@ -53,14 +55,14 @@ class ClientAccountResource extends Resource
     {
         return $schema->components([
             Section::make('Cliente')->schema([
-                TextInput::make('name')->label('Nome')->required()->maxLength(160),
+                TextInput::make('name')->label(__('ui_13030dd962f4'))->required()->maxLength(160),
                 Select::make('type')
-                    ->label('Tipo')
-                    ->options(ClientAccount::TYPES)
+                    ->label(__('ui_6cc6198d9e75'))
+                    ->options(fn () => \App\Support\Idiomas::opcoes(ClientAccount::TYPES))
                     ->required()
                     ->live(),
                 Select::make('parent_id')
-                    ->label('Parceiro responsável')
+                    ->label(__('ui_bcd04c3f0ac7'))
                     ->options(fn () => ClientAccount::query()
                         ->where('type', ClientAccount::PARTNER)
                         ->whereNull('archived_at')
@@ -70,63 +72,63 @@ class ClientAccountResource extends Resource
                     ->visible(fn (Get $get): bool => $get('type') === ClientAccount::END_CLIENT)
                     ->required(fn (Get $get): bool => $get('type') === ClientAccount::END_CLIENT),
                 Select::make('contact_id')
-                    ->label('Contato do CRM')
+                    ->label(__('ui_a0d3bd112bc0'))
                     ->options(fn () => Contact::query()->ativos()
                         ->orderBy('nome')->limit(300)->get()
                         ->mapWithKeys(fn (Contact $contact) => [$contact->id => $contact->nomeExibicao()])->all())
                     ->searchable()
-                    ->helperText('Aceita contato individual ou grupo do WhatsApp.'),
-                TextInput::make('email')->label('E-mail principal')->email()->maxLength(160),
-                TextInput::make('phone')->label('Telefone')->tel()->maxLength(30),
-                Textarea::make('notes')->label('Observações internas')->rows(3)->columnSpanFull(),
+                    ->helperText(__('ui_1de937dabb40')),
+                TextInput::make('email')->label(__('ui_eb232be8fef7'))->email()->maxLength(160),
+                TextInput::make('phone')->label(__('ui_04e0410282ed'))->tel()->maxLength(30),
+                Textarea::make('notes')->label(__('ui_e945de19340f'))->rows(3)->columnSpanFull(),
             ])->columns(2),
 
             Section::make('Portal e administradores')
-                ->description('O link é gerado automaticamente. Parceiros permitem até 3 administradores; demais clientes, 1.')
+                ->description(__('ui_03e5e37a327d'))
                 ->schema([
-                    TextInput::make('portal_url')->label('Link privado do portal')->disabled()->dehydrated(false)
+                    TextInput::make('portal_url')->label(__('ui_6067209f2b29'))->disabled()->dehydrated(false)
                         ->formatStateUsing(fn (?ClientAccount $record) => $record?->portal?->url()),
                     Repeater::make('admins')->relationship()->defaultItems(0)->schema([
-                        TextInput::make('name')->label('Nome')->required()->maxLength(160),
-                        TextInput::make('email')->label('E-mail')->email()->required()->maxLength(160),
-                        Toggle::make('is_primary')->label('Administrador principal'),
-                        Toggle::make('active')->label('Ativo')->default(true),
+                        TextInput::make('name')->label(__('ui_13030dd962f4'))->required()->maxLength(160),
+                        TextInput::make('email')->label(__('ui_0d01e2e86669'))->email()->required()->maxLength(160),
+                        Toggle::make('is_primary')->label(__('ui_0083a99bb9ba')),
+                        Toggle::make('active')->label(__('ui_8263fde6ccc4'))->default(true),
                     ])->columns(2)->addActionLabel('Adicionar administrador'),
                 ]),
 
             Section::make('Solicitantes')
-                ->description('Pessoas que podem ser identificadas ao abrir ou responder uma demanda.')
+                ->description(__('ui_48001dbc9057'))
                 ->schema([
                     Repeater::make('requesters')
                         ->relationship()
                         ->defaultItems(0)
                         ->hiddenLabel()
                         ->schema([
-                            TextInput::make('name')->label('Nome')->required()->maxLength(160),
-                            TextInput::make('email')->label('E-mail')->email()->maxLength(160),
-                            TextInput::make('phone')->label('Telefone')->tel()->maxLength(30),
-                            Toggle::make('is_admin')->label('Responsável administrativo'),
-                            Toggle::make('active')->label('Ativo')->default(true),
+                            TextInput::make('name')->label(__('ui_13030dd962f4'))->required()->maxLength(160),
+                            TextInput::make('email')->label(__('ui_0d01e2e86669'))->email()->maxLength(160),
+                            TextInput::make('phone')->label(__('ui_04e0410282ed'))->tel()->maxLength(30),
+                            Toggle::make('is_admin')->label(__('ui_aad34779789c')),
+                            Toggle::make('active')->label(__('ui_8263fde6ccc4'))->default(true),
                         ])
                         ->columns(3)
                         ->addActionLabel('Adicionar solicitante'),
                 ]),
 
             Section::make('Projetos')
-                ->description('Implantação, onboarding, treinamento ou outro trabalho estruturado.')
+                ->description(__('ui_8413360ae52e'))
                 ->schema([
                     Repeater::make('projects')
                         ->relationship()
                         ->defaultItems(0)
                         ->hiddenLabel()
                         ->schema([
-                            TextInput::make('name')->label('Projeto')->required()->maxLength(160),
-                            Select::make('status')->label('Situação')->options([
+                            TextInput::make('name')->label(__('ui_a29580282264'))->required()->maxLength(160),
+                            Select::make('status')->label(__('ui_2d3abf3de54d'))->options(fn () => \App\Support\Idiomas::opcoes([
                                 'active' => 'Ativo', 'paused' => 'Pausado', 'completed' => 'Concluído',
-                            ])->default('active')->required(),
-                            DatePicker::make('starts_on')->label('Início'),
-                            DatePicker::make('ends_on')->label('Fim'),
-                            Textarea::make('description')->label('Descrição')->rows(2)->columnSpanFull(),
+                            ]))->default('active')->required(),
+                            DatePicker::make('starts_on')->label(__('ui_fc2c74003cb1')),
+                            DatePicker::make('ends_on')->label(__('ui_1b0369058b98')),
+                            Textarea::make('description')->label(__('ui_469768598e0f'))->rows(2)->columnSpanFull(),
                         ])
                         ->columns(2)
                         ->addActionLabel('Adicionar projeto'),
@@ -138,19 +140,19 @@ class ClientAccountResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('name')->label('Cliente')->searchable()->sortable(),
-                TextColumn::make('type')->label('Tipo')->badge()->formatStateUsing(fn ($state) => ClientAccount::TYPES[$state] ?? $state),
-                TextColumn::make('parent.name')->label('Parceiro')->placeholder('—')->searchable(),
-                TextColumn::make('tickets_count')->counts('tickets')->label('Tickets')->badge(),
-                TextColumn::make('email')->label('E-mail')->toggleable(),
+                TextColumn::make('name')->label(__('ui_c5c7d5ee3d61'))->searchable()->sortable(),
+                TextColumn::make('type')->label(__('ui_6cc6198d9e75'))->badge()->formatStateUsing(fn ($state) => ClientAccount::TYPES[$state] ?? $state),
+                TextColumn::make('parent.name')->label(__('ui_9e703250755e'))->placeholder('—')->searchable(),
+                TextColumn::make('tickets_count')->counts('tickets')->label(__('ui_5c622a517089'))->badge(),
+                TextColumn::make('email')->label(__('ui_0d01e2e86669'))->toggleable(),
             ])
             ->filters([
-                SelectFilter::make('type')->label('Tipo')->options(ClientAccount::TYPES),
+                SelectFilter::make('type')->label(__('ui_6cc6198d9e75'))->options(fn () => \App\Support\Idiomas::opcoes(ClientAccount::TYPES)),
             ])
             ->defaultSort('name')
             ->recordActions([EditAction::make()])
-            ->emptyStateHeading('Nenhum cliente cadastrado')
-            ->emptyStateDescription('Cadastre clientes diretos, parceiros e clientes finais para abrir demandas.');
+            ->emptyStateHeading(__('ui_8936a2e44c3f'))
+            ->emptyStateDescription(__('ui_c8364e2ebe30'));
     }
 
     public static function canDelete($record): bool

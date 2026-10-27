@@ -27,6 +27,8 @@ use Filament\Resources\Pages\Page;
  */
 class ConectarMetaIncorporado extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static string $resource = ChannelResource::class;
 
     protected string $view = 'filament.resources.channels.pages.conectar-meta-incorporado';

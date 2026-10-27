@@ -17,11 +17,13 @@ use UnitEnum;
 
 class HorarioAtendimento extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClock;
 
     protected static string|UnitEnum|null $navigationGroup = 'Configurações';
 
-    protected static ?string $navigationParentItem = 'Conta';
+    protected static ?string $navigationParentItem = null;
 
     protected static ?string $navigationLabel = 'Horário de Atendimento';
 
@@ -51,6 +53,7 @@ class HorarioAtendimento extends Page
 
     /** Pergunta a nota de 1 a 5 quando o atendimento e encerrado. */
     public bool $pesquisa_ativa = false;
+    public bool $pesquisa_obrigatoria = false;
 
     public string $pesquisa_texto = '';
 
@@ -78,6 +81,7 @@ class HorarioAtendimento extends Page
         $this->resposta_ativa = (bool) $conta?->resposta_automatica_ativa;
         $this->assinatura_ativa = (bool) $conta?->assinatura_ativa;
         $this->pesquisa_ativa = (bool) $conta?->pesquisa_ativa;
+        $this->pesquisa_obrigatoria = (bool) $conta?->pesquisa_obrigatoria;
         $this->pesquisa_texto = (string) ($conta?->pesquisa_texto
             ?: \App\Services\PesquisaDeSatisfacao::TEXTO_PADRAO);
         $this->resposta_texto = (string) ($conta?->resposta_automatica_texto
@@ -221,6 +225,7 @@ class HorarioAtendimento extends Page
             'resposta_automatica_ativa' => $this->resposta_ativa,
             'assinatura_ativa'          => $this->assinatura_ativa,
             'pesquisa_ativa'            => $this->pesquisa_ativa,
+            'pesquisa_obrigatoria' => $this->pesquisa_ativa && $this->pesquisa_obrigatoria,
             'pesquisa_texto'            => trim($this->pesquisa_texto) ?: null,
             'resposta_automatica_texto' => trim($this->resposta_texto) ?: null,
         ]);
@@ -275,7 +280,7 @@ class HorarioAtendimento extends Page
         );
 
         $this->reset(['ex_data', 'ex_descricao']);
-        Notification::make()->success()->title('Exceção salva')->send();
+        Notification::make()->success()->title(__('ui_0d44e393d339'))->send();
     }
 
     public function removerExcecao(int $id): void

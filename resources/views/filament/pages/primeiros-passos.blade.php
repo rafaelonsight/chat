@@ -1,6 +1,6 @@
 <x-filament-panels::page>
     <x-filament::section>
-        <x-slot name="heading">Sem isto o sistema não funciona</x-slot>
+        <x-slot name="heading">{{ __('ui_1fe1fee4132b') }}</x-slot>
 
         <div class="space-y-3">
             @foreach ($this->essenciais() as $p)
@@ -42,7 +42,7 @@
     </x-filament::section>
 
     <x-filament::section>
-        <x-slot name="heading">Dá para viver sem, mas ajuda</x-slot>
+        <x-slot name="heading">{{ __('ui_71a4048027f2') }}</x-slot>
         <x-slot name="description">
             {{-- Dito em voz alta de proposito: lista que cobra para sempre vira lista que
                  ninguem olha, e ai o alerta que importa some junto. --}}

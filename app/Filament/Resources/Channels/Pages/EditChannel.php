@@ -24,7 +24,7 @@ class EditChannel extends EditRecord
         if ($aviso = session('aviso_troca_de_conta_social')) {
             Notification::make()
                 ->warning()
-                ->title('Atenção: a reconexão trocou de conta')
+                ->title(__('ui_caf8ac0ce0db'))
                 ->body($aviso)
                 ->persistent()
                 ->send();
@@ -37,10 +37,10 @@ class EditChannel extends EditRecord
             // QR Code so existe no caminho nao oficial. Mostrar no oficial seria oferecer
             // um botao que nunca funciona.
             Action::make('conectar')
-                ->label('Conectar numero')
+                ->label(__('ui_8eaf712a3e43'))
                 ->icon('heroicon-o-qr-code')
                 ->visible(fn () => $this->record->tipo === Channel::EVOLUTION)
-                ->modalHeading('Conectar numero de WhatsApp')
+                ->modalHeading(__('ui_1cf763b5f6a9'))
                 ->modalSubmitAction(false)
                 ->modalCancelActionLabel('Fechar')
                 ->modalContent(fn () => view('filament.channel-qr-modal', ['channel' => $this->record])),
@@ -53,19 +53,19 @@ class EditChannel extends EditRecord
             // sobrescreve waba_id/phone_number_id/token deste canal em silencio — o
             // mesmo numero de mensagens do cliente errado, sem aviso nenhum na hora.
             Action::make('reconectar_meta')
-                ->label('Reconectar pelo Facebook')
+                ->label(__('ui_29bb1dc94cb6'))
                 ->icon('heroicon-o-arrow-path')
                 ->color('gray')
                 ->visible(fn () => $this->record->tipo === Channel::META_CLOUD)
                 ->requiresConfirmation()
-                ->modalHeading('Reconectar '.($this->record->nome ?? 'este canal').'?')
+                ->modalHeading(__('ui_d994f514f037').($this->record->nome ?? 'este canal').'?')
                 ->modalDescription(
-                    'Isto troca a conta do WhatsApp Business, o número e a credencial deste '
+                    __('ui_46be156ba538')
                     .'canal pelo que você escolher no Facebook a seguir. Se escolher a conta '
                     .'errada, as conversas deste canal passam a sair pelo número errado — '
                     .'confira com cuidado antes de continuar.'
                 )
-                ->modalSubmitActionLabel('Continuar para o Facebook')
+                ->modalSubmitActionLabel(__('ui_dd4d82f93280'))
                 ->url(fn () => ChannelResource::getUrl('conectar-meta').'?canal='.$this->record->id),
 
             // Mesmo cuidado do reconectar_meta: escolher a Pagina/conta errada troca o
@@ -78,7 +78,7 @@ class EditChannel extends EditRecord
                 ->color('gray')
                 ->visible(fn () => in_array($this->record->tipo, [Channel::MESSENGER, Channel::INSTAGRAM], true))
                 ->requiresConfirmation()
-                ->modalHeading('Reconectar '.($this->record->nome ?? 'este canal').'?')
+                ->modalHeading(__('ui_d994f514f037').($this->record->nome ?? 'este canal').'?')
                 ->modalDescription(fn () => $this->record->tipo === Channel::INSTAGRAM
                     ? 'Isto troca a conta do Instagram e a credencial deste canal pela '
                         .'que você escolher a seguir. Se logar com a conta errada, as '
@@ -94,10 +94,10 @@ class EditChannel extends EditRecord
             // O equivalente do QR Code para o chat de site: nao ha nada para "conectar" —
             // o unico passo que falta e copiar o <script> para o HTML do site.
             Action::make('ver_codigo_site')
-                ->label('Ver código de instalação')
+                ->label(__('ui_bf50fb4b9ba7'))
                 ->icon('heroicon-o-code-bracket')
                 ->visible(fn () => $this->record->tipo === Channel::SITE)
-                ->modalHeading('Código de instalação')
+                ->modalHeading(__('ui_897619c4cf66'))
                 ->modalSubmitAction(false)
                 ->modalCancelActionLabel('Fechar')
                 ->modalContent(fn () => view('filament.channel-site-modal', ['channel' => $this->record])),
@@ -105,7 +105,7 @@ class EditChannel extends EditRecord
             // O equivalente do QR Code no oficial: perguntar a Meta se a configuracao
             // funciona, em vez de descobrir com cliente na linha.
             Action::make('conferir')
-                ->label('Conferir na Meta')
+                ->label(__('ui_7b11d6bab5c8'))
                 ->icon('heroicon-o-shield-check')
                 ->visible(fn () => $this->record->tipo === Channel::META_CLOUD)
                 ->action(function () {
@@ -117,7 +117,7 @@ class EditChannel extends EditRecord
 
                         Notification::make()
                             ->danger()
-                            ->title('A Meta recusou')
+                            ->title(__('ui_e383d49db650'))
                             ->body($r['erro'])
                             ->persistent()
                             ->send();
@@ -129,7 +129,7 @@ class EditChannel extends EditRecord
 
                     Notification::make()
                         ->success()
-                        ->title('A configuracao confere')
+                        ->title(__('ui_d439b3cdf8ae'))
                         ->body("{$r['numero']} · {$r['nome']} · qualidade {$r['qualidade']} · {$r['situacao']}")
                         ->persistent()
                         ->send();

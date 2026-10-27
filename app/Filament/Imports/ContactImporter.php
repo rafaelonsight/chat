@@ -35,16 +35,16 @@ class ContactImporter extends Importer
     {
         $colunas = [
             ImportColumn::make('telefone_e164')
-                ->label('Telefone')
+                ->label(__('ui_04e0410282ed'))
                 ->requiredMapping()
                 // guess: o cabecalho da planilha do cliente nunca se chama
                 // "telefone_e164". Sem os apelidos, todo mundo mapeia a mao.
                 ->guess(['telefone', 'celular', 'whatsapp', 'whats', 'fone', 'phone', 'numero', 'número'])
                 ->example('84 99614-3373')
-                ->helperText('Obrigatório. É por ele que a conversa é identificada — sem telefone válido a linha é recusada.'),
+                ->helperText(__('ui_99961c8c98c4')),
 
             ImportColumn::make('nome')
-                ->label('Nome')
+                ->label(__('ui_13030dd962f4'))
                 ->guess(['nome', 'name', 'cliente', 'razao social', 'razão social', 'nome completo'])
                 ->example('Maria Souza')
                 // Celula vazia NAO apaga o que ja existe. Planilha quase sempre vem
@@ -53,48 +53,48 @@ class ContactImporter extends Importer
                 ->ignoreBlankState(),
 
             ImportColumn::make('email')
-                ->label('E-mail')
+                ->label(__('ui_0d01e2e86669'))
                 ->guess(['email', 'e-mail', 'mail'])
                 ->rules(['nullable', 'email'])
                 ->ignoreBlankState(),
 
             ImportColumn::make('instagram')
-                ->label('Instagram')
+                ->label(__('ui_5721bbef40b2'))
                 ->guess(['instagram', 'insta', 'arroba'])
                 ->ignoreBlankState(),
 
             ImportColumn::make('cep')
-                ->label('CEP')
+                ->label(__('ui_2cbe9f1f9067'))
                 ->guess(['cep', 'codigo postal', 'código postal'])
                 ->ignoreBlankState(),
 
             ImportColumn::make('logradouro')
-                ->label('Logradouro')
+                ->label(__('ui_6f26397a6564'))
                 ->guess(['logradouro', 'endereco', 'endereço', 'rua', 'avenida'])
                 ->ignoreBlankState(),
 
             ImportColumn::make('numero')
-                ->label('Número')
+                ->label(__('ui_1d91f4b8d8d6'))
                 ->guess(['numero', 'número', 'num', 'nº'])
                 ->ignoreBlankState(),
 
             ImportColumn::make('complemento')
-                ->label('Complemento')
+                ->label(__('ui_ba75e2e6719b'))
                 ->guess(['complemento', 'compl', 'apto', 'apartamento'])
                 ->ignoreBlankState(),
 
             ImportColumn::make('bairro')
-                ->label('Bairro')
+                ->label(__('ui_49f7179a65c6'))
                 ->guess(['bairro', 'distrito'])
                 ->ignoreBlankState(),
 
             ImportColumn::make('cidade')
-                ->label('Cidade')
+                ->label(__('ui_1a3285047365'))
                 ->guess(['cidade', 'municipio', 'município', 'localidade'])
                 ->ignoreBlankState(),
 
             ImportColumn::make('uf')
-                ->label('UF')
+                ->label(__('ui_e81f7a385039'))
                 ->guess(['uf', 'estado'])
                 ->ignoreBlankState(),
         ];
@@ -118,21 +118,21 @@ class ContactImporter extends Importer
     {
         return [
             Select::make('duplicados')
-                ->label('Quando o telefone já existir')
-                ->options([
+                ->label(__('ui_063ab23a7edf'))
+                ->options(fn () => \App\Support\Idiomas::opcoes([
                     'atualizar' => 'Atualizar o contato (não apaga o que já está preenchido)',
                     'ignorar'   => 'Pular a linha e listar como não importada',
-                ])
+                ]))
                 ->default('atualizar')
                 ->native(false)
                 ->required()
-                ->helperText('Atualizar é o padrão: planilha nova quase sempre é complemento, não substituição.'),
+                ->helperText(__('ui_5f2cf8027d37')),
 
             Select::make('etiquetas')
-                ->label('Aplicar etiquetas a todos os importados')
+                ->label(__('ui_9f9b62d1577c'))
                 ->multiple()
                 ->options(fn () => Tag::orderBy('nome')->pluck('nome', 'id')->all())
-                ->helperText('Opcional. Fica registrado que veio da importação, e dá para achar depois quem entrou nesta leva.'),
+                ->helperText(__('ui_7d366acd98d9')),
         ];
     }
 

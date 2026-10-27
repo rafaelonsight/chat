@@ -27,11 +27,13 @@ beforeEach(function () {
         'tenant_id' => $this->conta->id, 'name' => 'Admin',
         'email' => 'admin@passos.test', 'password' => 'segredo123', 'admin' => true,
     ]);
+    $this->admin->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     $this->atendente = User::create([
         'tenant_id' => $this->conta->id, 'name' => 'Atendente',
         'email' => 'atendente@passos.test', 'password' => 'segredo123', 'admin' => false,
     ]);
+    $this->atendente->forceFill(['perfil_preenchido_em' => now()])->saveQuietly();
 
     $this->actingAs($this->admin);
 });

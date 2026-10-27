@@ -12,7 +12,7 @@ class Chatbot extends Model
     use BelongsToTenant;
 
     protected $fillable = [
-        'tenant_id', 'channel_id', 'nome', 'ativo',
+        'tenant_id', 'channel_id', 'channel_ids', 'nome', 'ativo',
         'mensagem_boas_vindas', 'mensagem_nao_entendi',
         'mensagem_fora_horario', 'mensagem_transferindo',
         'max_tentativas', 'palavra_escape',
@@ -21,6 +21,7 @@ class Chatbot extends Model
     ];
 
     protected $casts = [
+        'channel_ids' => 'array',
         'tolerancia_segundos' => 'integer',
         'espera_segundos'     => 'integer',
         'ativo'          => 'boolean',
@@ -45,11 +46,24 @@ class Chatbot extends Model
     protected static function booted(): void
     {
         static::saving(function (self $bot) {
+            if (! $bot->tenant_id) $bot->tenant_id = \App\Support\TenantContext::get();
+            if ($bot->channel_ids !== null) {
+                $ids = array_values(array_unique(array_map('intval', $bot->channel_ids)));
+                if (! $ids || Channel::where('tenant_id', $bot->tenant_id)->whereIn('id', $ids)->count() !== count($ids)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['channel_ids' => 'Selecione canais válidos desta conta.']);
+                }
+                $bot->channel_ids = $ids;
+                $bot->channel_id = null;
+                if ($bot->ativo && $bot->conflitosDeCanais()->isNotEmpty()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['channel_ids' => 'Há outro chatbot ativo em um dos canais selecionados. Desative-o antes de publicar.']);
+                }
+                return;
+            }
             if (! $bot->ativo || ! $bot->isDirty('ativo')) {
                 return;
             }
 
-            static::where('ativo', true)
+            static::where('ativo', true)->whereNull('channel_ids')
                 ->when($bot->exists, fn ($q) => $q->whereKeyNot($bot->getKey()))
                 ->when(
                     $bot->channel_id,
@@ -120,17 +134,36 @@ class Chatbot extends Model
      * no fluxo sem afetar quem esta conversando agora — se rascunho atendesse, o
      * cliente pegaria o fluxo pela metade durante a edicao.
      */
+    public function conflitosDeCanais(): \Illuminate\Support\Collection
+    {
+        $ids = $this->channel_ids ?? ($this->channel_id ? [$this->channel_id] : []);
+        if (! $ids) return collect();
+        return static::where('ativo', true)->where('tenant_id', $this->tenant_id)
+            ->when($this->exists, fn ($q) => $q->whereKeyNot($this->id))
+            ->where(function ($q) use ($ids) {
+                $q->where(function ($legacy) use ($ids) {
+                    $legacy->whereNull('channel_ids')->where(fn ($c) => $c->whereIn('channel_id', $ids)->orWhereNull('channel_id'));
+                });
+                foreach ($ids as $id) $q->orWhereJsonContains('channel_ids', (int) $id);
+            })->get();
+    }
+
     public static function publicadoPara(Channel $canal): ?self
     {
-        $doCanal = static::where('ativo', true)->where('status', self::PUBLICADO);
-
-        return (clone $doCanal)->where('channel_id', $canal->id)->first()
-            ?? $doCanal->whereNull('channel_id')->first();
+        return static::paraCanal($canal, true);
     }
 
     public static function ativoPara(Channel $canal): ?self
     {
-        return static::where('ativo', true)->where('channel_id', $canal->id)->first()
-            ?? static::where('ativo', true)->whereNull('channel_id')->first();
+        return static::paraCanal($canal, false);
+    }
+
+    private static function paraCanal(Channel $canal, bool $publicado): ?self
+    {
+        $q = static::where('tenant_id', $canal->tenant_id)->where('ativo', true)
+            ->when($publicado, fn ($q) => $q->where('status', self::PUBLICADO));
+        return (clone $q)->where(fn ($q) => $q->whereJsonContains('channel_ids', (int) $canal->id)
+            ->orWhere(fn ($l) => $l->whereNull('channel_ids')->where('channel_id', $canal->id)))->first()
+            ?? $q->whereNull('channel_ids')->whereNull('channel_id')->first();
     }
 }

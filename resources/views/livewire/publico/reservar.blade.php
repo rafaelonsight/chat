@@ -24,7 +24,7 @@
             <div class="px-6 py-10 text-center">
                 <div class="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-100 text-2xl text-emerald-700">&check;</div>
 
-                <h2 class="mt-4 text-lg font-semibold text-gray-900">Horário confirmado</h2>
+                <h2 class="mt-4 text-lg font-semibold text-gray-900">{{ __('ui_11ea3444a87c') }}</h2>
 
                 <p class="mt-1 text-base text-gray-700">
                     {{ \App\Support\DataPtBr::porExtenso($q) }} às <strong>{{ $q->format('H:i') }}</strong>
@@ -34,9 +34,9 @@
                     {{-- O link fica na tela tambem: a pagina pode nao ter canal de WhatsApp, e
                          ai esta e a unica vez que a pessoa ve o endereco da sala. --}}
                     <div class="mx-auto mt-5 max-w-sm rounded-xl border border-gray-200 p-4 text-left">
-                        <p class="text-xs font-medium uppercase tracking-wide text-gray-400">É por vídeo</p>
+                        <p class="text-xs font-medium uppercase tracking-wide text-gray-400">{{ __('ui_1a85af1cfd77') }}</p>
                         <p class="mt-1 text-sm text-gray-600">
-                            No horário, toque no link abaixo. Não precisa instalar nada.
+                            {{ __('ui_d5577df9a2a5') }}
                         </p>
                         <a href="{{ $linkDoVideo }}" class="mt-2 block break-all text-xs text-gray-900 underline">
                             {{ $linkDoVideo }}
@@ -46,30 +46,28 @@
 
                 @if ($pagina->channel_id)
                     <p class="mt-3 text-sm text-gray-500">
-                        Mandamos a confirmação no seu WhatsApp. Se precisar remarcar, é só
-                        responder por lá.
+                        {{ __('ui_3e77810fe2fa') }}
                     </p>
                 @else
                     <p class="mt-3 text-sm text-gray-500">Anote aí: {{ $q->format('d/m/Y \à\s H:i') }}.</p>
                 @endif
 
                 <button type="button" wire:click="$set('confirmado', null)"
-                        class="mt-6 text-sm text-gray-500 underline">marcar outro horário</button>
+                        class="mt-6 text-sm text-gray-500 underline">{{ __('ui_82d4f1cd1d5a') }}</button>
             </div>
 
         {{-- ------------------------------------------------------------ fechado --}}
         @elseif (! $pagina->ativa)
             <div class="px-6 py-14 text-center">
-                <h2 class="text-base font-medium text-gray-800">Esta agenda está fechada no momento</h2>
+                <h2 class="text-base font-medium text-gray-800">{{ __('ui_22b6a929e6fd') }}</h2>
                 <p class="mx-auto mt-2 max-w-sm text-sm text-gray-500">
-                    O link continua valendo — assim que voltar a receber horários, ele mostra as
-                    opções aqui.
+                    {{ __('ui_4721d7ae5fb3') }}
                 </p>
             </div>
 
         @elseif (empty($vagas))
             <div class="px-6 py-14 text-center">
-                <h2 class="text-base font-medium text-gray-800">Nenhum horário livre por enquanto</h2>
+                <h2 class="text-base font-medium text-gray-800">{{ __('ui_912d2aefa27f') }}</h2>
                 <p class="mx-auto mt-2 max-w-sm text-sm text-gray-500">
                     Tente de novo mais tarde, ou fale direto com {{ $pagina->user?->name }}.
                 </p>
@@ -86,7 +84,7 @@
             <div class="px-6 py-5">
                 {{-- Os dias em fita: so os que TEM vaga entram. Mostrar um mes inteiro e deixar
                      a pessoa descobrir clicando qual dia esta livre e fazer ela trabalhar. --}}
-                <p class="text-xs font-medium uppercase tracking-wide text-gray-400">Escolha o dia</p>
+                <p class="text-xs font-medium uppercase tracking-wide text-gray-400">{{ __('ui_508e1d8719d0') }}</p>
 
                 <div class="mt-2 flex gap-2 overflow-x-auto pb-1">
                     @foreach ($vagas as $chave => $horarios)
@@ -128,7 +126,7 @@
                 <div class="border-t border-gray-100 px-6 py-5">
                     <div class="flex items-center justify-between gap-3">
                         <p class="text-sm text-gray-700">
-                            <strong>{{ \App\Support\DataPtBr::porExtenso($q) }}</strong> às
+                            <strong>{{ \App\Support\DataPtBr::porExtenso($q) }}</strong> {{ __('ui_6d139d13415e') }}
                             <strong>{{ $q->format('H:i') }}</strong>
                         </p>
 
@@ -137,14 +135,14 @@
 
                     <div class="mt-4 space-y-3">
                         <label class="block">
-                            <span class="text-xs font-medium text-gray-600">Seu nome</span>
+                            <span class="text-xs font-medium text-gray-600">{{ __('ui_a6ef941eb691') }}</span>
                             <input type="text" wire:model="nome" maxlength="80" autocomplete="name"
                                    class="mt-1 w-full rounded-lg border-gray-300 text-sm">
                             @error('nome') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
                         </label>
 
                         <label class="block">
-                            <span class="text-xs font-medium text-gray-600">WhatsApp (com DDD)</span>
+                            <span class="text-xs font-medium text-gray-600">{{ __('ui_0f55dc7d57c0') }}</span>
                             <input type="tel" wire:model="telefone" maxlength="25" autocomplete="tel"
                                    placeholder="(41) 99999-0000"
                                    class="mt-1 w-full rounded-lg border-gray-300 text-sm">
@@ -152,7 +150,7 @@
                         </label>
 
                         <label class="block">
-                            <span class="text-xs font-medium text-gray-600">Quer adiantar alguma coisa? (opcional)</span>
+                            <span class="text-xs font-medium text-gray-600">{{ __('ui_85c767820da9') }}</span>
                             <textarea wire:model="observacao" rows="2" maxlength="500"
                                       class="mt-1 w-full rounded-lg border-gray-300 text-sm"></textarea>
                             @error('observacao') <span class="text-xs text-red-600">{{ $message }}</span> @enderror
@@ -160,8 +158,8 @@
 
                         <button type="button" wire:click="confirmar" wire:loading.attr="disabled"
                                 class="w-full rounded-lg bg-gray-900 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-60">
-                            <span wire:loading.remove wire:target="confirmar">Confirmar horário</span>
-                            <span wire:loading wire:target="confirmar">Confirmando…</span>
+                            <span wire:loading.remove wire:target="confirmar">{{ __('ui_3180c72faa9f') }}</span>
+                            <span wire:loading wire:target="confirmar">{{ __('ui_2a3701e89c6e') }}</span>
                         </button>
                     </div>
                 </div>
@@ -170,6 +168,6 @@
     </div>
 
     <p class="mt-4 text-center text-xs text-gray-400">
-        Horários no fuso de Brasília.
+        {{ __('ui_e6ff47878345') }}
     </p>
 </div>

@@ -150,3 +150,9 @@ it('a tela de configuracao liga e desliga', function () {
 
     expect($this->conta->fresh()->assinatura_ativa)->toBeTrue();
 });
+
+it('usa o apelido completo como assinatura pública e registra autoria histórica',function(){
+ $this->conta->update(['assinatura_ativa'=>true]);$this->pessoa->update(['apelido'=>'Ana Paula']);
+ Livewire::actingAs($this->pessoa)->test(MessageComposer::class,['conversationId'=>$this->conversa->id])->set('corpo','Bom dia')->call('enviar');
+ expect(ultimaEnviada()->corpo)->toBe("*Ana Paula*\nBom dia")->and(ultimaEnviada()->assinatura_nome)->toBe('Ana Paula');
+});

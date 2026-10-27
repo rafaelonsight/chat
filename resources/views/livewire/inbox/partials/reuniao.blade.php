@@ -28,7 +28,7 @@
             @if ($r->aberta() && ! $r->expirada())
                 <a href="{{ $r->url() }}" target="_blank" rel="noopener"
                    class="ms-auto rounded-full bg-amber-500 px-2.5 py-1 text-[11px] font-semibold text-gray-950 hover:bg-amber-400">
-                    Entrar
+                    {{ __('ui_7573ba85155c') }}
                 </a>
             @endif
         </div>

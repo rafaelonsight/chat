@@ -20,11 +20,13 @@ use UnitEnum;
  */
 class Diagnostico extends Page
 {
+    use \App\Filament\TraduzirNavegacao;
+
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedHeart;
 
     protected static string|UnitEnum|null $navigationGroup = 'Configurações';
 
-    protected static ?string $navigationParentItem = 'Conta';
+    protected static ?string $navigationParentItem = null;
 
     protected static ?string $navigationLabel = 'Diagnóstico';
 
@@ -63,7 +65,7 @@ class Diagnostico extends Page
     {
         return [
             Action::make('verificar')
-                ->label('Verificar de novo')
+                ->label(__('ui_dbb5bab78521'))
                 ->icon('heroicon-o-arrow-path')
                 ->action(function () {
                     $problemas = app(Verificador::class)->verificar();

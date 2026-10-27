@@ -186,8 +186,8 @@ it('manda o lote do minuto e se reagenda', function () {
 
     (new DispararCampanha($this->campanha->id))->handle($this->disparador);
 
-    expect($this->campanha->recipients()->where('status', CampaignRecipient::ENVIADA)->count())->toBe(4)
-        ->and($this->campanha->recipients()->where('status', CampaignRecipient::PENDENTE)->count())->toBe(6);
+    expect($this->campanha->recipients()->whereNotNull('message_id')->count())->toBe(4)
+        ->and($this->campanha->recipients()->whereNull('message_id')->where('status', CampaignRecipient::PENDENTE)->count())->toBe(6);
 
     Queue::assertPushed(DispararCampanha::class);
     Queue::assertPushed(SendTextMessage::class, 4);
@@ -243,7 +243,7 @@ it('falha de um destinatario nao para a campanha', function () {
 
     (new DispararCampanha($this->campanha->id))->handle($this->disparador);
 
-    expect($this->campanha->recipients()->where('status', CampaignRecipient::ENVIADA)->count())
+    expect($this->campanha->recipients()->whereNotNull('message_id')->count())
         ->toBeGreaterThanOrEqual(1);
 });
 
@@ -255,6 +255,7 @@ it('marca a campanha como concluida quando nao sobra ninguem', function () {
     $this->disparador->montarFila($this->campanha);
 
     (new DispararCampanha($this->campanha->id))->handle($this->disparador);
+    Message::where('direcao','out')->update(['status'=>Message::STATUS_SENT,'enviada_em'=>now()]);
     (new DispararCampanha($this->campanha->id))->handle($this->disparador);
 
     expect($this->campanha->fresh()->status)->toBe(Campaign::CONCLUIDA)

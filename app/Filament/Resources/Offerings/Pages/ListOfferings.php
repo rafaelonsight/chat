@@ -14,7 +14,7 @@ class ListOfferings extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [CreateAction::make()->label('Novo')->modalWidth('2xl')];
+        return [CreateAction::make()->label(__('ui_887bef1273bb'))->modalWidth('2xl')];
     }
 
     public function getTableRecordActions(): array

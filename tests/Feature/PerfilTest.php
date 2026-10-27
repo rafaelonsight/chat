@@ -32,6 +32,7 @@ beforeEach(function () {
         'tenant_id' => $this->conta->id, 'name' => 'Marina',
         'email' => 'marina@perfil.test', 'password' => 'senha-antiga-123', 'admin' => false,
     ]);
+    $this->pessoa->forceFill(['apelido'=>'Marina','telefone'=>'11999999999','perfil_preenchido_em'=>now()])->saveQuietly();
 });
 
 it('a rota existe e abre para quem esta logado', function () {
@@ -40,44 +41,9 @@ it('a rota existe e abre para quem esta logado', function () {
         ->assertOk();
 });
 
-it('troca a senha quando a atual confere', function () {
-    Livewire::actingAs($this->pessoa)->test(Perfil::class)
-        ->fillForm([
-            'currentPassword'       => 'senha-antiga-123',
-            'password'              => 'senha-nova-456',
-            'passwordConfirmation'  => 'senha-nova-456',
-        ])
-        ->call('save')
-        ->assertHasNoFormErrors();
-
-    expect(Hash::check('senha-nova-456', $this->pessoa->fresh()->password))->toBeTrue();
-});
-
-it('recusa a troca quando a senha atual esta errada', function () {
-    Livewire::actingAs($this->pessoa)->test(Perfil::class)
-        ->fillForm([
-            'currentPassword'      => 'chutei-essa',
-            'password'             => 'senha-nova-456',
-            'passwordConfirmation' => 'senha-nova-456',
-        ])
-        ->call('save')
-        ->assertHasFormErrors(['currentPassword']);
-
-    // E, o que importa mais que o erro na tela: a senha continua a mesma.
-    expect(Hash::check('senha-antiga-123', $this->pessoa->fresh()->password))->toBeTrue();
-});
-
-it('recusa quando a confirmacao nao bate', function () {
-    Livewire::actingAs($this->pessoa)->test(Perfil::class)
-        ->fillForm([
-            'currentPassword'      => 'senha-antiga-123',
-            'password'             => 'senha-nova-456',
-            'passwordConfirmation' => 'digitei-diferente',
-        ])
-        ->call('save')
-        ->assertHasFormErrors(['password']);
-
-    expect(Hash::check('senha-antiga-123', $this->pessoa->fresh()->password))->toBeTrue();
+it('o perfil não oferece campos de senha', function () {
+    $this->actingAs($this->pessoa)->get('/admin/perfil')->assertOk()
+        ->assertDontSee('type="password"', false);
 });
 
 it('deixa trocar so o nome, sem mexer em senha', function () {
