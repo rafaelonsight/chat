@@ -131,6 +131,24 @@ class AdminPanelProvider extends PanelProvider
             ->collapsedSidebarWidth('70px')
             ->pages([
                 Atendimento::class,
+                // Modulo Agenda (e Financeiro): paginas registradas aqui, fora da descoberta, porque
+                // na edicao Agenda elas pertencem ao AgendaPanelProvider. Quem nao tem o modulo nao
+                // ve o menu nem abre a rota (PertenceAoModulo).
+                \App\Filament\Pages\AgendaInicio::class,
+                \App\Filament\Pages\AgendaConfiguracoes::class,
+                \App\Filament\Pages\AgendaFluxoWhatsApp::class,
+                \App\Filament\Pages\AgendaFluxos::class,
+                \App\Filament\Pages\AgendaFollowUp::class,
+                \App\Filament\Pages\AgendaFinanceiro::class,
+                \App\Filament\Pages\AgendaFinanceReports::class,
+                \App\Filament\Pages\AgendaBancos::class,
+                \App\Filament\Pages\AgendaCategorias::class,
+                \App\Filament\Pages\AgendaPaymentMethods::class,
+                \App\Filament\Pages\AgendaProdutos::class,
+            ])
+            ->resources([
+                \App\Filament\Resources\Agenda\Professionals\ProfessionalResource::class,
+                \App\Filament\Resources\Agenda\Services\ServiceResource::class,
             ])
             // Icone no grupo NAO e decoracao: e a condicao que faz o Filament
             // transformar o grupo em botao com lista suspensa quando a barra esta
@@ -143,6 +161,8 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make(fn () => __('ui_2a13d05eafbc'))->icon('tabler-user-shield'),
                 NavigationGroup::make(fn () => __('ui_a7a1ebe81fa8'))->icon('tabler-chart-bar'),
                 NavigationGroup::make(fn () => __('ui_e7a180f8babc'))->icon('tabler-apps'),
+                NavigationGroup::make(fn () => __('Agenda'))->icon('tabler-calendar'),
+                NavigationGroup::make(fn () => __('Financeiro'))->icon('tabler-cash'),
                 NavigationGroup::make(fn () => __('ui_871f24c4cdaf'))->icon('tabler-settings'),
             ])
             // Item sem URL, so para agrupar: o Filament o mantem porque tem

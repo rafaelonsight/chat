@@ -5,13 +5,17 @@ use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Locked;
 use Filament\Notifications\Notification;
 class AgendaFluxos extends \Filament\Pages\Page {
+    use \App\Filament\Concerns\PaginaDaAgenda;
+
+    protected static string $modulo = 'agenda';
+
     // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
     protected static bool $isDiscovered = false;
 
  protected static ?string $slug='fluxos';protected static ?string $title='Fluxos';protected static string|\UnitEnum|null $navigationGroup='Automações';protected static string|\BackedEnum|null $navigationIcon='heroicon-o-rectangle-group';protected string $view='filament.pages.agenda-fluxos';
  #[Locked] public int $flowId=0;#[Locked] public int $version=0;#[Locked] public array $simState=[];#[Locked] public array $transcript=[];
  public string $name='';public array $graph=[];public string $selected='';public string $channel='';public string $input='';public string $newType='message';public bool $newCustomer=false;
- public static function canAccess():bool{return AgendaFluxoWhatsApp::canAccess();}
+ public static function acessoSemModulo(): bool{return AgendaFluxoWhatsApp::canAccess();}
  private function editor():AgendaFlowEditor {$e=app(AgendaFlowEditor::class);$e->guard(auth()->user());return $e;}
  public function rows(){ $this->editor();return DB::table('agenda_editor_flows')->where('tenant_id',auth()->user()->tenant_id)->whereNull('archived_at')->orderByDesc('updated_at')->get();}
  public function delete(int $id):void {$this->editor()->delete(auth()->user(),$id);if($this->flowId===$id)$this->flowId=0;Notification::make()->success()->title('Fluxo excluído')->send();}

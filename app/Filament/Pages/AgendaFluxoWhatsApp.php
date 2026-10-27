@@ -2,13 +2,17 @@
 namespace App\Filament\Pages;
 use App\Services\AgendaGuidedFlow;use Filament\Pages\Page;use Illuminate\Support\Facades\DB;
 class AgendaFluxoWhatsApp extends Page {
+    use \App\Filament\Concerns\PaginaDaAgenda;
+
+    protected static string $modulo = 'agenda';
+
     // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
     protected static bool $isDiscovered = false;
 
  protected static ?string $slug='fluxo-whatsapp';protected static ?string $title='Agendamento no WhatsApp';protected static string|\UnitEnum|null $navigationGroup='Configurações';protected static string|\BackedEnum|null $navigationIcon='heroicon-o-chat-bubble-left-right';
  protected string $view='filament.pages.agenda-fluxo-whatsapp';public string $channel='';public array $form=[];public string $input='';
  #[\Livewire\Attributes\Locked] public string $simStep='menu';#[\Livewire\Attributes\Locked] public array $simData=[];#[\Livewire\Attributes\Locked] public array $transcript=[];
- public static function canAccess():bool{return (bool)(auth()->user()?->canEnterAgenda() && (auth()->user()->admin || auth()->user()->perfil==='admin'));}
+ public static function acessoSemModulo(): bool{return (bool)(auth()->user()?->canEnterAgenda() && (auth()->user()->admin || auth()->user()->perfil==='admin'));}
  private function guard():void {app(\App\Services\AgendaCalendar::class)->administrator(auth()->user());}
  public function mount():void {$this->guard();$this->form=['enabled'=>false,'business_name'=>\App\Models\Tenant::find(auth()->user()->tenant_id)?->nome??'Seu estabelecimento','greeting'=>'Olá! Sou a assistente de agendamento. Vamos encontrar um horário para você?','professional_term'=>'barbeiro','assignment_strategy'=>'alphabetical','support_hours'=>[],'handoff_after_hours'=>'Nosso atendimento humano está fora do expediente. Sua mensagem ficou na fila.','address'=>'','handoff'=>'Vou encaminhar seu pedido à equipe. Aguarde o atendimento por aqui.'];}
  public function channels(){ $this->guard();return \App\Models\Channel::withoutGlobalScopes()->where('tenant_id',auth()->user()->tenant_id)->where('tipo','evolution')->orderBy('nome')->get();}

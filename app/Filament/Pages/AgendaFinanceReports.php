@@ -4,6 +4,10 @@ use App\Services\AgendaBusiness;
 use Filament\Pages\Page;
 use Livewire\WithPagination;
 class AgendaFinanceReports extends Page {
+    use \App\Filament\Concerns\PaginaDaAgenda;
+
+    protected static string $modulo = 'financeiro';
+
     // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
     protected static bool $isDiscovered = false;
 
@@ -11,7 +15,7 @@ class AgendaFinanceReports extends Page {
  protected static ?string $slug='financeiro/relatorios';protected static ?string $title='Relatórios';protected static string|\UnitEnum|null $navigationGroup='Financeiro';protected static ?int $navigationSort=5;
  protected static string|\BackedEnum|null $navigationIcon='heroicon-o-chart-bar';protected string $view='filament.pages.agenda-finance-reports';
  public string $from='';public string $until='';public string $bank='';public string $category='';public string $method='';public string $type='all';
- public static function canAccess():bool{return (bool)auth()->user()?->canAgendaFinance();}
+ public static function acessoSemModulo(): bool{return (bool)auth()->user()?->canAgendaFinance();}
  public static function getNavigationLabel():string{return __('Relatórios');}public function getTitle():string{return __('Relatórios');}
  public function mount():void {app(AgendaBusiness::class)->actor(auth()->user(),'agenda_finance_view');$now=now(\App\Models\AgendaSettings::current()->timezone);$this->from=$now->copy()->startOfMonth()->toDateString();$this->until=$now->toDateString();}
  public function updated():void {$this->resetPage();}

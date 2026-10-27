@@ -216,6 +216,12 @@ Route::prefix('chat-do-site/{chave}')
 // amanha chegar sozinha em todos os sites que ja instalaram.
 Route::get('/widget.js', App\Http\Controllers\WidgetDoSiteController::class)->name('widget');
 
+// Fotos de produto e servico do modulo Agenda. Os controllers conferem a conta do registro.
+Route::middleware(['auth'])->group(function () {
+    Route::get('/agenda/produtos/{product}/foto', App\Http\Controllers\AgendaProductPhoto::class)->whereNumber('product')->name('agenda.products.photo');
+    Route::get('/agenda/servicos/{service}/foto', App\Http\Controllers\AgendaServicePhoto::class)->whereNumber('service')->name('agenda.services.photo');
+});
+
 /*
  * A proposta que o cliente abre pelo link.
  *

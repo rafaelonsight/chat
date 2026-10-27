@@ -6,6 +6,10 @@ use Filament\Pages\Page;
 
 class AgendaInicio extends Page
 {
+    use \App\Filament\Concerns\PaginaDaAgenda;
+
+    protected static string $modulo = 'agenda';
+
     // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
     protected static bool $isDiscovered = false;
 

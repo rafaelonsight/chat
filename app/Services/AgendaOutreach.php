@@ -71,7 +71,7 @@ class AgendaOutreach {
  }
  // Scheduler only enumerates tenant IDs; all customer queries run within their tenant context.
  public function tick():void {
-  foreach(DB::table('tenants')->orderBy('id')->pluck('id') as $tenant)TenantContext::runAs((int)$tenant,function(){DB::transaction(function(){
+  foreach(DB::table('tenants')->orderBy('id')->pluck('id')->filter(fn($t)=>\App\Support\Modulos::ativo('agenda',(int)$t)) as $tenant)TenantContext::runAs((int)$tenant,function(){DB::transaction(function(){
    DB::table('tenants')->where('id',TenantContext::get())->lockForUpdate()->first();
    foreach($this->q('agenda_reminder_rules')->where('enabled',true)->get() as $r){
     foreach(AgendaCalendarEntry::where('kind','booking')->where('status','confirmado')->where('active',true)->whereBetween('start_at',[now()->toIso8601String(),now()->addMinutes($r->minutes_before+2)->toIso8601String()])->get() as $e){

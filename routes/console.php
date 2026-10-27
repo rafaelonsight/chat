@@ -46,6 +46,13 @@ Schedule::command('virtus:task-notices')->everyMinute()->withoutOverlapping();
 
 Schedule::command('virtus:alertar-qualidade')->everyMinute()->withoutOverlapping();
 
+// Modulo Agenda: lembretes e follow-up de agendamentos. A rotina passa so pelas contas com o modulo.
+Artisan::command('agenda:communications', function () {
+    app(\App\Services\AgendaOutreach::class)->tick();
+    $this->info('Rotina de comunicações concluída.');
+})->purpose('Processar lembretes e follow-up do modulo Agenda');
+Schedule::command('agenda:communications')->everyMinute()->withoutOverlapping();
+
 // Reconsulta somente combinações de país e moeda já solicitadas no painel.
 Artisan::command('virtus:atualizar-tarifas-meta', function () {
     \App\Models\MetaTarifa::query()->select('mercado','moeda')->distinct()->get()

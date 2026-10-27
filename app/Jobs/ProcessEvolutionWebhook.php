@@ -169,8 +169,14 @@ class ProcessEvolutionWebhook implements ShouldQueue
             $this->baixarMidia($canal, $mensagem, $externalId);
         }
 
-        if(config('agenda.edition')) {
-            AgendaFlowMessage::dispatch($mensagem->id)->onQueue('agenda-inbox');
+        // Modulo Agenda: o canal com o fluxo de agendamento ligado e atendido pelo fluxo, nao pelo
+        // chatbot nem pelas sequencias. Na edicao Agenda, todo canal e assim.
+        $fluxoDaAgenda = ! config('agenda.edition')
+            && \App\Support\Modulos::ativo('agenda', $canal->tenant_id)
+            && (bool) app(\App\Services\AgendaGuidedFlow::class)->settings($canal->id)?->enabled;
+
+        if(config('agenda.edition') || $fluxoDaAgenda) {
+            AgendaFlowMessage::dispatch($mensagem->id)->onQueue(config('agenda.edition') ? 'agenda-inbox' : 'default');
             if($mensagem->wasRecentlyCreated)broadcast(new MessageStored($mensagem->refresh()));
             return; // Agenda: human inbox only; do not run inherited sequences, chatbot or AI.
         }
@@ -296,6 +302,10 @@ class ProcessEvolutionWebhook implements ShouldQueue
      */
     private function talvezSequencias(Message $mensagem): void
     {
+        if (! \App\Support\Modulos::ativo('automacao', $mensagem->tenant_id)) {
+            return;
+        }
+
         $contato = $mensagem->conversation?->contact;
 
         if (! $contato) {

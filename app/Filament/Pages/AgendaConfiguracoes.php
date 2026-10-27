@@ -7,6 +7,10 @@ use Filament\Notifications\Notification;
 use Illuminate\Validation\ValidationException;
 
 class AgendaConfiguracoes extends Page {
+    use \App\Filament\Concerns\PaginaDaAgenda;
+
+    protected static string $modulo = 'agenda';
+
     // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
     protected static bool $isDiscovered = false;
 
@@ -19,7 +23,7 @@ class AgendaConfiguracoes extends Page {
  public array $settings=[];
  public array $hours=[];
  public string $professional='';
- public static function canAccess():bool {return (bool)(auth()->user()?->admin || auth()->user()?->perfil==='admin');}
+ public static function acessoSemModulo(): bool {return (bool)(auth()->user()?->admin || auth()->user()?->perfil==='admin');}
  public static function getNavigationLabel():string {return __('Configurações da agenda');}
  public function getTitle():string {return __('Configurações da agenda');}
  public function mount():void {

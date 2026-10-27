@@ -5,6 +5,10 @@ use Filament\Pages\Page;
 use Livewire\Attributes\Locked;
 use Livewire\WithPagination;
 class AgendaFinanceiro extends Page {
+    use \App\Filament\Concerns\PaginaDaAgenda;
+
+    protected static string $modulo = 'financeiro';
+
     // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
     protected static bool $isDiscovered = false;
 
@@ -15,7 +19,7 @@ class AgendaFinanceiro extends Page {
  protected string $view='filament.pages.agenda-financeiro';
  public string $type='receivable';public string $status='open';public string $search='';public string $from='';public string $until='';public array $form=[];public array $payment=[];public string $reason='';public string $optionName='';public string $optionType='category';
  #[Locked] public ?int $selected=null;#[Locked] public ?int $version=null;#[Locked] public string $requestId='';#[Locked] public string $mode='';
- public static function canAccess():bool {return (bool)auth()->user()?->canAgendaFinance();}
+ public static function acessoSemModulo(): bool {return (bool)auth()->user()?->canAgendaFinance();}
  public static function getNavigationLabel():string {return __('Lançamentos');}
  public function getTitle():string {return __('Lançamentos');}
  public function mount():void {$this->guard();}

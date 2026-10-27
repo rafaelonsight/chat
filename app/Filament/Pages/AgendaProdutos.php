@@ -5,6 +5,10 @@ use Filament\Pages\Page;
 use Livewire\Attributes\Locked;
 use Livewire\WithPagination;
 class AgendaProdutos extends Page {
+    use \App\Filament\Concerns\PaginaDaAgenda;
+
+    protected static string $modulo = 'financeiro';
+
     // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
     protected static bool $isDiscovered = false;
 
@@ -20,7 +24,7 @@ class AgendaProdutos extends Page {
  protected string $view='filament.pages.agenda-produtos';
  public string $search='';public string $filter='active';public array $form=[];public array $movement=['quantity'=>1,'direction'=>'in','reason'=>''];public bool $editing=false;
  #[Locked] public ?int $selected=null;#[Locked] public ?int $version=null;#[Locked] public string $requestId='';#[Locked] public bool $stockMode=false;
- public static function canAccess():bool {return (bool)auth()->user()?->canAgendaProducts();}
+ public static function acessoSemModulo(): bool {return (bool)auth()->user()?->canAgendaProducts();}
  public static function getNavigationLabel():string {return __('Produtos');}
  public function getTitle():string {return __('Produtos');}
  public function mount():void {$this->guard();}

@@ -12,10 +12,16 @@ use Filament\Actions\EditAction;
 use Filament\Support\Icons\Heroicon;
 class ServiceResource extends Resource
 {
+
+    protected static string $modulo = 'agenda';
+
     // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
     protected static bool $isDiscovered = false;
 
- use \App\Filament\TraduzirResource;
+ // O grupo do modulo vence o da traducao (que e o mesmo texto, so traduzido).
+ use \App\Filament\Concerns\PaginaDaAgenda, \App\Filament\TraduzirResource {
+     \App\Filament\Concerns\PaginaDaAgenda::getNavigationGroup insteadof \App\Filament\TraduzirResource;
+ }
  protected static ?string $model=AgendaService::class;
  protected static ?string $slug='servicos';
  protected static ?string $modelLabel='serviço';

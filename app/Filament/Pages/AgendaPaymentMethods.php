@@ -1,6 +1,10 @@
 <?php
 namespace App\Filament\Pages;
 class AgendaPaymentMethods extends AgendaFinanceOptions {
+    use \App\Filament\Concerns\PaginaDaAgenda;
+
+    protected static string $modulo = 'financeiro';
+
     // Registrada pelo AgendaPanelProvider na edicao Agenda; fora do painel do chat.
     protected static bool $isDiscovered = false;
 
