@@ -81,6 +81,15 @@ class AppServiceProvider extends ServiceProvider
             if(config('agenda.edition') && request()->hasSession())request()->session()->put('agenda.access_version',(int)$event->user->agenda_access_version);
         });
         \Illuminate\Validation\Rules\Password::defaults(fn () => \Illuminate\Validation\Rules\Password::min(8));
+        // Homologacao roda com copia dos dados da producao: com MAIL_SEMPRE_PARA, todo e-mail
+        // (codigo de acesso, resumo para o cliente, alerta) vai para essa caixa e para mais ninguem.
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Mail\Events\MessageSending::class, function ($event) {
+            if ($para = config('mail.sempre_para')) {
+                $event->message->to($para);
+                $event->message->getHeaders()->remove('Cc');
+                $event->message->getHeaders()->remove('Bcc');
+            }
+        });
         if (config('agenda.edition') && !config('agenda.integrations_enabled') && !$this->app->runningUnitTests()) {
             \Illuminate\Support\Facades\Http::globalRequestMiddleware(function ($request) {
                 $uri=$request->getUri();

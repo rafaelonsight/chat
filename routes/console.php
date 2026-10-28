@@ -46,6 +46,9 @@ Schedule::command('virtus:task-notices')->everyMinute()->withoutOverlapping();
 
 Schedule::command('virtus:alertar-qualidade')->everyMinute()->withoutOverlapping();
 
+// Resumo do atendimento para o cliente final. Na v2 era um timer do systemd, fora do app.
+Schedule::command('virtus:enviar-resumos')->everyMinute()->withoutOverlapping();
+
 // Modulo Agenda: lembretes e follow-up de agendamentos. A rotina passa so pelas contas com o modulo.
 Artisan::command('agenda:communications', function () {
     app(\App\Services\AgendaOutreach::class)->tick();

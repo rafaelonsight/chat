@@ -110,6 +110,9 @@ return [
     |
     */
 
+    // So para homologacao: desvia todo e-mail para um endereco (AppServiceProvider).
+    'sempre_para' => env('MAIL_SEMPRE_PARA'),
+
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
