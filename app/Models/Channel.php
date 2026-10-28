@@ -44,6 +44,7 @@ class Channel extends Model
 
     protected $casts = [
         'conectado_em' => 'datetime',
+        'queda_avisada_em' => 'datetime',
         // encrypted: o token da Meta nao fica legivel no banco. Quem tira um dump para
         // depurar, ou quem consegue ler uma tabela, nao sai com credencial de cliente na
         // mao. A chave e a APP_KEY, que nao mora no banco — sem ela o dump nao serve.

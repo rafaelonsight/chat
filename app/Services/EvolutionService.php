@@ -47,7 +47,9 @@ class EvolutionService
                 'enabled'  => true,
                 'url'      => $webhookUrl,
                 'byEvents' => false,
-                'base64'   => true,
+                // A midia e baixada por getMediaBase64. O arquivo inteiro dentro de cada aviso so
+                // engordava webhook_events (2 GB de base64 em dois meses).
+                'base64'   => false,
                 'events'   => self::EVENTOS,
             ],
         ])->throw()->json();
@@ -81,7 +83,9 @@ class EvolutionService
                 'enabled'  => true,
                 'url'      => $url,
                 'byEvents' => false,
-                'base64'   => true,
+                // A midia e baixada por getMediaBase64. O arquivo inteiro dentro de cada aviso so
+                // engordava webhook_events (2 GB de base64 em dois meses).
+                'base64'   => false,
                 'events'   => self::EVENTOS,
             ],
         ])->throw()->json();

@@ -59,3 +59,4 @@ Artisan::command('virtus:atualizar-tarifas-meta', function () {
         ->each(fn($tarifa)=>\App\Jobs\AtualizarTarifasMeta::dispatch($tarifa->mercado,$tarifa->moeda));
 })->purpose('Atualizar as tarifas públicas da Meta utilizadas no painel');
 Schedule::command('virtus:atualizar-tarifas-meta')->dailyAt('06:00')->withoutOverlapping();
+Schedule::command('virtus:limpar-webhooks')->dailyAt('03:40')->withoutOverlapping();

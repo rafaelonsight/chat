@@ -18,6 +18,8 @@
         breakpoint depois das utilidades base, entao no tamanho grande o lg: vence e as tres
         colunas voltam, independentemente do que o Alpine tenha decidido para o celular.
     --}}
+    @include('filament.partials.canais-caidos')
+
     <div data-inbox
          x-data="{ vista: @js($conversaInicial ? 'conversa' : 'lista') }"
          x-on:abrir-conversa.window="vista = 'conversa'"

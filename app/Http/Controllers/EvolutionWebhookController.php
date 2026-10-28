@@ -22,7 +22,9 @@ class EvolutionWebhookController extends Controller
             'tenant_id'   => $canal->tenant_id,
             'channel_id'  => $canal->id,
             'evento'      => $request->input('event'),
-            'payload'     => $request->all(),
+            // Instancia configurada antes de base64 => false ainda manda o arquivo. Ninguem le
+            // daqui (a midia vem por getMediaBase64), entao nao entra no banco.
+            'payload'     => \Illuminate\Support\Arr::except($request->all(), ['data.message.base64']),
             'recebido_em' => now(),
         ]);
 

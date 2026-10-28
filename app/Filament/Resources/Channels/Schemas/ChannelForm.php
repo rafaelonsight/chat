@@ -123,6 +123,15 @@ class ChannelForm
                 ->visible(fn (Get $get) => $get('tipo') === Channel::INSTAGRAM),
 
             // ---------------------------------------------------------- evolution
+            // O risco e dito ANTES de conectar, na hora da escolha: descoberto depois, ja com o
+            // numero banido, vira reclamacao contra o produto.
+            Placeholder::make('risco_evolution')
+                ->hiddenLabel()
+                ->content(new \Illuminate\Support\HtmlString('<div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">'
+                    .'<strong>WhatsApp por QR code não é a API oficial.</strong> Não tem custo por mensagem, mas o número pode ser desconectado '
+                    .'ou banido pelo WhatsApp, principalmente com envio em massa. Para operação crítica, use o canal oficial da Meta.</div>'))
+                ->visible(fn (Get $get) => $get('tipo') === Channel::EVOLUTION),
+
             // Derivados: gerados ao salvar ou vindos do proprio WhatsApp.
             Placeholder::make('instance_name')
                 ->label(__('ui_c67704c7f942'))

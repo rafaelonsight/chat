@@ -619,11 +619,20 @@ class ProcessEvolutionWebhook implements ShouldQueue
     private function conexaoAtualizada(Channel $canal, array $payload): void
     {
         $estado = Arr::get($payload, 'data.state') ?? Arr::get($payload, 'data.connection');
+        $anterior = $canal->status;
 
         $canal->forceFill([
             'status'       => $estado ?: 'desconhecido',
             'conectado_em' => $estado === 'open' ? now() : $canal->conectado_em,
         ])->saveQuietly();
+
+        // Caiu de verdade: estava conectado e fechou. "connecting" e a Evolution se refazendo
+        // sozinha, e nao merece aviso.
+        if ($anterior === 'open' && $estado === 'close') {
+            app(\App\Services\AvisoDeQueda::class)->canalCaiu($canal);
+        } elseif ($estado === 'open') {
+            app(\App\Services\AvisoDeQueda::class)->canalVoltou($canal);
+        }
 
         // O payload de connection.update nao traz o numero. Quando a conexao
         if(config('agenda.edition')) {
