@@ -4,7 +4,7 @@
  @php($isAdmin=$this->isAdministrator())
  <div class="va-calendar" wire:poll.45s>
   <header class="va-cal-heading"><div><span class="va-eyebrow">{{ $this->establishmentName() }}</span><h2>{{ __('Seu atendimento, do seu jeito.') }}</h2><p>{{ $calendar['cfg']->timezone }} · {{ __('A disponibilidade vem da jornada e da agenda.') }}</p></div><div class="va-cal-buttons">
-   @if($isAdmin)<a class="va-cal-secondary" href="/admin/configuracoes-agenda" wire:navigate>{{ __('Configurar agenda') }}</a><button class="va-cal-secondary" wire:click="openNew('block')">{{ __('Folga ou bloqueio') }}</button>@endif
+   @if($isAdmin)<a class="va-cal-secondary" href="{{ \App\Filament\Pages\AgendaConfiguracoes::getUrl() }}" wire:navigate>{{ __('Configurar agenda') }}</a><button class="va-cal-secondary" wire:click="openNew('block')">{{ __('Folga ou bloqueio') }}</button>@endif
    @if($canOperate)<button class="va-cal-primary" wire:click="openNew">{{ __('Novo agendamento') }}</button>@endif
   </div></header>
   @if(auth()->user()->isAgendaProfessional())<div class="va-service-tags">@foreach($this->ownProfessional()?->services ?? [] as $service)<span>{{ $service->nome }}</span>@endforeach</div>@endif
@@ -17,7 +17,7 @@
   </div>
   @if($errors->any() && !$editor)<div class="va-cal-error" role="alert">@foreach($errors->all() as $error)<p>{{ $error }}</p>@endforeach</div>@endif
   @if($calendar['people']->isEmpty())
-   <div class="va-cal-empty"><h3>{{ __('Prepare quem atende') }}</h3><p>{{ __('Cadastre serviços e profissionais, depois configure a jornada para começar a agendar.') }}</p>@if($isAdmin)<div class="va-cal-buttons"><a class="va-cal-secondary" href="/admin/servicos" wire:navigate>{{ __('Serviços') }}</a><a class="va-cal-primary" href="/admin/profissionais" wire:navigate>{{ __('Profissionais') }}</a></div>@endif</div>
+   <div class="va-cal-empty"><h3>{{ __('Prepare quem atende') }}</h3><p>{{ __('Cadastre serviços e profissionais, depois configure a jornada para começar a agendar.') }}</p>@if($isAdmin)<div class="va-cal-buttons"><a class="va-cal-secondary" href="{{ \App\Filament\Resources\Agenda\Services\ServiceResource::getUrl() }}" wire:navigate>{{ __('Serviços') }}</a><a class="va-cal-primary" href="{{ \App\Filament\Resources\Agenda\Professionals\ProfessionalResource::getUrl() }}" wire:navigate>{{ __('Profissionais') }}</a></div>@endif</div>
   @elseif($mode==='day')
    <div class="va-cal-lanes">
     @foreach($calendar['people'] as $person)
