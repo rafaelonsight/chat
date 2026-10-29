@@ -91,7 +91,7 @@ class AdminPanelProvider extends PanelProvider
             )
             ->databaseNotifications()
             ->databaseNotificationsPolling('60s')
-            ->login([\App\Http\Controllers\AcessoPorCodigoController::class, 'mostrar'])
+            ->login(config('acesso.senha') ? \App\Filament\Pages\Auth\Login::class : [\App\Http\Controllers\AcessoPorCodigoController::class, 'mostrar'])
             // Sem isto, funcionario do cliente que esquece a senha depende de alguem com
             // acesso ao banco. Para revender, isso e constrangedor antes de ser tecnico.
             //
