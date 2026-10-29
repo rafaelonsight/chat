@@ -111,11 +111,11 @@ class Channel extends Model
         });
 
         static::created(function (Channel $c) {
-            // Quem conecta um canal social precisa conseguir abrir o canal criado.
+            // Quem cria um canal precisa conseguir abri-lo: sem o vinculo, o admin que nao e
+            // Super Admin caia num 404 na tela do QR logo depois de salvar, de qualquer tipo.
             // O vínculo é restrito ao criador administrador da mesma conta.
             $creator = auth()->user();
-            if (in_array($c->tipo, [self::MESSENGER, self::INSTAGRAM], true)
-                && $creator?->admin && (int) $creator->tenant_id === (int) $c->tenant_id) {
+            if (($creator?->admin || $creator?->perfil === 'admin') && (int) $creator->tenant_id === (int) $c->tenant_id) {
                 $creator->canais()->syncWithoutDetaching([$c->id]);
                 $creator->limparCacheCanais();
             }
