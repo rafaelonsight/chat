@@ -199,6 +199,34 @@ que nenhum registro ficou apontando para id do banco antigo.
 - Meta Cloud, Instagram, Messenger: as credenciais migram com a conta; só muda a URL de webhook
   no painel da Meta.
 
+### 5.4 Acesso aos canais na virada (decidido em 29/10)
+
+Na versão final, quem não é Super Admin só enxerga os canais ligados a ele (`channel_user`). A
+produção atual não tem essa regra: sem um passo na virada, os usuários da Onsight entram e não
+veem canal nenhum.
+
+- Na virada, **todo usuário existente** é ligado a **todos os canais da própria conta**. Isso
+  mantém o que cada um vê hoje.
+- A LA Group já chega ligada pela importação, porque a v2 tinha os vínculos.
+- Daí em diante vale a regra nova: canal criado depois liga só o administrador que o criou
+  (commit `3b809ec`). Os demais são liberados na tela de usuários.
+
+```sql
+INSERT INTO channel_user (user_id, channel_id, created_at, updated_at)
+SELECT u.id, c.id, now(), now() FROM users u JOIN channels c ON c.tenant_id = u.tenant_id
+ON CONFLICT DO NOTHING;
+```
+
+### 5.5 Outros itens da virada levantados na homologação
+
+| Item | O que fazer |
+|---|---|
+| Perfil inicial | Os usuários da produção vão preencher apelido, telefone e foto no primeiro acesso. Avisar a equipe antes. |
+| Licença da LA Group | O teste grátis venceu em 22/10. Definir o status antes de importar. |
+| Timer `virtus-v2-resumos` | O resumo agora roda no agendador do app (`a77a458`). Desligar o timer da v2 para não mandar resumo em dobro. |
+| Webhooks com base64 | Reconfigurar as instâncias existentes com `base64=false`. Depois, rodar `virtus:limpar-webhooks` e `VACUUM FULL webhook_events`. |
+| `MAIL_SEMPRE_PARA` e `ACESSO_POR_SENHA` | São só da homologação. Conferir que **não** estão no `.env` da produção. |
+
 ---
 
 ## 6. Domínios
@@ -297,7 +325,7 @@ falha se faltar alguma, e uma busca procura identificadores PHP com acento.
 | **2. Módulos** | `Modulos::ativo`, `config/planos.php`, coluna `modulos`, navegação/middleware/jobs respeitando módulo; flags de ambiente da Agenda removidas | Teste por módulo: desligado some da tela, dá 403 na rota e não roda job |
 | **3. Canais e webhooks** | Alerta de queda para o cliente, aviso de risco da Evolution, Evolution única, retenção de webhooks | Derrubar um canal em homologação e o administrador receber alerta |
 | **4. Homologação** | new.virtus.chat com a versão final, dados copiados de Onsight e LA Group, roteiro manual de 20 passos (enviar/receber em cada canal, chatbot, campanha, IA, agendamento, revenda) | Roteiro sem falha |
-| **5. Virada** | Backup completo, manutenção de ~30 min, migração para o banco `virtus`, troca do app.virtus.chat, reconexão dos números, URLs de webhook atualizadas | Onsight e LA Group atendendo pela versão final |
+| **5. Virada** | Backup completo, manutenção de ~30 min, migração para o banco `virtus`, vínculo dos usuários aos canais (§5.4), itens do §5.5, troca do app.virtus.chat, reconexão dos números, URLs de webhook atualizadas | Onsight e LA Group atendendo pela versão final, cada usuário vendo os mesmos canais de antes |
 | **6. Operação** | Backup externo com teste de restauração, uptime, Sentry, CI no GitHub, `deploy.sh` | Primeiro teste de restauração automático passou |
 | **7. Faxina** | §10 | Servidor só com a versão final |
 
